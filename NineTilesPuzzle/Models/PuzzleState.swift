@@ -10,31 +10,23 @@ import SwiftUI
 @MainActor
 @Observable
 class PuzzleState {
-    let titles: [TileModel]
-    let titleImages: [Int: CGImage]
-    let sourceImage: CGImage?
-    let isLoading: Bool
-    let isSolved: Bool
-    let error: Error?
-
-    init(
-        titles: [TileModel],
-        titleImages: [Int : CGImage],
-        sourceImage: CGImage?,
-        isLoading: Bool,
-        isSolved: Bool,
-        error: Error?
-    ) {
-        self.titles = titles
-        self.titleImages = titleImages
-        self.sourceImage = sourceImage
-        self.isLoading = isLoading
-        self.isSolved = isSolved
-        self.error = error
-    }
+    var titles: [TileModel] = []
+    var titleImages: [Int: CGImage] = [:]
+    var sourceImage: CGImage?
+    var isLoading = false
+    var isSolved = false
+    var error: Error?
 
     func startNewGame() async {
-        // temporary empty
+        isLoading = true
+        defer { isLoading = false }
+        error = nil
+
+        do {
+            sourceImage = try await ImageSourceImpl().fetchImage()
+        } catch {
+            self.error = error
+        }
     }
 
     func swapTiles(

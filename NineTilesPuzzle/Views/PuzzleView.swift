@@ -8,8 +8,32 @@
 import SwiftUI
 
 struct PuzzleView: View {
+    @State private var state = PuzzleState()
+
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        Group {
+            if state.isLoading {
+                ProgressView()
+            } else if let image = state.sourceImage {
+                Image(
+                    image,
+                    scale: 1.0,
+                    orientation: .up,
+                    label: Text("Puzzle image")
+                )
+                .resizable()
+                .scaledToFit()
+            } else if let error = state.error {
+                ContentUnavailableView(
+                    "Failed to load image",
+                    systemImage: "photo",
+                    description: Text(error.localizedDescription)
+                )
+            }
+        }
+        .task {
+            await state.startNewGame()
+        }
     }
 }
 
