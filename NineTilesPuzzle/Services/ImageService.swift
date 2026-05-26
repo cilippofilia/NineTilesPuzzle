@@ -5,8 +5,7 @@
 //  Created by Filippo Cilia on 5/25/26.
 //
 
-import CoreGraphics
-import Foundation
+import SwiftUI
 
 @MainActor
 final class ImageService {
@@ -17,7 +16,7 @@ final class ImageService {
         primarySource: (any ImageSource)? = nil,
         fallbackSource: (any ImageSource)? = nil
     ) {
-        self.primarySource = primarySource ?? ImageSourceFactory.make()
+        self.primarySource = primarySource ?? RemoteImageSource()
         self.fallbackSource = fallbackSource ?? LocalImageSource()
     }
 

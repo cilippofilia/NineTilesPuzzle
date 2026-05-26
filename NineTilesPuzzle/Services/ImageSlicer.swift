@@ -5,7 +5,7 @@
 //  Created by Filippo Cilia on 5/25/26.
 //
 
-import CoreGraphics
+import SwiftUI
 
 struct ImageSlicer {
     /// Slices `image` into a square grid of `count` tiles (default 9), returned in reading order.
