@@ -25,7 +25,8 @@ struct TileView: View {
             .clipShape(.rect)
             .overlay(alignment: .topTrailing) {
                 if tile.isLocked {
-                    LockBadge()
+                    Image(systemName: "checkmark.circle.fill")
+                        .symbolRenderingMode(.multicolor)
                         .padding(4)
                 }
             }
@@ -44,25 +45,15 @@ struct TileView: View {
                     }
                     .onEnded { value in
                         onDragEnded(value.location)
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            dragOffset = .zero
-                            isDragging = false
-                        }
+                        resetDragState()
                     }
             )
     }
-}
 
-// MARK: - LockBadge
-
-private struct LockBadge: View {
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(.white)
-                .frame(width: 20, height: 20)
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+    private func resetDragState() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            dragOffset = .zero
+            isDragging = false
         }
     }
 }
