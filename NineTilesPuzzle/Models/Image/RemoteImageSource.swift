@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+protocol ImageSource {
+    func fetchImage() async throws -> CGImage
+}
+
 struct RemoteImageSource: ImageSource {
     func fetchImage() async throws -> CGImage {
         guard let url = URL(string: "https://picsum.photos/1024") else {
