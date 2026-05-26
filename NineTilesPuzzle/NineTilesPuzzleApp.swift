@@ -9,9 +9,17 @@ import SwiftUI
 
 @main
 struct NineTilesPuzzleApp: App {
+    @State private var state = PuzzleState()
+
     var body: some Scene {
         WindowGroup {
             PuzzleView()
+                .environment(state)
+                .task {
+                    if state.tiles.isEmpty {
+                        await state.startNewGame()
+                    }
+                }
         }
     }
 }
