@@ -24,7 +24,9 @@ struct PuzzleEngine {
     func swap(_ tiles: inout [TileModel], from sourceIndex: Int, to targetIndex: Int) {
         guard
             let a = tiles.first(where: { $0.currentIndex == sourceIndex }),
-            let b = tiles.first(where: { $0.currentIndex == targetIndex })
+            let b = tiles.first(where: { $0.currentIndex == targetIndex }),
+            !a.isLocked,
+            !b.isLocked
         else { return }
 
         a.currentIndex = targetIndex
