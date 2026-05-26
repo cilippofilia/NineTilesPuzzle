@@ -21,6 +21,7 @@ final class ImageService {
         self.fallbackSource = fallbackSource ?? LocalImageSource()
     }
 
+    /// Loads an image from the primary source, falling back to the local source on any `URLError`.
     func loadImage() async throws -> CGImage {
         do {
             return try await primarySource.fetchImage()

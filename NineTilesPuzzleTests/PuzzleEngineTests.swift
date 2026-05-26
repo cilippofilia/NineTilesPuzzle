@@ -9,6 +9,7 @@ import Testing
 @testable import NineTilesPuzzle
 
 @Suite("PuzzleEngine")
+@MainActor
 struct PuzzleEngineTests {
     private let engine = PuzzleEngine()
 

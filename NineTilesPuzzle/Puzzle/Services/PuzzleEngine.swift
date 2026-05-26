@@ -7,7 +7,12 @@
 
 import Foundation
 
+@MainActor
 struct PuzzleEngine {
+
+    // MARK: - Shuffle
+
+    /// Shuffles tiles into a random non-solved permutation, locking any that land in their correct slot.
     func shuffle(_ tiles: [TileModel]) -> [TileModel] {
         var indices = Array(0..<tiles.count)
         repeat {
@@ -21,6 +26,9 @@ struct PuzzleEngine {
         return tiles
     }
 
+    // MARK: - Swap
+
+    /// Swaps the tiles at the two given grid positions; no-ops if either tile is locked. Locks any tile that is now in its correct slot.
     func swap(_ tiles: inout [TileModel], from sourceIndex: Int, to targetIndex: Int) {
         guard
             let a = tiles.first(where: { $0.currentIndex == sourceIndex }),
@@ -39,6 +47,9 @@ struct PuzzleEngine {
         }
     }
 
+    // MARK: - Query
+
+    /// Returns true when every tile is locked (i.e. in its correct position).
     func isSolved(_ tiles: [TileModel]) -> Bool {
         tiles.allSatisfy { $0.isLocked }
     }

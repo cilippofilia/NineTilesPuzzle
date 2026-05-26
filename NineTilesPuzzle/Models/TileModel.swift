@@ -7,18 +7,24 @@
 
 import SwiftUI
 
+@MainActor
 @Observable
 final class TileModel: Identifiable, Equatable {
     let id: Int
     var currentIndex: Int
     var isLocked: Bool
 
-    init(id: Int, currentIndex: Int, isLocked: Bool) {
+    init(
+        id: Int,
+        currentIndex: Int,
+        isLocked: Bool
+    ) {
         self.id = id
         self.currentIndex = currentIndex
         self.isLocked = isLocked
     }
 
+    /// Returns true when this tile is in its solved position.
     var isInCorrectPosition: Bool {
         id == currentIndex
     }
@@ -32,7 +38,9 @@ extension TileModel {
 
 extension TileModel: Codable {
     enum CodingKeys: String, CodingKey {
-        case id, currentIndex, isLocked
+        case id
+        case currentIndex
+        case isLocked
     }
 
     convenience init(from decoder: any Decoder) throws {

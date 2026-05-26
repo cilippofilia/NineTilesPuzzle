@@ -53,6 +53,8 @@ struct TileView: View {
     }
 }
 
+// MARK: - LockBadge
+
 private struct LockBadge: View {
     var body: some View {
         ZStack {

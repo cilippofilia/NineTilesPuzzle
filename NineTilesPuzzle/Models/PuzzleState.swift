@@ -26,6 +26,7 @@ final class PuzzleState {
         restoreFromUserDefaults()
     }
 
+    /// Fetches a fresh image, slices it, shuffles the tiles, and persists state.
     func startNewGame() async {
         isLoading = true
         isSolved = false
@@ -38,7 +39,9 @@ final class PuzzleState {
             let slices = ImageSlicer().slice(image)
             tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
 
-            let initial = (0..<9).map { TileModel(id: $0, currentIndex: $0, isLocked: false) }
+            let initial = (0..<9).map {
+                TileModel(id: $0, currentIndex: $0, isLocked: false)
+            }
             tiles = puzzleEngine.shuffle(initial)
 
             isLoading = false
@@ -49,6 +52,7 @@ final class PuzzleState {
         }
     }
 
+    /// Attempts to swap the tiles at `sourceIndex` and `targetIndex`; no-ops if either is locked.
     func swapTiles(from sourceIndex: Int, to targetIndex: Int) {
         guard
             let source = tiles.first(where: { $0.currentIndex == sourceIndex }),

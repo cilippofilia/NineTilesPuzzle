@@ -8,6 +8,7 @@
 import CoreGraphics
 
 struct ImageSlicer {
+    /// Slices `image` into a square grid of `count` tiles (default 9), returned in reading order.
     func slice(_ image: CGImage, into count: Int = 9) -> [CGImage] {
         let columns = Int(sqrt(Double(count)))
         let rows = columns
