@@ -5,9 +5,7 @@
 //  Created by Filippo Cilia on 5/25/26.
 //
 
-import CoreGraphics
-import Foundation
-import ImageIO
+import SwiftUI
 
 @MainActor
 @Observable

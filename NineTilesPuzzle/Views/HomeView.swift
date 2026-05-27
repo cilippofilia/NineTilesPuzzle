@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+enum GameRoute: Hashable {
+    case game
+}
+
 struct HomeView: View {
     @State private var path: [GameRoute] = []
 
