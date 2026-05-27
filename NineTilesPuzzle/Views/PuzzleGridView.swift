@@ -9,41 +9,54 @@ import SwiftUI
 
 struct PuzzleGridView: View {
     @Environment(PuzzleState.self) private var state
-    @State private var tileSize: CGFloat = 0
     @State private var draggingTileID: Int?
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            Color.clear
-            ForEach(state.tiles) { tile in
-                let col = tile.currentIndex % 3
-                let row = tile.currentIndex / 3
-                if let cgImage = state.tileImages[tile.id] {
-                    TileView(
-                        tile: tile,
-                        image: cgImage,
-                        tileSize: tileSize,
-                        onDragStarted: { draggingTileID = tile.id },
-                        onDragEnded: { point in handleDrop(point, for: tile) }
-                    )
-                    .offset(x: CGFloat(col) * tileSize, y: CGFloat(row) * tileSize)
-                    .zIndex(draggingTileID == tile.id ? 1 : 0)
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                GeometryReader { geometry in
+                    let geoWidth = geometry.size.width
+                    let calculatedTileSize = geoWidth / 3
+
+                    ZStack(alignment: .topLeading) {
+                        ForEach(state.tiles) { tile in
+                            let col = tile.currentIndex % 3
+                            let row = tile.currentIndex / 3
+
+                            if let cgImage = state.tileImages[tile.id] {
+                                TileView(
+                                    tile: tile,
+                                    image: cgImage,
+                                    tileSize: calculatedTileSize,
+                                    onDragStarted: { draggingTileID = tile.id },
+                                    onDragEnded: { point in 
+                                        handleDrop(point, for: tile, currentTileSize: calculatedTileSize)
+                                    }
+                                )
+                                .frame(width: calculatedTileSize, height: calculatedTileSize)
+                                // Use .position with explicit center coordinates for reliable placement
+                                .position(
+                                    x: (CGFloat(col) * calculatedTileSize) + (calculatedTileSize / 2),
+                                    y: (CGFloat(row) * calculatedTileSize) + (calculatedTileSize / 2)
+                                )
+                                .zIndex(draggingTileID == tile.id ? 10 : Double(tile.currentIndex))
+                            }
+                        }
+                    }
                 }
             }
-        }
-        .frame(maxWidth: .infinity)
-        .aspectRatio(1, contentMode: .fit)
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            proxy.size.width / 3
-        } action: { tileSize = $0 }
-        .coordinateSpace(.named("puzzleGrid"))
+            .coordinateSpace(.named("puzzleGrid"))
     }
 
-    private func handleDrop(_ point: CGPoint, for tile: TileModel) {
+    private func handleDrop(_ point: CGPoint, for tile: TileModel, currentTileSize: CGFloat) {
         draggingTileID = nil
-        guard tileSize > 0 else { return }
-        let targetCol = min(max(Int(point.x / tileSize), 0), 2)
-        let targetRow = min(max(Int(point.y / tileSize), 0), 2)
+        guard currentTileSize > 0 else { return }
+
+        // Calculate target rows/cols using the geometry-provided tile size passed into the function
+        let targetCol = min(max(Int(point.x / currentTileSize), 0), 2)
+        let targetRow = min(max(Int(point.y / currentTileSize), 0), 2)
+
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             state.swapTiles(from: tile.currentIndex, to: targetRow * 3 + targetCol)
         }

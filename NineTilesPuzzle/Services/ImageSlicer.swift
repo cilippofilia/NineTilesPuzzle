@@ -8,23 +8,36 @@
 import SwiftUI
 
 struct ImageSlicer {
-    /// Slices `image` into a square grid of `count` tiles (default 9), returned in reading order.
+    /// Slices `image` into a square grid of `count` tiles (default 9), returned in top-to-bottom reading order.
     func slice(_ image: CGImage, into count: Int = 9) -> [CGImage] {
         let columns = Int(sqrt(Double(count)))
         let rows = columns
-        let tileWidth = image.width / columns
-        let tileHeight = image.height / rows
+
+        let imgWidth = CGFloat(image.width)
+        let imgHeight = CGFloat(image.height)
+
+        // Calculate precise floating-point dimensions per tile
+        let tileWidth = imgWidth / CGFloat(columns)
+        let tileHeight = imgHeight / CGFloat(rows)
 
         var tiles: [CGImage] = []
+
         for row in 0..<rows {
             for col in 0..<columns {
+                let cgRow = rows - 1 - row
+
                 let rect = CGRect(
-                    x: col * tileWidth,
-                    y: row * tileHeight,
+                    x: CGFloat(col) * tileWidth,
+                    y: CGFloat(cgRow) * tileHeight,
                     width: tileWidth,
                     height: tileHeight
                 )
-                tiles.append(image.cropping(to: rect) ?? blankImage(width: tileWidth, height: tileHeight))
+
+                if let cropped = image.cropping(to: rect) {
+                    tiles.append(cropped)
+                } else {
+                    tiles.append(blankImage(width: Int(tileWidth), height: Int(tileHeight)))
+                }
             }
         }
         return tiles

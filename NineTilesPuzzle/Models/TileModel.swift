@@ -23,11 +23,6 @@ final class TileModel: Identifiable, Equatable {
         self.currentIndex = currentIndex
         self.isLocked = isLocked
     }
-
-    /// Returns true when this tile is in its solved position.
-    var isInCorrectPosition: Bool {
-        id == currentIndex
-    }
 }
 
 extension TileModel {
