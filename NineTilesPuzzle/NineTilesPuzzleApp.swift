@@ -13,13 +13,8 @@ struct NineTilesPuzzleApp: App {
 
     var body: some Scene {
         WindowGroup {
-            PuzzleView()
+            HomeView()
                 .environment(state)
-                .task {
-                    if state.tiles.isEmpty {
-                        await state.startNewGame()
-                    }
-                }
         }
     }
 }

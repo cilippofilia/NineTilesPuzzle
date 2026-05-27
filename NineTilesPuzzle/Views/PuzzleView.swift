@@ -9,6 +9,7 @@ import SwiftUI
 
 struct PuzzleView: View {
     @Environment(PuzzleState.self) private var state
+    @Environment(\.dismiss) private var dismiss
     @State private var isShowingWinAlert = false
 
     var body: some View {
@@ -21,12 +22,18 @@ struct PuzzleView: View {
                 PuzzleGridView()
             }
         }
+        .task {
+            await state.startNewGame()
+        }
         .onChange(of: state.isSolved) { _, solved in
             if solved { isShowingWinAlert = true }
         }
         .alert("Puzzle complete!", isPresented: $isShowingWinAlert) {
             Button("Play again", action: startNewGame)
+            Button("Main Menu") { dismiss() }
         }
+        .navigationTitle("Puzzle")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func startNewGame() {
