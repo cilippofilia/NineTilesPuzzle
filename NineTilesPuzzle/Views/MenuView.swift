@@ -1,5 +1,5 @@
 //
-//  HomeView.swift
+//  MenuView.swift
 //  NineTilesPuzzle
 //
 //  Created by Filippo Cilia on 5/27/26.
@@ -11,7 +11,7 @@ enum GameRoute: Hashable {
     case game
 }
 
-struct HomeView: View {
+struct MenuView: View {
     @State private var path: [GameRoute] = []
 
     var body: some View {
@@ -55,6 +55,6 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    MenuView()
         .environment(PuzzleState())
 }

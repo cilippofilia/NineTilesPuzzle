@@ -13,7 +13,7 @@ struct NineTilesPuzzleApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView()
+            MenuView()
                 .environment(state)
         }
     }
