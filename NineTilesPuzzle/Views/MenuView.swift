@@ -9,9 +9,11 @@ import SwiftUI
 
 enum GameRoute: Hashable {
     case game
+    case gridSizePicker
 }
 
 struct MenuView: View {
+    @Environment(PuzzleState.self) private var state
     @State private var path: [GameRoute] = []
 
     var body: some View {
@@ -25,8 +27,19 @@ struct MenuView: View {
                     .padding()
 
                 Group {
-                    LabeledContent("Size", value: "3 × 3")
-                        .padding()
+                    Button {
+                        path.append(.gridSizePicker)
+                    } label: {
+                        HStack {
+                            LabeledContent("Difficulty", value: "\(state.difficultyLabel)  \(state.gridSize) × \(state.gridSize)")
+                            Image(systemName: "chevron.forward")
+                                .imageScale(.small)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .padding()
+                    
                     LabeledContent("Photo source", value: "Random")
                         .padding()
                 }
@@ -48,6 +61,8 @@ struct MenuView: View {
                 switch route {
                 case .game:
                     PuzzleView()
+                case .gridSizePicker:
+                    GridSizePickerView()
                 }
             }
         }

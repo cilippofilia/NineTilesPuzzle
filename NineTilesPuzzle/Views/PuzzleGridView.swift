@@ -17,12 +17,12 @@ struct PuzzleGridView: View {
             .overlay {
                 GeometryReader { geometry in
                     let geoWidth = geometry.size.width
-                    let calculatedTileSize = geoWidth / 3
+                    let calculatedTileSize = geoWidth / CGFloat(state.gridSize)
 
                     ZStack(alignment: .topLeading) {
                         ForEach(state.tiles) { tile in
-                            let col = tile.currentIndex % 3
-                            let row = tile.currentIndex / 3
+                            let col = tile.currentIndex % state.gridSize
+                            let row = tile.currentIndex / state.gridSize
 
                             if let cgImage = state.tileImages[tile.id] {
                                 TileView(
@@ -54,11 +54,11 @@ struct PuzzleGridView: View {
         guard currentTileSize > 0 else { return }
 
         // Calculate target rows/cols using the geometry-provided tile size passed into the function
-        let targetCol = min(max(Int(point.x / currentTileSize), 0), 2)
-        let targetRow = min(max(Int(point.y / currentTileSize), 0), 2)
+        let targetCol = min(max(Int(point.x / currentTileSize), 0), state.gridSize - 1)
+        let targetRow = min(max(Int(point.y / currentTileSize), 0), state.gridSize - 1)
 
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            state.swapTiles(from: tile.currentIndex, to: targetRow * 3 + targetCol)
+            state.swapTiles(from: tile.currentIndex, to: targetRow * state.gridSize + targetCol)
         }
     }
 }

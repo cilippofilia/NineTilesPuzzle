@@ -24,11 +24,9 @@ struct ImageSlicer {
 
         for row in 0..<rows {
             for col in 0..<columns {
-                let cgRow = rows - 1 - row
-
                 let rect = CGRect(
                     x: CGFloat(col) * tileWidth,
-                    y: CGFloat(cgRow) * tileHeight,
+                    y: CGFloat(row) * tileHeight,
                     width: tileWidth,
                     height: tileHeight
                 )

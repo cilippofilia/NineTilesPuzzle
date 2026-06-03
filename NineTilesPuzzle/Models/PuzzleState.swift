@@ -13,6 +13,7 @@ final class PuzzleState {
     private let imageService = ImageService()
     private let puzzleEngine = PuzzleEngine()
 
+    var gridSize: Int = 3
     var tiles: [TileModel] = []
     var tileImages: [Int: CGImage] = [:]
     var sourceImage: CGImage?
@@ -34,10 +35,10 @@ final class PuzzleState {
             let image = try await imageService.loadImage()
             sourceImage = image
 
-            let slices = ImageSlicer().slice(image)
+            let slices = ImageSlicer().slice(image, into: gridSize * gridSize)
             tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
 
-            let initial = (0..<9).map {
+            let initial = (0..<gridSize * gridSize).map {
                 TileModel(id: $0, currentIndex: $0, isLocked: false)
             }
             tiles = puzzleEngine.shuffle(initial)
@@ -48,6 +49,30 @@ final class PuzzleState {
             self.error = error
             isLoading = false
         }
+    }
+
+    var difficultyLabel: String {
+        switch gridSize {
+        case 3: "Easy"
+        case 4: "Medium"
+        case 5: "Hard"
+        case 6: "Expert"
+        case 7: "Master"
+        default: "Insane"
+        }
+    }
+
+    /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
+    func setGridSize(_ size: Int) {
+        guard size != gridSize else { return }
+        gridSize = size
+        tiles = []
+        tileImages = [:]
+        sourceImage = nil
+        isSolved = false
+        UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
+        UserDefaults.standard.removeObject(forKey: Keys.tiles)
+        UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
     }
 
     /// Attempts to swap the tiles at `sourceIndex` and `targetIndex`; no-ops if either is locked.
@@ -69,11 +94,13 @@ final class PuzzleState {
 
 private extension PuzzleState {
     enum Keys {
+        static let gridSize = "puzzle.gridSize"
         static let tiles = "puzzle.tiles"
         static let sourceImage = "puzzle.sourceImage"
     }
 
     func saveToUserDefaults() {
+        UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
         guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
         UserDefaults.standard.set(tilesData, forKey: Keys.tiles)
 
@@ -83,6 +110,9 @@ private extension PuzzleState {
     }
 
     func restoreFromUserDefaults() {
+        let savedSize = UserDefaults.standard.integer(forKey: Keys.gridSize)
+        if (3...8).contains(savedSize) { gridSize = savedSize }
+
         guard
             let tilesData = UserDefaults.standard.data(forKey: Keys.tiles),
             let restoredTiles = try? JSONDecoder().decode([TileModel].self, from: tilesData),
@@ -90,9 +120,11 @@ private extension PuzzleState {
             let restoredImage = cgImage(fromJPEG: imageData)
         else { return }
 
+        guard restoredTiles.count == gridSize * gridSize else { return }
+
         tiles = restoredTiles
         sourceImage = restoredImage
-        let slices = ImageSlicer().slice(restoredImage)
+        let slices = ImageSlicer().slice(restoredImage, into: gridSize * gridSize)
         tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
         isSolved = puzzleEngine.isSolved(tiles)
     }
