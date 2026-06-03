@@ -17,7 +17,9 @@ struct RemoteImageSource: ImageSource {
             throw ImageSourceError.invalidURL
         }
 
-        let (data, _) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        let (data, _) = try await URLSession.shared.data(for: request)
         
         guard
             // Data doesn't bridge to CFData automatically in this context;

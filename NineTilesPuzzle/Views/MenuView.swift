@@ -27,7 +27,7 @@ struct MenuView: View {
                     .bold()
                     .padding()
 
-                Group {
+                VStack(spacing: 12) {
                     Button {
                         path.append(.gridSizePicker)
                     } label: {
@@ -37,9 +37,10 @@ struct MenuView: View {
                                 .imageScale(.small)
                                 .foregroundStyle(.secondary)
                         }
+                        .padding()
                     }
                     .foregroundStyle(.primary)
-                    .padding()
+                    .background(.quaternary, in: .capsule)
 
                     Button {
                         path.append(.photoSourcePicker)
@@ -50,12 +51,11 @@ struct MenuView: View {
                                 .imageScale(.small)
                                 .foregroundStyle(.secondary)
                         }
+                        .padding()
                     }
                     .foregroundStyle(.primary)
-                    .padding()
+                    .background(.quaternary, in: .capsule)
                 }
-                .background(.quaternary)
-                .clipShape(.rect(cornerRadius: 16, style: .continuous))
                 .padding(.horizontal)
 
                 Button("Play") {
