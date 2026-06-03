@@ -19,11 +19,19 @@
     {
       "layers" : [
         {
+          "blend-mode" : "normal",
           "fill" : {
             "automatic-gradient" : "extended-gray:1.00000,1.00000"
           },
-          "image-name" : "puzzle.svg",
-          "name" : "puzzle"
+          "image-name" : "icon.png",
+          "name" : "icon",
+          "position" : {
+            "scale" : 1.19,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
         }
       ],
       "shadow" : {
