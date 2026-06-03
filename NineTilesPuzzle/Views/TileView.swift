@@ -23,15 +23,9 @@ struct TileView: View {
             .scaledToFill()
             .frame(width: tileSize, height: tileSize)
             .clipShape(.rect)
-            .overlay(alignment: .topTrailing) {
-                if tile.isLocked {
-                    Image(systemName: "checkmark.circle.fill")
-                        .symbolRenderingMode(.multicolor)
-                        .padding(4)
-                }
-            }
             .offset(dragOffset)
-            .scaleEffect(isDragging ? 1.08 : 1.0)
+            .scaleEffect(isDragging ? 1.08 : (tile.isLocked ? 1.0 : 0.98))
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: tile.isLocked)
             .shadow(radius: isDragging ? 8 : 0)
             .allowsHitTesting(!tile.isLocked)
             .gesture(
