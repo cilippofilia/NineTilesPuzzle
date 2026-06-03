@@ -10,10 +10,10 @@ import SwiftUI
 @MainActor
 @Observable
 final class PuzzleState {
-    private let imageService = ImageService()
     private let puzzleEngine = PuzzleEngine()
 
     var gridSize: Int = 3
+    var imageSourceType: ImageSourceType = .random
     var tiles: [TileModel] = []
     var tileImages: [Int: CGImage] = [:]
     var sourceImage: CGImage?
@@ -32,7 +32,12 @@ final class PuzzleState {
         error = nil
 
         do {
-            let image = try await imageService.loadImage()
+            let source: any ImageSource = switch imageSourceType {
+            case .random: RemoteImageSource()
+            case .local: PhotoLibraryImageSource()
+            case .mixed: Bool.random() ? RemoteImageSource() : PhotoLibraryImageSource()
+            }
+            let image = try await ImageService(primarySource: source).loadImage()
             sourceImage = image
 
             let slices = ImageSlicer().slice(image, into: gridSize * gridSize)
@@ -60,6 +65,12 @@ final class PuzzleState {
         case 7: "Master"
         default: "Insane"
         }
+    }
+
+    func setImageSourceType(_ type: ImageSourceType) {
+        guard type != imageSourceType else { return }
+        imageSourceType = type
+        UserDefaults.standard.set(type.rawValue, forKey: Keys.imageSourceType)
     }
 
     /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
@@ -95,12 +106,14 @@ final class PuzzleState {
 private extension PuzzleState {
     enum Keys {
         static let gridSize = "puzzle.gridSize"
+        static let imageSourceType = "puzzle.imageSourceType"
         static let tiles = "puzzle.tiles"
         static let sourceImage = "puzzle.sourceImage"
     }
 
     func saveToUserDefaults() {
         UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
+        UserDefaults.standard.set(imageSourceType.rawValue, forKey: Keys.imageSourceType)
         guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
         UserDefaults.standard.set(tilesData, forKey: Keys.tiles)
 
@@ -112,6 +125,11 @@ private extension PuzzleState {
     func restoreFromUserDefaults() {
         let savedSize = UserDefaults.standard.integer(forKey: Keys.gridSize)
         if (3...8).contains(savedSize) { gridSize = savedSize }
+
+        if let rawSource = UserDefaults.standard.string(forKey: Keys.imageSourceType),
+           let savedSource = ImageSourceType(rawValue: rawSource) {
+            imageSourceType = savedSource
+        }
 
         guard
             let tilesData = UserDefaults.standard.data(forKey: Keys.tiles),

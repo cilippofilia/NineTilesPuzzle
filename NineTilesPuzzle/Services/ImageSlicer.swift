@@ -10,6 +10,7 @@ import SwiftUI
 struct ImageSlicer {
     /// Slices `image` into a square grid of `count` tiles (default 9), returned in top-to-bottom reading order.
     func slice(_ image: CGImage, into count: Int = 9) -> [CGImage] {
+        let image = centerCrop(image)
         let columns = Int(sqrt(Double(count)))
         let rows = columns
 
@@ -39,6 +40,14 @@ struct ImageSlicer {
             }
         }
         return tiles
+    }
+
+    private func centerCrop(_ image: CGImage) -> CGImage {
+        let width = CGFloat(image.width)
+        let height = CGFloat(image.height)
+        let side = min(width, height)
+        let rect = CGRect(x: (width - side) / 2, y: (height - side) / 2, width: side, height: side)
+        return image.cropping(to: rect) ?? image
     }
 
     private func blankImage(width: Int, height: Int) -> CGImage {

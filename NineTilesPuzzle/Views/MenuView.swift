@@ -10,6 +10,7 @@ import SwiftUI
 enum GameRoute: Hashable {
     case game
     case gridSizePicker
+    case photoSourcePicker
 }
 
 struct MenuView: View {
@@ -39,14 +40,24 @@ struct MenuView: View {
                     }
                     .foregroundStyle(.primary)
                     .padding()
-                    
-                    LabeledContent("Photo source", value: "Random")
-                        .padding()
+
+                    Button {
+                        path.append(.photoSourcePicker)
+                    } label: {
+                        HStack {
+                            LabeledContent("Photo source", value: state.imageSourceType.label)
+                            Image(systemName: "chevron.forward")
+                                .imageScale(.small)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .padding()
                 }
                 .background(.quaternary)
                 .clipShape(.rect(cornerRadius: 16, style: .continuous))
                 .padding(.horizontal)
-                
+
                 Button("Play") {
                     path.append(.game)
                 }
@@ -63,6 +74,8 @@ struct MenuView: View {
                     PuzzleView()
                 case .gridSizePicker:
                     GridSizePickerView()
+                case .photoSourcePicker:
+                    PhotoSourcePickerView()
                 }
             }
         }
