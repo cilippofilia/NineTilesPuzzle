@@ -25,12 +25,13 @@ final class PuzzleState {
     var allTimeHighStreak: Int = 0
     var isNewRecord: Bool = false
     var error: Error?
-    
+    var previewDuration: Double = 3
+    var streakCountdownDuration: Double = 30
+
     private(set) var timerRemaining: Double = 30
     private(set) var isTimerRunning = false
     private(set) var didBreakStreak = false
 
-    private let timerDuration: Double = 30
     private var countdownTask: Task<Void, Never>?
 
     init() {
@@ -38,10 +39,11 @@ final class PuzzleState {
     }
 
     private func startCountdown() {
+        guard streakCountdownDuration > 0 else { return }
         stopCountdown()
-        timerRemaining = timerDuration
+        timerRemaining = streakCountdownDuration
         isTimerRunning = true
-        let end = Date.now.addingTimeInterval(timerDuration)
+        let end = Date.now.addingTimeInterval(streakCountdownDuration)
         countdownTask = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(100))
@@ -62,7 +64,7 @@ final class PuzzleState {
     private func stopCountdown() {
         countdownTask?.cancel()
         countdownTask = nil
-        timerRemaining = timerDuration
+        timerRemaining = streakCountdownDuration
         isTimerRunning = false
     }
 
@@ -95,9 +97,9 @@ final class PuzzleState {
 
             isLoading = false
 
-            if isRemote {
+            if isRemote && previewDuration > 0 {
                 isPreviewing = true
-                previewSleepTask = Task { try? await Task.sleep(for: .seconds(3)) }
+                previewSleepTask = Task { try? await Task.sleep(for: .seconds(previewDuration)) }
                 await previewSleepTask?.value
                 previewSleepTask = nil
                 isPreviewing = false
@@ -127,6 +129,43 @@ final class PuzzleState {
         guard type != imageSourceType else { return }
         imageSourceType = type
         UserDefaults.standard.set(type.rawValue, forKey: Keys.imageSourceType)
+    }
+
+    var previewDurationLabel: String {
+        previewDuration == 0 ? "Off" : previewDuration < 60 ? "\(Int(previewDuration))s" : "\(Int(previewDuration / 60))m"
+    }
+
+    var streakCountdownLabel: String {
+        streakCountdownDuration == 0 ? "Off" : streakCountdownDuration < 60 ? "\(Int(streakCountdownDuration))s" : "\(Int(streakCountdownDuration / 60))m"
+    }
+
+    func setPreviewDuration(_ duration: Double) {
+        guard duration != previewDuration else { return }
+        previewDuration = duration
+        UserDefaults.standard.set(duration, forKey: Keys.previewDuration)
+    }
+
+    func setStreakCountdownDuration(_ duration: Double) {
+        guard duration != streakCountdownDuration else { return }
+        streakCountdownDuration = duration
+        if duration == 0 { stopCountdown() }
+        UserDefaults.standard.set(duration, forKey: Keys.streakCountdownDuration)
+    }
+
+    func resetStats() {
+        currentStreak = 0
+        allTimeHighStreak = 0
+        isNewRecord = false
+        stopCountdown()
+        UserDefaults.standard.removeObject(forKey: Keys.currentStreak)
+        UserDefaults.standard.removeObject(forKey: Keys.allTimeHighStreak)
+    }
+
+    func resetSettings() {
+        setGridSize(3)
+        setImageSourceType(.random)
+        setPreviewDuration(3)
+        setStreakCountdownDuration(30)
     }
 
     /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
@@ -200,11 +239,15 @@ private extension PuzzleState {
         static let sourceImage = "puzzle.sourceImage"
         static let currentStreak = "puzzle.currentStreak"
         static let allTimeHighStreak = "puzzle.allTimeHighStreak"
+        static let previewDuration = "puzzle.previewDuration"
+        static let streakCountdownDuration = "puzzle.streakCountdownDuration"
     }
 
     func saveToUserDefaults() {
         UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
         UserDefaults.standard.set(imageSourceType.rawValue, forKey: Keys.imageSourceType)
+        UserDefaults.standard.set(previewDuration, forKey: Keys.previewDuration)
+        UserDefaults.standard.set(streakCountdownDuration, forKey: Keys.streakCountdownDuration)
         guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
         UserDefaults.standard.set(tilesData, forKey: Keys.tiles)
 
@@ -218,6 +261,13 @@ private extension PuzzleState {
         let savedSize = UserDefaults.standard.integer(forKey: Keys.gridSize)
         if (3...8).contains(savedSize) { gridSize = savedSize }
         allTimeHighStreak = UserDefaults.standard.integer(forKey: Keys.allTimeHighStreak)
+
+        if UserDefaults.standard.object(forKey: Keys.previewDuration) != nil {
+            previewDuration = UserDefaults.standard.double(forKey: Keys.previewDuration)
+        }
+        if UserDefaults.standard.object(forKey: Keys.streakCountdownDuration) != nil {
+            streakCountdownDuration = UserDefaults.standard.double(forKey: Keys.streakCountdownDuration)
+        }
 
         if let rawSource = UserDefaults.standard.string(forKey: Keys.imageSourceType),
            let savedSource = ImageSourceType(rawValue: rawSource) {

@@ -10,12 +10,12 @@ import SwiftUI
 enum GameRoute: Hashable {
     case game
     case gridSizePicker
-    case photoSourcePicker
 }
 
 struct MenuView: View {
     @Environment(PuzzleState.self) private var state
     @State private var path: [GameRoute] = []
+    @State private var showSettings = false
 
     var puzzleColor: LinearGradient {
         LinearGradient(colors: [.red, .yellow], startPoint: .bottomLeading, endPoint: .topTrailing)
@@ -61,20 +61,7 @@ struct MenuView: View {
                     .foregroundStyle(.primary)
                     .background(.quaternary, in: .rect(cornerRadius: 20))
 
-                    Button {
-                        path.append(.photoSourcePicker)
-                    } label: {
-                        HStack {
-                            LabeledContent("Photo source", value: state.imageSourceType.label)
-                            Image(systemName: "chevron.forward")
-                                .imageScale(.small)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                    }
-                    .foregroundStyle(.primary)
-                    .background(.quaternary, in: .rect(cornerRadius: 20))
-                }
+}
                 .padding(.horizontal)
 
                 Button("Play") {
@@ -86,15 +73,26 @@ struct MenuView: View {
 
                 Spacer()
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(
+                        "Settings",
+                        systemImage: "gearshape",
+                        action: { showSettings = true }
+                    )
+                    .labelStyle(.iconOnly)
+                    .glassEffect(in: .circle)
+                }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+            }
             .navigationDestination(for: GameRoute.self) { route in
                 switch route {
                 case .game:
                     PuzzleView()
                 case .gridSizePicker:
                     GridSizePickerView()
-                case .photoSourcePicker:
-                    PhotoSourcePickerView()
                 }
             }
         }
