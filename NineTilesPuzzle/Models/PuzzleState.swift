@@ -180,6 +180,14 @@ final class PuzzleState {
         previewSleepTask?.cancel()
         isPreviewing = false
     }
+
+    /// Stops the countdown and resets the streak when the user quits mid-game.
+    func leaveGame() {
+        stopCountdown()
+        currentStreak = 0
+        isNewRecord = false
+        saveToUserDefaults()
+    }
 }
 
 // MARK: - Persistence

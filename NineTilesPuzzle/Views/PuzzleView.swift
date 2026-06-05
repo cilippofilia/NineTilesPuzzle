@@ -9,8 +9,10 @@ import SwiftUI
 
 struct PuzzleView: View {
     @Environment(PuzzleState.self) private var state
+    @Environment(\.dismiss) private var dismiss
     @State private var showCompletion = false
     @State private var showNewRecord = false
+    @State private var showQuitAlert = false
 
     var body: some View {
         ZStack {
@@ -90,6 +92,36 @@ struct PuzzleView: View {
         }
         .navigationTitle("Puzzle")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(isGameActive)
+        .toolbar {
+            if isGameActive {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Back", systemImage: "chevron.left") {
+                        showQuitAlert = true
+                    }
+                }
+            }
+        }
+        .alert("Quit this run?", isPresented: $showQuitAlert) {
+            Button("Quit", role: .destructive) {
+                state.leaveGame()
+                dismiss()
+            }
+            Button("Keep Playing", role: .cancel) { }
+        } message: {
+            if state.currentStreak > 0 {
+                Text("Your streak of \(state.currentStreak) will be lost.")
+            } else {
+                Text("Your progress on this puzzle will be lost.")
+            }
+        }
+        .onDisappear {
+            state.leaveGame()
+        }
+    }
+
+    private var isGameActive: Bool {
+        (!state.tiles.isEmpty || state.isPreviewing) && !state.isSolved
     }
 
     private var streakVisible: Bool {
