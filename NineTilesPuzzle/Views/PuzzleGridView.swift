@@ -40,7 +40,7 @@ struct PuzzleGridView: View {
                                     x: (CGFloat(col) * calculatedTileSize) + (calculatedTileSize / 2),
                                     y: (CGFloat(row) * calculatedTileSize) + (calculatedTileSize / 2)
                                 )
-                                .zIndex(draggingTileID == tile.id ? 10 : Double(tile.currentIndex))
+                                .zIndex(draggingTileID == tile.id ? 1000 : 0)
                             }
                         }
                     }
