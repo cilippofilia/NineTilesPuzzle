@@ -32,6 +32,9 @@ final class PuzzleState {
 
     /// Fetches a fresh image, slices it, shuffles the tiles, and persists state.
     func startNewGame() async {
+        tiles = []
+        tileImages = [:]
+        sourceImage = nil
         isLoading = true
         isSolved = false
         isNewRecord = false

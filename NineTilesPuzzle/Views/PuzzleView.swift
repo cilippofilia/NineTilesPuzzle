@@ -22,7 +22,7 @@ struct PuzzleView: View {
                         .transition(.opacity)
                 } else if state.isPreviewing, let image = state.sourceImage {
                     ImagePreviewView(image: image, onSkip: state.skipPreview)
-                        .transition(.opacity)
+                        .transition(.asymmetric(insertion: .opacity, removal: .identity))
                 } else if let error = state.error {
                     PuzzleErrorView(error: error, onRetry: startNewGame)
                         .transition(.opacity)
@@ -31,7 +31,10 @@ struct PuzzleView: View {
                     PuzzleGridView()
                         .clipShape(.rect(cornerRadius: 12))
                         .padding(.horizontal)
-                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.95).combined(with: .opacity),
+                            removal: .identity
+                        ))
                     Spacer()
                 }
             }
@@ -41,7 +44,7 @@ struct PuzzleView: View {
             // Layer 2: streak counter floats at top — outside layout flow so it
             // doesn't shift the grid's vertical center
             VStack {
-                StreakCounterView(currentStreak: state.currentStreak)
+                StreakCounterView(currentStreak: state.currentStreak, bestStreak: state.allTimeHighStreak)
                     .padding(.top)
                     .opacity(streakVisible ? 1 : 0)
                     .animation(.easeInOut(duration: 0.35), value: state.isLoading)
@@ -89,7 +92,7 @@ struct PuzzleView: View {
     }
 
     private var streakVisible: Bool {
-        !showCompletion && !state.isLoading && !state.isPreviewing && state.error == nil
+        !showCompletion && !state.isLoading && state.error == nil
     }
 
     private func startNewGame() {
