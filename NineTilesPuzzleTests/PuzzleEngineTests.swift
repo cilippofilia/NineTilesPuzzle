@@ -27,6 +27,14 @@ struct PuzzleEngineTests {
         }
     }
 
+    @Test func shuffleIsDerangement() {
+        let tiles = solvedTiles()
+        for _ in 0..<200 {
+            _ = engine.shuffle(tiles)
+            #expect(tiles.allSatisfy { $0.currentIndex != $0.id })
+        }
+    }
+
     @Test func shuffleProducesAllIndices() {
         let tiles = solvedTiles()
         _ = engine.shuffle(tiles)

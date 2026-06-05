@@ -9,23 +9,20 @@ import SwiftUI
 
 @MainActor
 struct PuzzleEngine {
-    /// Shuffles tiles into a random non-solved permutation, locking any that land in their correct slot.
+    /// Shuffles tiles into a derangement — no tile lands on its correct position.
     func shuffle(_ tiles: [TileModel]) -> [TileModel] {
         guard tiles.count > 1 else { return tiles }
 
         let shuffledTiles = tiles
         var indices = Array(0..<shuffledTiles.count)
 
-        // Loop ensures the puzzle does NOT start in a fully solved state
         repeat {
             indices.shuffle()
-        } while zip(shuffledTiles, indices).allSatisfy { tile, idx in tile.id == idx }
+        } while zip(shuffledTiles, indices).contains { tile, idx in tile.id == idx }
 
-        // Mutate the value types cleanly over the indices
         for i in 0..<shuffledTiles.count {
-            let newIndex = indices[i]
-            shuffledTiles[i].currentIndex = newIndex
-            shuffledTiles[i].isLocked = (shuffledTiles[i].id == newIndex)
+            shuffledTiles[i].currentIndex = indices[i]
+            shuffledTiles[i].isLocked = false
         }
 
         return shuffledTiles
