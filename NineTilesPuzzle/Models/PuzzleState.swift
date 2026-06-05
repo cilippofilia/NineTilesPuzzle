@@ -19,6 +19,9 @@ final class PuzzleState {
     var sourceImage: CGImage?
     var isLoading = false
     var isSolved = false
+    var currentStreak: Int = 0
+    var allTimeHighStreak: Int = 0
+    var isNewRecord: Bool = false
     var error: Error?
 
     init() {
@@ -29,6 +32,7 @@ final class PuzzleState {
     func startNewGame() async {
         isLoading = true
         isSolved = false
+        isNewRecord = false
         error = nil
 
         do {
@@ -81,6 +85,7 @@ final class PuzzleState {
         tileImages = [:]
         sourceImage = nil
         isSolved = false
+        isNewRecord = false
         UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
         UserDefaults.standard.removeObject(forKey: Keys.tiles)
         UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
@@ -95,8 +100,23 @@ final class PuzzleState {
             !target.isLocked
         else { return }
 
+        let lockedBefore = tiles.filter { $0.isLocked }.count
         puzzleEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
         isSolved = puzzleEngine.isSolved(tiles)
+
+        let newlyLocked = tiles.filter { $0.isLocked }.count - lockedBefore
+        if newlyLocked > 0 {
+            currentStreak += 1
+            if currentStreak > allTimeHighStreak {
+                allTimeHighStreak = currentStreak
+                isNewRecord = true
+                UserDefaults.standard.set(allTimeHighStreak, forKey: Keys.allTimeHighStreak)
+            }
+        } else {
+            currentStreak = 0
+            isNewRecord = false
+        }
+
         saveToUserDefaults()
     }
 }
@@ -109,6 +129,8 @@ private extension PuzzleState {
         static let imageSourceType = "puzzle.imageSourceType"
         static let tiles = "puzzle.tiles"
         static let sourceImage = "puzzle.sourceImage"
+        static let currentStreak = "puzzle.currentStreak"
+        static let allTimeHighStreak = "puzzle.allTimeHighStreak"
     }
 
     func saveToUserDefaults() {
@@ -120,11 +142,13 @@ private extension PuzzleState {
         if let image = sourceImage, let jpegData = jpeg(from: image) {
             UserDefaults.standard.set(jpegData, forKey: Keys.sourceImage)
         }
+        UserDefaults.standard.set(currentStreak, forKey: Keys.currentStreak)
     }
 
     func restoreFromUserDefaults() {
         let savedSize = UserDefaults.standard.integer(forKey: Keys.gridSize)
         if (3...8).contains(savedSize) { gridSize = savedSize }
+        allTimeHighStreak = UserDefaults.standard.integer(forKey: Keys.allTimeHighStreak)
 
         if let rawSource = UserDefaults.standard.string(forKey: Keys.imageSourceType),
            let savedSource = ImageSourceType(rawValue: rawSource) {
@@ -145,6 +169,7 @@ private extension PuzzleState {
         let slices = ImageSlicer().slice(restoredImage, into: gridSize * gridSize)
         tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
         isSolved = puzzleEngine.isSolved(tiles)
+        currentStreak = UserDefaults.standard.integer(forKey: Keys.currentStreak)
     }
 
     func jpeg(from image: CGImage) -> Data? {

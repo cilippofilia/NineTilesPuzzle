@@ -10,6 +10,7 @@ import SwiftUI
 struct PuzzleView: View {
     @Environment(PuzzleState.self) private var state
     @State private var showCompletion = false
+    @State private var showNewRecord = false
 
     var body: some View {
         ZStack {
@@ -20,6 +21,9 @@ struct PuzzleView: View {
                     PuzzleErrorView(error: error, onRetry: startNewGame)
                 } else {
                     Spacer()
+                    StreakCounterView(currentStreak: state.currentStreak)
+                        .opacity(showCompletion ? 0 : 1)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.75), value: showCompletion)
                     PuzzleGridView()
                     Spacer()
                 }
@@ -27,19 +31,14 @@ struct PuzzleView: View {
             .animation(.none, value: state.isLoading)
 
             VStack {
-                Text("Completed!")
-                    .font(.largeTitle)
-                    .bold()
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(.regularMaterial, in: .capsule)
+                CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord)
                     .padding(.top)
                     .offset(y: showCompletion ? 0 : -300)
                     .opacity(showCompletion ? 1 : 0)
 
                 Spacer()
 
-                Button("Play again", action: startNewGame)
+                Button("Continue", action: startNewGame)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .padding(.bottom)
@@ -54,6 +53,11 @@ struct PuzzleView: View {
         .onChange(of: state.isSolved) { _, solved in
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75).delay(solved ? 0.3 : 0)) {
                 showCompletion = solved
+            }
+        }
+        .onChange(of: state.isNewRecord) { _, isRecord in
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                showNewRecord = isRecord
             }
         }
         .navigationTitle("Puzzle")
