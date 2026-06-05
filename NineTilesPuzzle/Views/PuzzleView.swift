@@ -17,6 +17,8 @@ struct PuzzleView: View {
             VStack {
                 if state.isLoading {
                     LoadingView()
+                } else if state.isPreviewing, let image = state.sourceImage {
+                    ImagePreviewView(image: image, onSkip: state.skipPreview)
                 } else if let error = state.error {
                     PuzzleErrorView(error: error, onRetry: startNewGame)
                 } else {

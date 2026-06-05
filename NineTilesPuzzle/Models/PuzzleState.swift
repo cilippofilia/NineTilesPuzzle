@@ -11,6 +11,7 @@ import SwiftUI
 @Observable
 final class PuzzleState {
     private let puzzleEngine = PuzzleEngine()
+    private var previewSleepTask: Task<Void, Never>?
 
     var gridSize: Int = 3
     var imageSourceType: ImageSourceType = .random
@@ -18,6 +19,7 @@ final class PuzzleState {
     var tileImages: [Int: CGImage] = [:]
     var sourceImage: CGImage?
     var isLoading = false
+    var isPreviewing = false
     var isSolved = false
     var currentStreak: Int = 0
     var allTimeHighStreak: Int = 0
@@ -41,6 +43,7 @@ final class PuzzleState {
             case .local: PhotoLibraryImageSource()
             case .mixed: Bool.random() ? RemoteImageSource() : PhotoLibraryImageSource()
             }
+            let isRemote = source is RemoteImageSource
             let image = try await ImageService(primarySource: source).loadImage()
             sourceImage = image
 
@@ -50,9 +53,18 @@ final class PuzzleState {
             let initial = (0..<gridSize * gridSize).map {
                 TileModel(id: $0, currentIndex: $0, isLocked: false)
             }
-            tiles = puzzleEngine.shuffle(initial)
 
             isLoading = false
+
+            if isRemote {
+                isPreviewing = true
+                previewSleepTask = Task { try? await Task.sleep(for: .seconds(3)) }
+                await previewSleepTask?.value
+                previewSleepTask = nil
+                isPreviewing = false
+            }
+
+            tiles = puzzleEngine.shuffle(initial)
             saveToUserDefaults()
         } catch {
             self.error = error
@@ -118,6 +130,11 @@ final class PuzzleState {
         }
 
         saveToUserDefaults()
+    }
+
+    func skipPreview() {
+        previewSleepTask?.cancel()
+        isPreviewing = false
     }
 }
 
