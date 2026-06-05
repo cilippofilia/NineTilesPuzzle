@@ -17,20 +17,26 @@ struct PuzzleView: View {
             VStack {
                 if state.isLoading {
                     LoadingView()
+                        .transition(.opacity)
                 } else if state.isPreviewing, let image = state.sourceImage {
                     ImagePreviewView(image: image, onSkip: state.skipPreview)
+                        .transition(.opacity)
                 } else if let error = state.error {
                     PuzzleErrorView(error: error, onRetry: startNewGame)
+                        .transition(.opacity)
                 } else {
                     Spacer()
                     StreakCounterView(currentStreak: state.currentStreak)
                         .opacity(showCompletion ? 0 : 1)
                         .animation(.spring(response: 0.5, dampingFraction: 0.75), value: showCompletion)
+                        .transition(.opacity)
                     PuzzleGridView()
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
                     Spacer()
                 }
             }
-            .animation(.none, value: state.isLoading)
+            .animation(.easeInOut(duration: 0.35), value: state.isLoading)
+            .animation(.easeInOut(duration: 0.35), value: state.isPreviewing)
 
             VStack {
                 CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord)
