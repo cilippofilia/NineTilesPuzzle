@@ -44,7 +44,7 @@ struct PuzzleView: View {
             // Layer 2: streak counter floats at top — outside layout flow so it
             // doesn't shift the grid's vertical center
             VStack {
-                StreakCounterView(currentStreak: state.currentStreak, bestStreak: state.allTimeHighStreak)
+                StreakCounterView(currentStreak: state.currentStreak, bestStreak: state.allTimeHighStreak, timerRemaining: state.timerRemaining, isTimerRunning: state.isTimerRunning)
                     .padding(.top)
                     .opacity(streakVisible ? 1 : 0)
                     .animation(.easeInOut(duration: 0.35), value: state.isLoading)
@@ -77,6 +77,7 @@ struct PuzzleView: View {
         .sensoryFeedback(.success, trigger: state.isSolved) { _, newValue in
             newValue
         }
+        .sensoryFeedback(.warning, trigger: state.didBreakStreak)
         .onChange(of: state.isSolved) { _, solved in
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75).delay(solved ? 0.3 : 0)) {
                 showCompletion = solved

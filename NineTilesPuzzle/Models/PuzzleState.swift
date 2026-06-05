@@ -25,9 +25,45 @@ final class PuzzleState {
     var allTimeHighStreak: Int = 0
     var isNewRecord: Bool = false
     var error: Error?
+    
+    private(set) var timerRemaining: Double = 30
+    private(set) var isTimerRunning = false
+    private(set) var didBreakStreak = false
+
+    private let timerDuration: Double = 30
+    private var countdownTask: Task<Void, Never>?
 
     init() {
         restoreFromUserDefaults()
+    }
+
+    private func startCountdown() {
+        stopCountdown()
+        timerRemaining = timerDuration
+        isTimerRunning = true
+        let end = Date.now.addingTimeInterval(timerDuration)
+        countdownTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled else { break }
+                let remaining = end.timeIntervalSinceNow
+                if remaining <= 0 {
+                    currentStreak = 0
+                    isNewRecord = false
+                    didBreakStreak.toggle()
+                    stopCountdown()
+                    return
+                }
+                timerRemaining = remaining
+            }
+        }
+    }
+
+    private func stopCountdown() {
+        countdownTask?.cancel()
+        countdownTask = nil
+        timerRemaining = timerDuration
+        isTimerRunning = false
     }
 
     /// Fetches a fresh image, slices it, shuffles the tiles, and persists state.
@@ -68,6 +104,7 @@ final class PuzzleState {
             }
 
             tiles = puzzleEngine.shuffle(initial)
+            if currentStreak > 0 { startCountdown() }
             saveToUserDefaults()
         } catch {
             self.error = error
@@ -119,9 +156,12 @@ final class PuzzleState {
         puzzleEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
         isSolved = puzzleEngine.isSolved(tiles)
 
+        if isSolved { stopCountdown() }
+
         let newlyLocked = tiles.filter { $0.isLocked }.count - lockedBefore
         if newlyLocked > 0 {
             currentStreak += 1
+            if !isSolved { startCountdown() }
             if currentStreak > allTimeHighStreak {
                 allTimeHighStreak = currentStreak
                 isNewRecord = true
@@ -130,6 +170,7 @@ final class PuzzleState {
         } else {
             currentStreak = 0
             isNewRecord = false
+            stopCountdown()
         }
 
         saveToUserDefaults()
@@ -190,6 +231,7 @@ private extension PuzzleState {
         tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
         isSolved = puzzleEngine.isSolved(tiles)
         currentStreak = UserDefaults.standard.integer(forKey: Keys.currentStreak)
+        if !isSolved && currentStreak > 0 { startCountdown() }
     }
 
     func jpeg(from image: CGImage) -> Data? {
