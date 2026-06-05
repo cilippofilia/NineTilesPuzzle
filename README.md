@@ -1,6 +1,6 @@
-# NineTilesPuzzle
+# Nine Tiles
 
-An iOS puzzle game that fetches a random image, slices it into a 3×3 grid, shuffles the tiles, and challenges you to restore the original image by dragging tiles into place.
+A sliding tile puzzle for iOS. The app fetches an image, slices it into a grid, shuffles the pieces, and challenges you to restore the original by dragging tiles into place.
 
 ## Requirements
 
@@ -10,50 +10,63 @@ An iOS puzzle game that fetches a random image, slices it into a 3×3 grid, shuf
 
 ## How it works
 
-Opening the app shows a home screen where you can see the puzzle configuration — size (3×3) and photo source (random) — before you start. Tap **Play** to begin.
+The home screen shows your current streak, best streak, and the active settings before you start. Tap **Play** to begin.
 
-The app fetches a random 1024×1024 image from [picsum.photos](https://picsum.photos/1024). If the network is unavailable it falls back to a bundled image. The image is sliced into nine equal tiles that are shuffled into a random order.
+The app fetches a random 1024×1024 image from [picsum.photos](https://picsum.photos). You can also choose a photo from your library, or let it pick randomly between both sources. The image is sliced into an N×N grid and the tiles are shuffled.
 
-Drag any tile over another to swap their positions. A tile that lands on its correct cell is locked in place and can no longer be moved. Solve the puzzle by locking all nine tiles. A "Puzzle complete!" alert appears when you finish — tap **Play again** to start a new round with a fresh image, or **Main Menu** to return to the home screen.
+Drag any tile over another to swap their positions. A tile that lands on its correct cell locks in place and can no longer be moved. Solve the puzzle by locking all tiles. When you finish, the completion banner shows your final streak count — tap **Continue** to start a new round with a fresh image.
 
-Game state (tile positions and the source image) is persisted to `UserDefaults`, so a mid-game session is restored automatically when you relaunch the app.
+Game state (tile positions and source image) is saved to `UserDefaults` and restored automatically on relaunch.
+
+## Features
+
+- **Six difficulty levels** — Easy (3×3) through Insane (8×8)
+- **Three image sources** — random from the internet, from your photo library, or mixed
+- **Streak tracking** — consecutive correct moves tracked across games, with an all-time high that persists between sessions
+- **Auto-lock** — tiles snap and lock as soon as they reach their correct position
+- **State persistence** — resume any in-progress game after relaunching the app
 
 ## Project structure
 
 ```
 NineTilesPuzzle/
 ├── Models/
-│   ├── GameRoute.swift          # Typed navigation route for NavigationStack
-│   ├── TileModel.swift          # Observable tile — id, currentIndex, isLocked
-│   ├── PuzzleState.swift        # Root observable state; owns services and persistence
+│   ├── TileModel.swift              # Observable tile — id, currentIndex, isLocked
+│   ├── PuzzleState.swift            # Root observable state; owns services and persistence
 │   └── Image/
-│       ├── ImageSource.swift    # Protocol for image-fetching backends
-│       ├── RemoteImageSource.swift
+│       ├── ImageSourceType.swift
+│       ├── ImageSourceError.swift
 │       ├── LocalImageSource.swift
-│       └── ImageSourceError.swift
+│       ├── PhotoLibraryImageSource.swift
+│       └── RemoteImageSource.swift
 ├── Services/
-│   ├── ImageService.swift       # Loads image; falls back on URLError
-│   ├── ImageSlicer.swift        # Crops a CGImage into an N×N tile grid
-│   └── PuzzleEngine.swift       # Shuffle, swap, and solved-state logic
+│   ├── ImageService.swift           # Loads image; falls back on URLError
+│   ├── ImageSlicer.swift            # Crops a CGImage into an N×N tile grid
+│   └── PuzzleEngine.swift           # Shuffle, swap, and solved-state logic
 └── Views/
-    ├── HomeView.swift            # Menu screen; owns NavigationStack and route path
-    ├── PuzzleView.swift          # Root game view; routes loading / error / grid states
-    ├── PuzzleGridView.swift      # ZStack-based drag-and-drop tile grid
-    ├── TileView.swift            # Single draggable tile with Reduce Motion support
-    ├── LoadingView.swift         # Spinner shown while the image loads
-    └── PuzzleErrorView.swift     # Error state with retry button
+    ├── MenuView.swift               # Home screen with streak stats, settings, and Play
+    ├── PuzzleView.swift             # Root game view; routes loading / error / grid states
+    ├── PuzzleGridView.swift         # Drag-and-drop tile grid
+    ├── TileView.swift               # Single draggable tile
+    ├── StreakCounterView.swift      # In-game streak badge
+    ├── StreakStatsView.swift        # Menu streak summary card
+    ├── CompletionBannerView.swift   # Post-solve banner with streak and record callout
+    ├── GridSizePickerView.swift     # Difficulty picker
+    ├── PhotoSourcePickerView.swift  # Image source picker
+    ├── LoadingView.swift
+    └── PuzzleErrorView.swift
 
 NineTilesPuzzleTests/
-├── ImageServiceTests.swift      # Fallback behaviour under URLError
-├── ImageSlicerTests.swift       # Tile count and dimensions
-└── PuzzleEngineTests.swift      # Shuffle, swap, and isSolved contracts
+├── PuzzleEngineTests.swift          # Shuffle, swap, and isSolved contracts
+├── ImageSlicerTests.swift           # Tile count and dimensions
+└── ImageServiceTests.swift          # Fallback behaviour under URLError
 ```
 
 ## Architecture
 
 - **Swift 6** strict concurrency throughout; all `@Observable` classes are `@MainActor`.
-- State is owned by `PuzzleState` (`@State` in `NineTilesPuzzleApp`) and injected via `.environment(_:)`.
-- Navigation uses `NavigationStack` with a typed `GameRoute` path, owned by `HomeView`.
+- State is owned by `PuzzleState` and injected via `.environment(_:)`.
+- Navigation uses `NavigationStack` with a typed `GameRoute` path, owned by `MenuView`.
 - Services (`ImageService`, `ImageSlicer`, `PuzzleEngine`) are stateless value types called directly from `PuzzleState`.
 - Image persistence uses `CGImageDestination` (ImageIO) for JPEG encoding and `JSONEncoder` for tile data — no UIKit dependency.
 - Tests use **Swift Testing** (`@Suite`, `@Test`, `#expect`).
