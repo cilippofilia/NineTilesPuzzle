@@ -50,6 +50,9 @@ struct PuzzleView: View {
         .task {
             await state.startNewGame()
         }
+        .sensoryFeedback(.success, trigger: state.isSolved) { _, newValue in
+            newValue
+        }
         .onChange(of: state.isSolved) { _, solved in
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75).delay(solved ? 0.3 : 0)) {
                 showCompletion = solved

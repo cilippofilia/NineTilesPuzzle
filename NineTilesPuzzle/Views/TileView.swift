@@ -27,6 +27,9 @@ struct TileView: View {
             .scaleEffect(isDragging ? 1.08 : (tile.isLocked ? 1.0 : 0.98))
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: tile.isLocked)
             .shadow(radius: isDragging ? 8 : 0)
+            .sensoryFeedback(.impact(flexibility: .rigid, intensity: 0.7), trigger: tile.isLocked) { _, newValue in
+                newValue
+            }
             .allowsHitTesting(!tile.isLocked)
             .gesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .named("puzzleGrid"))
