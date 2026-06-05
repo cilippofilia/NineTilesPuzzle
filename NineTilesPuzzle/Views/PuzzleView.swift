@@ -14,6 +14,8 @@ struct PuzzleView: View {
 
     var body: some View {
         ZStack {
+            // Layer 1: centered main content — only Spacer/content/Spacer so centering
+            // is never affected by supplementary elements in other layers
             VStack {
                 if state.isLoading {
                     LoadingView()
@@ -26,11 +28,9 @@ struct PuzzleView: View {
                         .transition(.opacity)
                 } else {
                     Spacer()
-                    StreakCounterView(currentStreak: state.currentStreak)
-                        .opacity(showCompletion ? 0 : 1)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.75), value: showCompletion)
-                        .transition(.opacity)
                     PuzzleGridView()
+                        .clipShape(.rect(cornerRadius: 12))
+                        .padding(.horizontal)
                         .transition(.scale(scale: 0.95).combined(with: .opacity))
                     Spacer()
                 }
@@ -38,6 +38,19 @@ struct PuzzleView: View {
             .animation(.easeInOut(duration: 0.35), value: state.isLoading)
             .animation(.easeInOut(duration: 0.35), value: state.isPreviewing)
 
+            // Layer 2: streak counter floats at top — outside layout flow so it
+            // doesn't shift the grid's vertical center
+            VStack {
+                StreakCounterView(currentStreak: state.currentStreak)
+                    .padding(.top)
+                    .opacity(streakVisible ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.35), value: state.isLoading)
+                    .animation(.easeInOut(duration: 0.35), value: state.isPreviewing)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.75), value: showCompletion)
+                Spacer()
+            }
+
+            // Layer 3: completion overlay
             VStack {
                 CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord)
                     .padding(.top)
@@ -73,6 +86,10 @@ struct PuzzleView: View {
         }
         .navigationTitle("Puzzle")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var streakVisible: Bool {
+        !showCompletion && !state.isLoading && !state.isPreviewing && state.error == nil
     }
 
     private func startNewGame() {

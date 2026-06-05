@@ -14,28 +14,28 @@ struct ImagePreviewView: View {
     @State private var progress: Double = 1.0
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack {
             Spacer()
-
             Image(decorative: image, scale: 1.0)
                 .resizable()
                 .scaledToFit()
                 .clipShape(.rect(cornerRadius: 12))
                 .padding(.horizontal)
-
-            CountdownBar(progress: progress)
-                .padding(.horizontal)
-                .animation(.linear(duration: 3), value: progress)
-
-            Text("Memorize the image")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Button("Skip", action: onSkip)
-                .foregroundStyle(.primary)
-                .buttonStyle(.bordered)
-
             Spacer()
+        }
+        .overlay(alignment: .bottom) {
+            VStack(spacing: 12) {
+                CountdownBar(progress: progress)
+                    .padding(.horizontal)
+                    .animation(.linear(duration: 3), value: progress)
+                Text("Memorize the image")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button("Skip", action: onSkip)
+                    .foregroundStyle(.primary)
+                    .buttonStyle(.bordered)
+            }
+            .padding(.bottom)
         }
         .onAppear {
             progress = 0
