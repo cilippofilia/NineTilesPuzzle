@@ -43,7 +43,8 @@ struct MenuView: View {
                 VStack(spacing: 12) {
                     StreakStatsView(
                         currentStreak: state.currentStreak,
-                        allTimeHigh: state.allTimeHighStreak
+                        allTimeHigh: state.allTimeHighStreak,
+                        personalBestMoves: state.personalBestForCurrentSize
                     )
                     .frame(height: 88)
 

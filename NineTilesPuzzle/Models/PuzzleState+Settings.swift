@@ -27,6 +27,8 @@ extension PuzzleState {
         streakCountdownDuration == 0 ? "Off" : streakCountdownDuration < 60 ? "\(Int(streakCountdownDuration))s" : "\(Int(streakCountdownDuration / 60))m"
     }
 
+    var personalBestForCurrentSize: Int? { personalBestMoves[gridSize] }
+
     /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
     func setGridSize(_ size: Int) {
         guard size != gridSize else { return }
@@ -64,9 +66,14 @@ extension PuzzleState {
         currentStreak = 0
         allTimeHighStreak = 0
         isNewRecord = false
+        currentMoveCount = 0
+        personalBestMoves = [:]
+        isNewMovesRecord = false
         stopCountdown()
         UserDefaults.standard.removeObject(forKey: Keys.currentStreak)
         UserDefaults.standard.removeObject(forKey: Keys.allTimeHighStreak)
+        UserDefaults.standard.removeObject(forKey: Keys.currentMoveCount)
+        (3...8).forEach { UserDefaults.standard.removeObject(forKey: Keys.personalBest(for: $0)) }
     }
 
     func resetSettings() {

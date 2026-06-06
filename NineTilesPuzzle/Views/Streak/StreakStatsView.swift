@@ -10,6 +10,7 @@ import SwiftUI
 struct StreakStatsView: View {
     let currentStreak: Int
     let allTimeHigh: Int
+    let personalBestMoves: Int?
 
     var body: some View {
         HStack {
@@ -28,6 +29,10 @@ struct StreakStatsView: View {
                 icon: "trophy.fill",
                 activeColor: Color(hue: 0.12, saturation: 0.9, brightness: 0.85)
             )
+
+            Divider()
+
+            bestMovesItem(moves: personalBestMoves)
         }
         .padding()
         .background(.quaternary, in: .rect(cornerRadius: 20))
@@ -55,11 +60,27 @@ private extension StreakStatsView {
         }
         .frame(maxWidth: .infinity)
     }
+
+    func bestMovesItem(moves: Int?) -> some View {
+        VStack {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.left.arrow.right")
+                    .foregroundStyle(moves != nil ? .primary : .secondary)
+                Text(moves.map { "\($0)" } ?? "--")
+                    .foregroundStyle(moves != nil ? .primary : .secondary)
+            }
+            .font(.system(.title2, weight: .heavy))
+            Text("Best moves")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
 }
 
 #Preview {
     VStack(spacing: 20) {
-        StreakStatsView(currentStreak: 12, allTimeHigh: 47)
-        StreakStatsView(currentStreak: 0, allTimeHigh: 0)
+        StreakStatsView(currentStreak: 12, allTimeHigh: 47, personalBestMoves: 34)
+        StreakStatsView(currentStreak: 0, allTimeHigh: 0, personalBestMoves: nil)
     }
 }

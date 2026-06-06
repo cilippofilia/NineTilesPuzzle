@@ -24,6 +24,9 @@ final class PuzzleState {
     var currentStreak: Int = 0
     var allTimeHighStreak: Int = 0
     var isNewRecord: Bool = false
+    var currentMoveCount: Int = 0
+    var personalBestMoves: [Int: Int] = [:]
+    var isNewMovesRecord: Bool = false
     var error: Error?
     var previewDuration: Double = 3
     var streakCountdownDuration: Double = 30
@@ -76,6 +79,8 @@ final class PuzzleState {
         isLoading = true
         isSolved = false
         isNewRecord = false
+        currentMoveCount = 0
+        isNewMovesRecord = false
         error = nil
 
         do {
@@ -123,11 +128,21 @@ final class PuzzleState {
             !target.isLocked
         else { return }
 
+        currentMoveCount += 1
+
         let lockedBefore = tiles.filter { $0.isLocked }.count
         puzzleEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
         isSolved = puzzleEngine.isSolved(tiles)
 
-        if isSolved { stopCountdown() }
+        if isSolved {
+            stopCountdown()
+            let existing = personalBestMoves[gridSize]
+            if existing == nil || currentMoveCount < existing! {
+                personalBestMoves[gridSize] = currentMoveCount
+                isNewMovesRecord = true
+                UserDefaults.standard.set(currentMoveCount, forKey: Keys.personalBest(for: gridSize))
+            }
+        }
 
         let newlyLocked = tiles.filter { $0.isLocked }.count - lockedBefore
         if newlyLocked > 0 {
@@ -173,6 +188,8 @@ extension PuzzleState {
         static let allTimeHighStreak = "puzzle.allTimeHighStreak"
         static let previewDuration = "puzzle.previewDuration"
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
+        static let currentMoveCount = "puzzle.currentMoveCount"
+        static func personalBest(for size: Int) -> String { "puzzle.personalBest.\(size)" }
     }
 }
 
@@ -189,6 +206,7 @@ private extension PuzzleState {
             UserDefaults.standard.set(jpegData, forKey: Keys.sourceImage)
         }
         UserDefaults.standard.set(currentStreak, forKey: Keys.currentStreak)
+        UserDefaults.standard.set(currentMoveCount, forKey: Keys.currentMoveCount)
     }
 
     func restoreFromUserDefaults() {
@@ -223,6 +241,11 @@ private extension PuzzleState {
         tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
         isSolved = puzzleEngine.isSolved(tiles)
         currentStreak = UserDefaults.standard.integer(forKey: Keys.currentStreak)
+        currentMoveCount = UserDefaults.standard.integer(forKey: Keys.currentMoveCount)
+        personalBestMoves = (3...8).reduce(into: [:]) { dict, size in
+            let value = UserDefaults.standard.integer(forKey: Keys.personalBest(for: size))
+            if value > 0 { dict[size] = value }
+        }
         if !isSolved && currentStreak > 0 { startCountdown() }
     }
 

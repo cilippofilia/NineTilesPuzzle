@@ -12,6 +12,7 @@ struct PuzzleView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showCompletion = false
     @State private var showNewRecord = false
+    @State private var showNewMovesRecord = false
     @State private var showQuitAlert = false
 
     var body: some View {
@@ -43,21 +44,29 @@ struct PuzzleView: View {
             .animation(.easeInOut(duration: 0.35), value: state.isLoading)
             .animation(.easeInOut(duration: 0.35), value: state.isPreviewing)
 
-            // Layer 2: streak counter floats at top — outside layout flow so it
-            // doesn't shift the grid's vertical center
+            // Layer 2: streak counter + move counter float at top — outside layout flow so
+            // they don't shift the grid's vertical center
             VStack {
-                StreakCounterView(currentStreak: state.currentStreak, bestStreak: state.allTimeHighStreak, timerRemaining: state.timerRemaining, isTimerRunning: state.isTimerRunning)
-                    .padding(.top)
-                    .opacity(streakVisible ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.35), value: state.isLoading)
-                    .animation(.easeInOut(duration: 0.35), value: state.isPreviewing)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.75), value: showCompletion)
+                ZStack {
+                    StreakCounterView(currentStreak: state.currentStreak, bestStreak: state.allTimeHighStreak, timerRemaining: state.timerRemaining, isTimerRunning: state.isTimerRunning)
+                    HStack {
+                        Spacer()
+                        MoveCounterView(moves: state.currentMoveCount)
+                            .padding(.trailing)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top)
+                .opacity(streakVisible ? 1 : 0)
+                .animation(.easeInOut(duration: 0.35), value: state.isLoading)
+                .animation(.easeInOut(duration: 0.35), value: state.isPreviewing)
+                .animation(.spring(response: 0.5, dampingFraction: 0.75), value: showCompletion)
                 Spacer()
             }
 
             // Layer 3: completion overlay
             VStack {
-                CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord)
+                CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, isNewMovesRecord: showNewMovesRecord, personalBest: state.personalBestForCurrentSize)
                     .padding(.top)
                     .offset(y: showCompletion ? 0 : -300)
                     .opacity(showCompletion ? 1 : 0)
@@ -88,6 +97,11 @@ struct PuzzleView: View {
         .onChange(of: state.isNewRecord) { _, isRecord in
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
                 showNewRecord = isRecord
+            }
+        }
+        .onChange(of: state.isNewMovesRecord) { _, isRecord in
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                showNewMovesRecord = isRecord
             }
         }
         .navigationTitle("Puzzle")
