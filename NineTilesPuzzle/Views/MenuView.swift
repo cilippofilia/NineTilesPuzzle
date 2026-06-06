@@ -62,7 +62,17 @@ struct MenuView: View {
                     .foregroundStyle(.primary)
                     .background(.quaternary, in: .rect(cornerRadius: 20))
 
-}
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .contentShape(.rect(cornerRadius: 20))
+                    }
+                    .foregroundStyle(.primary)
+                    .background(.quaternary, in: .rect(cornerRadius: 20))
+                }
                 .padding(.horizontal)
 
                 Button("Play") {
@@ -73,17 +83,6 @@ struct MenuView: View {
                 .padding()
 
                 Spacer()
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(
-                        "Settings",
-                        systemImage: "gearshape",
-                        action: { showSettings = true }
-                    )
-                    .labelStyle(.iconOnly)
-                    .glassEffect(in: .circle)
-                }
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
