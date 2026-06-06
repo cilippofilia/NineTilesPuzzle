@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct NineTilesPuzzleApp: App {
     @State private var state = PuzzleState()
+    @State private var soundService = SoundService()
     @State private var showSplash = true
 
     var body: some Scene {
@@ -17,6 +18,7 @@ struct NineTilesPuzzleApp: App {
             ZStack {
                 MenuView()
                     .environment(state)
+                    .environment(soundService)
 
                 if showSplash {
                     SplashScreenView {

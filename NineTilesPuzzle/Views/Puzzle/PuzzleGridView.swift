@@ -9,6 +9,7 @@ import SwiftUI
 
 struct PuzzleGridView: View {
     @Environment(PuzzleState.self) private var state
+    @Environment(SoundService.self) private var soundService
     @State private var draggingTileID: Int?
 
     var body: some View {
@@ -56,9 +57,15 @@ struct PuzzleGridView: View {
         // Calculate target rows/cols using the geometry-provided tile size passed into the function
         let targetCol = min(max(Int(point.x / currentTileSize), 0), state.gridSize - 1)
         let targetRow = min(max(Int(point.y / currentTileSize), 0), state.gridSize - 1)
+        let targetIndex = targetRow * state.gridSize + targetCol
+        let didMove = tile.currentIndex != targetIndex
 
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            state.swapTiles(from: tile.currentIndex, to: targetRow * state.gridSize + targetCol)
+            state.swapTiles(from: tile.currentIndex, to: targetIndex)
+        }
+
+        if didMove {
+            soundService.playTileClick()
         }
     }
 }

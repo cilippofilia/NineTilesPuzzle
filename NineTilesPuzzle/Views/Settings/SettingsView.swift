@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(PuzzleState.self) private var state
+    @Environment(SoundService.self) private var soundService
     @Environment(\.dismiss) private var dismiss
 
     @State private var showResetStatsAlert = false
@@ -35,6 +36,13 @@ struct SettingsView: View {
                     } label: {
                         LabeledContent("Streak Countdown", value: state.streakCountdownLabel)
                     }
+                }
+
+                Section("Audio") {
+                    Toggle("Sound Effects", isOn: Binding(
+                        get: { soundService.isEnabled },
+                        set: { soundService.setEnabled($0) }
+                    ))
                 }
 
                 Section {
@@ -76,5 +84,6 @@ struct SettingsView: View {
         .sheet(isPresented: .constant(true)) {
             SettingsView()
                 .environment(PuzzleState())
+                .environment(SoundService())
         }
 }

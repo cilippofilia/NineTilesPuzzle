@@ -9,6 +9,7 @@ import SwiftUI
 
 struct PuzzleView: View {
     @Environment(PuzzleState.self) private var state
+    @Environment(SoundService.self) private var soundService
     @Environment(\.dismiss) private var dismiss
     @State private var showCompletion = false
     @State private var showNewRecord = false
@@ -124,6 +125,7 @@ struct PuzzleView: View {
         }
         .sensoryFeedback(.warning, trigger: state.didBreakStreak)
         .onChange(of: state.isSolved) { _, solved in
+            if solved { soundService.playCompletion() }
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75).delay(solved ? 0.3 : 0)) {
                 showCompletion = solved
             }
@@ -181,4 +183,5 @@ struct PuzzleView: View {
 #Preview {
     PuzzleView()
         .environment(PuzzleState())
+        .environment(SoundService())
 }
