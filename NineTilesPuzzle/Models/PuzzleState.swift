@@ -28,6 +28,7 @@ final class PuzzleState {
     var currentMoveCount: Int = 0
     var personalBestMoves: [Int: Int] = [:]
     var isNewMovesRecord: Bool = false
+    var gamesPlayed: [Int: Int] = [:]
     var error: Error?
     var previewDuration: Double = 3
     var streakCountdownDuration: Double = 30
@@ -144,6 +145,8 @@ final class PuzzleState {
                 isNewMovesRecord = true
                 UserDefaults.standard.set(currentMoveCount, forKey: Keys.personalBest(for: gridSize))
             }
+            gamesPlayed[gridSize, default: 0] += 1
+            UserDefaults.standard.set(gamesPlayed[gridSize]!, forKey: Keys.gamesPlayed(for: gridSize))
         }
 
         let newlyLocked = tiles.filter { $0.isLocked }.count - lockedBefore
@@ -191,6 +194,7 @@ extension PuzzleState {
         static let currentMoveCount = "puzzle.currentMoveCount"
         static let useRandomSize = "puzzle.useRandomSize"
         static func personalBest(for size: Int) -> String { "puzzle.personalBest.\(size)" }
+        static func gamesPlayed(for size: Int) -> String { "puzzle.gamesPlayed.\(size)" }
     }
 }
 
@@ -247,6 +251,10 @@ private extension PuzzleState {
         currentMoveCount = UserDefaults.standard.integer(forKey: Keys.currentMoveCount)
         personalBestMoves = (3...8).reduce(into: [:]) { dict, size in
             let value = UserDefaults.standard.integer(forKey: Keys.personalBest(for: size))
+            if value > 0 { dict[size] = value }
+        }
+        gamesPlayed = (3...8).reduce(into: [:]) { dict, size in
+            let value = UserDefaults.standard.integer(forKey: Keys.gamesPlayed(for: size))
             if value > 0 { dict[size] = value }
         }
         if !isSolved && currentStreak > 0 { startCountdown() }

@@ -34,6 +34,16 @@ struct StatsView: View {
                         }
                     }
                 }
+
+                Section("Games Played") {
+                    ForEach(3...8, id: \.self) { size in
+                        let count = state.gamesPlayed[size]
+                        LabeledContent(difficultyLabel(for: size)) {
+                            Text(count.map { "\($0)" } ?? "--")
+                                .foregroundStyle(count != nil ? .primary : .secondary)
+                        }
+                    }
+                }
             }
             .navigationTitle("Stats")
             .navigationBarTitleDisplayMode(.inline)

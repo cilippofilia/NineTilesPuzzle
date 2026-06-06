@@ -56,7 +56,7 @@ struct CompletionBannerView: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
-        .background(.regularMaterial, in: .rect(cornerRadius: 24))
+        .glassEffect(.regular, in: .rect(cornerRadius: 24))
     }
 }
 

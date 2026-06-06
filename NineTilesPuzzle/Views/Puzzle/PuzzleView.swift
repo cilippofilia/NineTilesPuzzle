@@ -14,6 +14,7 @@ struct PuzzleView: View {
     @State private var showNewRecord = false
     @State private var showNewMovesRecord = false
     @State private var showQuitAlert = false
+    @State private var bannerOffset: CGSize = .zero
 
     var body: some View {
         ZStack {
@@ -69,8 +70,23 @@ struct PuzzleView: View {
                 CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, isNewMovesRecord: showNewMovesRecord, personalBest: state.personalBestForCurrentSize)
                     .padding(.top)
                     .padding(.horizontal)
-                    .offset(y: showCompletion ? 0 : -300)
+                    .offset(x: bannerOffset.width, y: (showCompletion ? 0 : -300) + bannerOffset.height)
                     .opacity(showCompletion ? 1 : 0)
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                var transaction = Transaction()
+                                transaction.disablesAnimations = true
+                                withTransaction(transaction) {
+                                    bannerOffset = value.translation
+                                }
+                            }
+                            .onEnded { _ in
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                    bannerOffset = .zero
+                                }
+                            }
+                    )
 
                 Spacer()
 
@@ -140,6 +156,7 @@ struct PuzzleView: View {
     }
 
     private func startNewGame() {
+        bannerOffset = .zero
         Task { await state.startNewGame() }
     }
 }
