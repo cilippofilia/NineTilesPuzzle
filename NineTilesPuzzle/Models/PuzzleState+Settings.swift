@@ -73,6 +73,11 @@ extension PuzzleState {
         UserDefaults.standard.set(duration, forKey: Keys.previewDuration)
     }
 
+    func setHapticsEnabled(_ value: Bool) {
+        hapticsEnabled = value
+        UserDefaults.standard.set(value, forKey: Keys.hapticsEnabled)
+    }
+
     func setStreakCountdownDuration(_ duration: Double) {
         guard duration != streakCountdownDuration else { return }
         streakCountdownDuration = duration
@@ -99,6 +104,7 @@ extension PuzzleState {
         setImageSourceType(.random)
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
+        setHapticsEnabled(true)
         useRandomSize = false
         UserDefaults.standard.set(false, forKey: Keys.useRandomSize)
     }

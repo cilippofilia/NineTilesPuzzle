@@ -43,6 +43,11 @@ struct SettingsView: View {
                         get: { soundService.isEnabled },
                         set: { soundService.setEnabled($0) }
                     ))
+
+                    Toggle("Haptic Feedback", isOn: Binding(
+                        get: { state.hapticsEnabled },
+                        set: { state.setHapticsEnabled($0) }
+                    ))
                 }
 
                 Section {

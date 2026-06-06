@@ -121,9 +121,11 @@ struct PuzzleView: View {
             await state.startNewGame()
         }
         .sensoryFeedback(.success, trigger: state.isSolved) { _, newValue in
-            newValue
+            newValue && state.hapticsEnabled
         }
-        .sensoryFeedback(.warning, trigger: state.didBreakStreak)
+        .sensoryFeedback(.warning, trigger: state.didBreakStreak) { _, _ in
+            state.hapticsEnabled
+        }
         .onChange(of: state.isSolved) { _, solved in
             if solved { soundService.playCompletion() }
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75).delay(solved ? 0.3 : 0)) {

@@ -11,6 +11,7 @@ struct TileView: View {
     let tile: TileModel
     let image: CGImage
     let tileSize: CGFloat
+    let hapticsEnabled: Bool
     let onDragStarted: () -> Void
     let onDragEnded: (CGPoint) -> Void
 
@@ -28,7 +29,7 @@ struct TileView: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: tile.isLocked)
             .shadow(radius: isDragging ? 8 : 0)
             .sensoryFeedback(.impact(flexibility: .rigid, intensity: 0.7), trigger: tile.isLocked) { _, newValue in
-                newValue
+                newValue && hapticsEnabled
             }
             .allowsHitTesting(!tile.isLocked)
             .gesture(

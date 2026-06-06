@@ -34,6 +34,7 @@ final class PuzzleState {
     var error: Error?
     var previewDuration: Double = 3
     var streakCountdownDuration: Double = 30
+    var hapticsEnabled: Bool = true
 
     private(set) var timerRemaining: Double = 30
     private(set) var isTimerRunning = false
@@ -203,6 +204,7 @@ extension PuzzleState {
         static func personalBest(for size: Int) -> String { "puzzle.personalBest.\(size)" }
         static func gamesPlayed(for size: Int) -> String { "puzzle.gamesPlayed.\(size)" }
         static func achievement(id: String) -> String { "puzzle.achievement.\(id)" }
+        static let hapticsEnabled = "puzzle.hapticsEnabled"
     }
 }
 
@@ -213,6 +215,7 @@ private extension PuzzleState {
         UserDefaults.standard.set(imageSourceType.rawValue, forKey: Keys.imageSourceType)
         UserDefaults.standard.set(previewDuration, forKey: Keys.previewDuration)
         UserDefaults.standard.set(streakCountdownDuration, forKey: Keys.streakCountdownDuration)
+        UserDefaults.standard.set(hapticsEnabled, forKey: Keys.hapticsEnabled)
         guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
         UserDefaults.standard.set(tilesData, forKey: Keys.tiles)
 
@@ -234,6 +237,9 @@ private extension PuzzleState {
         }
         if UserDefaults.standard.object(forKey: Keys.streakCountdownDuration) != nil {
             streakCountdownDuration = UserDefaults.standard.double(forKey: Keys.streakCountdownDuration)
+        }
+        if UserDefaults.standard.object(forKey: Keys.hapticsEnabled) != nil {
+            hapticsEnabled = UserDefaults.standard.bool(forKey: Keys.hapticsEnabled)
         }
 
         if let rawSource = UserDefaults.standard.string(forKey: Keys.imageSourceType),
