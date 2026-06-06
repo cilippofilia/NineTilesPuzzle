@@ -12,19 +12,16 @@ struct MoveCounterView: View {
     var personalBest: Int? = nil
 
     var body: some View {
-        VStack(spacing: 2) {
-            HStack(spacing: 4) {
-                Image(systemName: "arrow.left.arrow.right")
-                    .foregroundStyle(.secondary)
-                Text("\(moves)")
-                    .bold()
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-            }
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.left.arrow.right")
+                .foregroundStyle(.secondary)
+            Text("\(moves)")
+                .bold()
+                .monospacedDigit()
+                .contentTransition(.numericText())
             if let best = personalBest {
-                Text("Best: \(best)")
-                    .font(.caption2)
-                    .foregroundStyle(moves < best ? .orange : .secondary)
+                Text("/ \(best)")
+                    .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .contentTransition(.numericText())
             }

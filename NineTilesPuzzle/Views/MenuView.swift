@@ -10,6 +10,7 @@ import SwiftUI
 enum GameRoute: Hashable {
     case game
     case gridSizePicker
+    case achievements
 }
 
 struct MenuView: View {
@@ -63,6 +64,24 @@ struct MenuView: View {
                     .foregroundStyle(.primary)
                     .background(.quaternary, in: .rect(cornerRadius: 20))
 
+                    Button {
+                        path.append(.achievements)
+                    } label: {
+                        HStack {
+                            Label("Achievements", systemImage: "trophy.fill")
+                            Spacer()
+                            Text("\(state.achievements.filter(\.isUnlocked).count)/\(state.achievements.count)")
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "chevron.forward")
+                                .imageScale(.small)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .contentShape(.rect(cornerRadius: 20))
+                    }
+                    .foregroundStyle(.primary)
+                    .background(.quaternary, in: .rect(cornerRadius: 20))
+
                     HStack(spacing: 12) {
                         Button {
                             showStats = true
@@ -89,11 +108,16 @@ struct MenuView: View {
                 }
                 .padding(.horizontal)
 
-                Button("Play") {
+                Button {
                     path.append(.game)
+                } label: {
+                    Label("Play", systemImage: "play.fill")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding()
+                        .contentShape(.rect(cornerRadius: 20))
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .foregroundStyle(.white)
+                .background(.blue, in: .rect(cornerRadius: 20))
                 .padding()
 
                 Spacer()
@@ -110,6 +134,8 @@ struct MenuView: View {
                     PuzzleView()
                 case .gridSizePicker:
                     GridSizePickerView()
+                case .achievements:
+                    AchievementsView()
                 }
             }
         }

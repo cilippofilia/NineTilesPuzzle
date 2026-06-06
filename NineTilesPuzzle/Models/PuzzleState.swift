@@ -127,8 +127,9 @@ final class PuzzleState {
         }
     }
 
-    /// Attempts to swap the tiles at `sourceIndex` and `targetIndex`; no-ops if either is locked.
+    /// Attempts to swap the tiles at `sourceIndex` and `targetIndex`; no-ops if either is locked or indices are equal.
     func swapTiles(from sourceIndex: Int, to targetIndex: Int) {
+        guard sourceIndex != targetIndex else { return }
         guard
             let source = tiles.first(where: { $0.currentIndex == sourceIndex }),
             let target = tiles.first(where: { $0.currentIndex == targetIndex }),

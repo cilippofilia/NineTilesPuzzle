@@ -14,12 +14,6 @@ struct StatsView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Achievements") {
-                    ForEach(state.achievements) { achievement in
-                        AchievementRowView(achievement: achievement)
-                    }
-                }
-
                 Section("Streaks") {
                     LabeledContent("Current Streak") {
                         Text(state.currentStreak > 0 ? "\(state.currentStreak)" : "--")

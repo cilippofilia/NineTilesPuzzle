@@ -15,6 +15,16 @@ struct AchievementService {
         URL.cachesDirectory.appending(path: "achievements.json")
     }
 
+    /// Loads achievements from the bundled achievements.json — always available, no network needed.
+    static func loadBundle() -> [Achievement] {
+        guard
+            let url = Bundle.main.url(forResource: "achievements", withExtension: "json"),
+            let data = try? Data(contentsOf: url),
+            let achievements = try? JSONDecoder().decode([Achievement].self, from: data)
+        else { return [] }
+        return achievements
+    }
+
     /// Reads the most recently cached remote response. Returns nil if no cache exists yet.
     static func loadCached() -> [Achievement]? {
         guard let data = try? Data(contentsOf: cacheURL) else { return nil }
