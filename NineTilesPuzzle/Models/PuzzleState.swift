@@ -167,11 +167,9 @@ final class PuzzleState {
         isPreviewing = false
     }
 
-    /// Stops the countdown and resets the streak when the user quits mid-game.
+    /// Stops the countdown when the user quits mid-game; streak is preserved.
     func leaveGame() {
         stopCountdown()
-        currentStreak = 0
-        isNewRecord = false
         saveToUserDefaults()
     }
 }

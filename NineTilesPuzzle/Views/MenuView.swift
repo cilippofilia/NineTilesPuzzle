@@ -15,6 +15,7 @@ enum GameRoute: Hashable {
 struct MenuView: View {
     @Environment(PuzzleState.self) private var state
     @State private var path: [GameRoute] = []
+    @State private var showStats = false
     @State private var showSettings = false
 
     var puzzleColor: LinearGradient {
@@ -62,16 +63,29 @@ struct MenuView: View {
                     .foregroundStyle(.primary)
                     .background(.quaternary, in: .rect(cornerRadius: 20))
 
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .contentShape(.rect(cornerRadius: 20))
+                    HStack(spacing: 12) {
+                        Button {
+                            showStats = true
+                        } label: {
+                            Label("Stats", systemImage: "chart.bar.fill")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .contentShape(.rect(cornerRadius: 20))
+                        }
+                        .foregroundStyle(.primary)
+                        .background(.quaternary, in: .rect(cornerRadius: 20))
+
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Label("Settings", systemImage: "gearshape.fill")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .contentShape(.rect(cornerRadius: 20))
+                        }
+                        .foregroundStyle(.primary)
+                        .background(.quaternary, in: .rect(cornerRadius: 20))
                     }
-                    .foregroundStyle(.primary)
-                    .background(.quaternary, in: .rect(cornerRadius: 20))
                 }
                 .padding(.horizontal)
 
@@ -83,6 +97,9 @@ struct MenuView: View {
                 .padding()
 
                 Spacer()
+            }
+            .sheet(isPresented: $showStats) {
+                StatsView()
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()

@@ -68,6 +68,7 @@ struct PuzzleView: View {
             VStack {
                 CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, isNewMovesRecord: showNewMovesRecord, personalBest: state.personalBestForCurrentSize)
                     .padding(.top)
+                    .padding(.horizontal)
                     .offset(y: showCompletion ? 0 : -300)
                     .opacity(showCompletion ? 1 : 0)
 
@@ -123,11 +124,7 @@ struct PuzzleView: View {
             }
             Button("Keep Playing", role: .cancel) { }
         } message: {
-            if state.currentStreak > 0 {
-                Text("Your streak of \(state.currentStreak) will be lost.")
-            } else {
-                Text("Your progress on this puzzle will be lost.")
-            }
+            Text("Your progress on this puzzle will be lost.")
         }
         .onDisappear {
             state.leaveGame()
