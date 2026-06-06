@@ -10,11 +10,21 @@ import SwiftUI
 @main
 struct NineTilesPuzzleApp: App {
     @State private var state = PuzzleState()
+    @State private var showSplash = true
 
     var body: some Scene {
         WindowGroup {
-            MenuView()
-                .environment(state)
+            ZStack {
+                MenuView()
+                    .environment(state)
+
+                if showSplash {
+                    SplashScreenView {
+                        showSplash = false
+                    }
+                    .zIndex(1)
+                }
+            }
         }
     }
 }
