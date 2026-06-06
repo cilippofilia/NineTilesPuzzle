@@ -29,6 +29,8 @@ final class PuzzleState {
     var personalBestMoves: [Int: Int] = [:]
     var isNewMovesRecord: Bool = false
     var gamesPlayed: [Int: Int] = [:]
+    var achievements: [Achievement] = []
+    var newlyUnlockedAchievement: Achievement? = nil
     var error: Error?
     var previewDuration: Double = 3
     var streakCountdownDuration: Double = 30
@@ -41,6 +43,9 @@ final class PuzzleState {
 
     init() {
         restoreFromUserDefaults()
+        loadAchievements()
+        checkAchievements()
+        Task { await refreshAchievementsFromRemote() }
     }
 
     func startCountdown() {
@@ -164,6 +169,7 @@ final class PuzzleState {
             stopCountdown()
         }
 
+        checkAchievements()
         saveToUserDefaults()
     }
 
@@ -195,6 +201,7 @@ extension PuzzleState {
         static let useRandomSize = "puzzle.useRandomSize"
         static func personalBest(for size: Int) -> String { "puzzle.personalBest.\(size)" }
         static func gamesPlayed(for size: Int) -> String { "puzzle.gamesPlayed.\(size)" }
+        static func achievement(id: String) -> String { "puzzle.achievement.\(id)" }
     }
 }
 

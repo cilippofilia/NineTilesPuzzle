@@ -52,7 +52,7 @@ struct PuzzleView: View {
                     StreakCounterView(currentStreak: state.currentStreak, bestStreak: state.allTimeHighStreak, timerRemaining: state.timerRemaining, isTimerRunning: state.isTimerRunning)
                     HStack {
                         Spacer()
-                        MoveCounterView(moves: state.currentMoveCount)
+                        MoveCounterView(moves: state.currentMoveCount, personalBest: state.personalBestForCurrentSize)
                             .padding(.trailing)
                     }
                 }
@@ -98,6 +98,23 @@ struct PuzzleView: View {
                     .opacity(showCompletion ? 1 : 0)
             }
             .allowsHitTesting(showCompletion)
+
+            // Layer 4: achievement unlock toast — only shown mid-game to avoid overlapping the completion banner
+            if let achievement = state.newlyUnlockedAchievement, !state.isSolved {
+                VStack {
+                    Spacer()
+                    AchievementToastView(achievement: achievement)
+                        .padding(.horizontal)
+                        .padding(.bottom)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: state.newlyUnlockedAchievement)
+        .task(id: state.newlyUnlockedAchievement?.id) {
+            guard state.newlyUnlockedAchievement != nil else { return }
+            try? await Task.sleep(for: .seconds(3))
+            await state.dismissAchievementNotification()
         }
         .task {
             await state.startNewGame()
