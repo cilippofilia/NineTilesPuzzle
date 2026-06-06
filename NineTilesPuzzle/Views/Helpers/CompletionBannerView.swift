@@ -27,43 +27,65 @@ struct CompletionBannerView: View {
             Text("Completed!")
                 .font(.largeTitle)
                 .bold()
-            Label("\(streak)", systemImage: "flame.fill")
-                .foregroundStyle(.orange)
-                .bold()
 
-            Divider()
-                .padding(.vertical, 2)
-
-            if isNewMovesRecord {
-                Label("New Best! \(moveCount) moves", systemImage: "medal.fill")
-                    .font(.subheadline)
+            HStack(spacing: 20) {
+                Label("\(streak)", systemImage: "flame.fill")
+                    .foregroundStyle(.orange)
                     .bold()
-                    .foregroundStyle(Self.goldColor)
-            } else {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.left.arrow.right")
-                    Text("\(moveCount) moves")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
 
-                if let best = personalBest, best != moveCount {
-                    Text("Best: \(best)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+                Label("\(moveCount) moves", systemImage: "arrow.left.arrow.right")
+            }
+
+            if let best = personalBest, best != moveCount {
+                Text("Best: \(best)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
         .glassEffect(.regular, in: .rect(cornerRadius: 24))
+        .overlay(alignment: .bottom) {
+            if isNewMovesRecord {
+                Label("New Best! \(moveCount) moves", systemImage: "medal.fill")
+                    .font(.subheadline)
+                    .bold()
+                    .foregroundStyle(Self.goldColor)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .clipShape(.capsule)
+                    .glassEffect(.regular, in: .rect(cornerRadius: 24))
+                    .offset(y: 42)
+
+            }
+        }
     }
 }
 
 #Preview {
     VStack(spacing: 20) {
-        CompletionBannerView(streak: 7, isNewRecord: true, moveCount: 23, isNewMovesRecord: true, personalBest: nil)
-        CompletionBannerView(streak: 3, isNewRecord: false, moveCount: 31, isNewMovesRecord: false, personalBest: 23)
-        CompletionBannerView(streak: 0, isNewRecord: false, moveCount: 18, isNewMovesRecord: false, personalBest: nil)
+        CompletionBannerView(
+            streak: 7,
+            isNewRecord: true,
+            moveCount: 23,
+            isNewMovesRecord: true,
+            personalBest: nil
+        )
+        Spacer()
+        CompletionBannerView(
+            streak: 3,
+            isNewRecord: false,
+            moveCount: 31,
+            isNewMovesRecord: false,
+            personalBest: 23
+        )
+        Spacer()
+        CompletionBannerView(
+            streak: 0,
+            isNewRecord: false,
+            moveCount: 18,
+            isNewMovesRecord: false,
+            personalBest: nil
+        )
     }
 }
