@@ -18,7 +18,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
+                Section("Game") {
                     NavigationLink {
                         PhotoSourcePickerView()
                     } label: {
