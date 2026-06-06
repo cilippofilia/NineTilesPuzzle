@@ -38,7 +38,7 @@ final class PuzzleState {
         restoreFromUserDefaults()
     }
 
-    private func startCountdown() {
+    func startCountdown() {
         guard streakCountdownDuration > 0 else { return }
         stopCountdown()
         timerRemaining = streakCountdownDuration
@@ -61,7 +61,7 @@ final class PuzzleState {
         }
     }
 
-    private func stopCountdown() {
+    func stopCountdown() {
         countdownTask?.cancel()
         countdownTask = nil
         timerRemaining = streakCountdownDuration
@@ -114,74 +114,6 @@ final class PuzzleState {
         }
     }
 
-    var difficultyLabel: String {
-        switch gridSize {
-        case 3: "Easy"
-        case 4: "Medium"
-        case 5: "Hard"
-        case 6: "Expert"
-        case 7: "Master"
-        default: "Insane"
-        }
-    }
-
-    func setImageSourceType(_ type: ImageSourceType) {
-        guard type != imageSourceType else { return }
-        imageSourceType = type
-        UserDefaults.standard.set(type.rawValue, forKey: Keys.imageSourceType)
-    }
-
-    var previewDurationLabel: String {
-        previewDuration == 0 ? "Off" : previewDuration < 60 ? "\(Int(previewDuration))s" : "\(Int(previewDuration / 60))m"
-    }
-
-    var streakCountdownLabel: String {
-        streakCountdownDuration == 0 ? "Off" : streakCountdownDuration < 60 ? "\(Int(streakCountdownDuration))s" : "\(Int(streakCountdownDuration / 60))m"
-    }
-
-    func setPreviewDuration(_ duration: Double) {
-        guard duration != previewDuration else { return }
-        previewDuration = duration
-        UserDefaults.standard.set(duration, forKey: Keys.previewDuration)
-    }
-
-    func setStreakCountdownDuration(_ duration: Double) {
-        guard duration != streakCountdownDuration else { return }
-        streakCountdownDuration = duration
-        if duration == 0 { stopCountdown() }
-        UserDefaults.standard.set(duration, forKey: Keys.streakCountdownDuration)
-    }
-
-    func resetStats() {
-        currentStreak = 0
-        allTimeHighStreak = 0
-        isNewRecord = false
-        stopCountdown()
-        UserDefaults.standard.removeObject(forKey: Keys.currentStreak)
-        UserDefaults.standard.removeObject(forKey: Keys.allTimeHighStreak)
-    }
-
-    func resetSettings() {
-        setGridSize(3)
-        setImageSourceType(.random)
-        setPreviewDuration(3)
-        setStreakCountdownDuration(30)
-    }
-
-    /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
-    func setGridSize(_ size: Int) {
-        guard size != gridSize else { return }
-        gridSize = size
-        tiles = []
-        tileImages = [:]
-        sourceImage = nil
-        isSolved = false
-        isNewRecord = false
-        UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
-        UserDefaults.standard.removeObject(forKey: Keys.tiles)
-        UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
-    }
-
     /// Attempts to swap the tiles at `sourceIndex` and `targetIndex`; no-ops if either is locked.
     func swapTiles(from sourceIndex: Int, to targetIndex: Int) {
         guard
@@ -231,7 +163,7 @@ final class PuzzleState {
 
 // MARK: - Persistence
 
-private extension PuzzleState {
+extension PuzzleState {
     enum Keys {
         static let gridSize = "puzzle.gridSize"
         static let imageSourceType = "puzzle.imageSourceType"
@@ -242,7 +174,9 @@ private extension PuzzleState {
         static let previewDuration = "puzzle.previewDuration"
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
     }
+}
 
+private extension PuzzleState {
     func saveToUserDefaults() {
         UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
         UserDefaults.standard.set(imageSourceType.rawValue, forKey: Keys.imageSourceType)
