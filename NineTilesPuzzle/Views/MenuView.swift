@@ -53,7 +53,7 @@ struct MenuView: View {
                         path.append(.gridSizePicker)
                     } label: {
                         HStack {
-                            LabeledContent("Difficulty", value: "\(state.difficultyLabel)  \(state.gridSize) × \(state.gridSize)")
+                            LabeledContent("Difficulty", value: state.difficultyDisplayValue)
                             Image(systemName: "chevron.forward")
                                 .imageScale(.small)
                                 .foregroundStyle(.secondary)

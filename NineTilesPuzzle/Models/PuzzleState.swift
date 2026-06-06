@@ -14,6 +14,7 @@ final class PuzzleState {
     private var previewSleepTask: Task<Void, Never>?
 
     var gridSize: Int = 3
+    var useRandomSize: Bool = false
     var imageSourceType: ImageSourceType = .random
     var tiles: [TileModel] = []
     var tileImages: [Int: CGImage] = [:]
@@ -73,6 +74,7 @@ final class PuzzleState {
 
     /// Fetches a fresh image, slices it, shuffles the tiles, and persists state.
     func startNewGame() async {
+        if useRandomSize { gridSize = Int.random(in: 3...8) }
         tiles = []
         tileImages = [:]
         sourceImage = nil
@@ -187,6 +189,7 @@ extension PuzzleState {
         static let previewDuration = "puzzle.previewDuration"
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
         static let currentMoveCount = "puzzle.currentMoveCount"
+        static let useRandomSize = "puzzle.useRandomSize"
         static func personalBest(for size: Int) -> String { "puzzle.personalBest.\(size)" }
     }
 }
@@ -194,6 +197,7 @@ extension PuzzleState {
 private extension PuzzleState {
     func saveToUserDefaults() {
         UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
+        UserDefaults.standard.set(useRandomSize, forKey: Keys.useRandomSize)
         UserDefaults.standard.set(imageSourceType.rawValue, forKey: Keys.imageSourceType)
         UserDefaults.standard.set(previewDuration, forKey: Keys.previewDuration)
         UserDefaults.standard.set(streakCountdownDuration, forKey: Keys.streakCountdownDuration)
@@ -210,6 +214,7 @@ private extension PuzzleState {
     func restoreFromUserDefaults() {
         let savedSize = UserDefaults.standard.integer(forKey: Keys.gridSize)
         if (3...8).contains(savedSize) { gridSize = savedSize }
+        useRandomSize = UserDefaults.standard.bool(forKey: Keys.useRandomSize)
         allTimeHighStreak = UserDefaults.standard.integer(forKey: Keys.allTimeHighStreak)
 
         if UserDefaults.standard.object(forKey: Keys.previewDuration) != nil {

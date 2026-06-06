@@ -19,6 +19,10 @@ extension PuzzleState {
         }
     }
 
+    var difficultyDisplayValue: String {
+        useRandomSize ? "Random" : "\(difficultyLabel)  \(gridSize) × \(gridSize)"
+    }
+
     var previewDurationLabel: String {
         previewDuration == 0 ? "Off" : previewDuration < 60 ? "\(Int(previewDuration))s" : "\(Int(previewDuration / 60))m"
     }
@@ -31,14 +35,28 @@ extension PuzzleState {
 
     /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
     func setGridSize(_ size: Int) {
-        guard size != gridSize else { return }
+        guard size != gridSize || useRandomSize else { return }
+        useRandomSize = false
         gridSize = size
         tiles = []
         tileImages = [:]
         sourceImage = nil
         isSolved = false
         isNewRecord = false
+        UserDefaults.standard.set(false, forKey: Keys.useRandomSize)
         UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
+        UserDefaults.standard.removeObject(forKey: Keys.tiles)
+        UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
+    }
+
+    func setRandomSize() {
+        useRandomSize = true
+        tiles = []
+        tileImages = [:]
+        sourceImage = nil
+        isSolved = false
+        isNewRecord = false
+        UserDefaults.standard.set(true, forKey: Keys.useRandomSize)
         UserDefaults.standard.removeObject(forKey: Keys.tiles)
         UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
     }
@@ -81,5 +99,7 @@ extension PuzzleState {
         setImageSourceType(.random)
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
+        useRandomSize = false
+        UserDefaults.standard.set(false, forKey: Keys.useRandomSize)
     }
 }

@@ -25,23 +25,43 @@ struct GridSizePickerView: View {
     }
 
     var body: some View {
-        List(sizes, id: \.self) { size in
+        List {
             Button {
-                state.setGridSize(size)
+                state.setRandomSize()
                 dismiss()
             } label: {
                 LabeledContent {
-                    if state.gridSize == size {
+                    if state.useRandomSize {
                         Image(systemName: "checkmark")
                             .foregroundStyle(.tint)
                     }
                 } label: {
-                    Text("\(label(for: size))  \(size) × \(size)")
+                    HStack {
+                        Text("Random")
+                        Image(systemName: "shuffle")
+                    }
                 }
             }
             .foregroundStyle(.primary)
+
+            ForEach(sizes, id: \.self) { size in
+                Button {
+                    state.setGridSize(size)
+                    dismiss()
+                } label: {
+                    LabeledContent {
+                        if !state.useRandomSize && state.gridSize == size {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.tint)
+                        }
+                    } label: {
+                        Text("\(label(for: size))  \(size) × \(size)")
+                    }
+                }
+                .foregroundStyle(.primary)
+            }
         }
-        .navigationTitle("Grid Size")
+        .navigationTitle("Difficulty")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
