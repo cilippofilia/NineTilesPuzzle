@@ -31,6 +31,7 @@ struct PuzzleGridView: View {
                                     image: cgImage,
                                     tileSize: calculatedTileSize,
                                     hapticsEnabled: state.hapticsEnabled,
+                                    debugOverlayEnabled: state.debugOverlayEnabled,
                                     onDragStarted: { draggingTileID = tile.id },
                                     onDragEnded: { point in
                                         handleDrop(point, for: tile, currentTileSize: calculatedTileSize)

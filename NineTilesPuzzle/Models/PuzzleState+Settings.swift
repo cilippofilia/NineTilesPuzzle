@@ -78,6 +78,11 @@ extension PuzzleState {
         UserDefaults.standard.set(value, forKey: Keys.hapticsEnabled)
     }
 
+    func setDebugOverlayEnabled(_ value: Bool) {
+        debugOverlayEnabled = value
+        UserDefaults.standard.set(value, forKey: Keys.debugOverlayEnabled)
+    }
+
     func setStreakCountdownDuration(_ duration: Double) {
         guard duration != streakCountdownDuration else { return }
         streakCountdownDuration = duration

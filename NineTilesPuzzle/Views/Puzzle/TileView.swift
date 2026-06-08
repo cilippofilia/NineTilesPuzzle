@@ -12,6 +12,7 @@ struct TileView: View {
     let image: CGImage
     let tileSize: CGFloat
     let hapticsEnabled: Bool
+    let debugOverlayEnabled: Bool
     let onDragStarted: () -> Void
     let onDragEnded: (CGPoint) -> Void
 
@@ -30,6 +31,18 @@ struct TileView: View {
             .shadow(radius: isDragging ? 8 : 0)
             .sensoryFeedback(.impact(flexibility: .rigid, intensity: 0.7), trigger: tile.isLocked) { _, newValue in
                 newValue && hapticsEnabled
+            }
+            .overlay(alignment: .topLeading) {
+                if debugOverlayEnabled {
+                    Text("\(tile.id + 1)")
+                        .font(.caption2.bold())
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 2)
+                        .background(.black.opacity(0.55), in: .rect(cornerRadius: 4))
+                        .padding(4)
+                }
             }
             .allowsHitTesting(!tile.isLocked)
             .gesture(

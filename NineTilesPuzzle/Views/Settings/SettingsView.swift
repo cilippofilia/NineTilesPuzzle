@@ -50,6 +50,15 @@ struct SettingsView: View {
                     ))
                 }
 
+                #if DEBUG
+                Section("Debug") {
+                    Toggle("Show Tile Indices", isOn: Binding(
+                        get: { state.debugOverlayEnabled },
+                        set: { state.setDebugOverlayEnabled($0) }
+                    ))
+                }
+                #endif
+
                 Section {
                     Button("Reset Stats", role: .destructive) {
                         showResetStatsAlert = true
