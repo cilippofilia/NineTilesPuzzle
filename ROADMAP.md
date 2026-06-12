@@ -5,24 +5,6 @@ notes on how it hooks into the existing architecture.
 
 ---
 
-## 0. Bug Fixes
-
-### Sound ignores the silent switch — **S**
-`SoundService` (Services/SoundService.swift) plays effects via `AudioServicesPlaySystemSound`,
-which bypasses the ring/silent switch — sounds always play even when the phone is muted.
-Replace with `AVAudioPlayer`-based playback and configure `AVAudioSession` with a category
-like `.ambient` that respects the silent switch and system volume.
-
-### Reset Stats doesn't clear games-played counts — **S**
-`PuzzleState.resetStats()` (Models/PuzzleState+Settings.swift) clears streaks, move counts,
-and personal bests, but leaves the `gamesPlayed` dictionary and its `Keys.gamesPlayed(for:)`
-UserDefaults entries (sizes 3–8) untouched. This causes `StatsView` and achievement progress
-(which depends on `totalGames` in PuzzleState+Achievements.swift) to show stale counts after
-reset. Add logic to clear `gamesPlayed` and remove UserDefaults entries for all grid sizes;
-also update the reset confirmation alert text in SettingsView.swift to mention games played.
-
----
-
 ## 1. New Game Modes
 
 All modes reuse the stateless `PuzzleEngine` and `PuzzleState`. The natural starting point is

@@ -97,11 +97,15 @@ extension PuzzleState {
         currentMoveCount = 0
         personalBestMoves = [:]
         isNewMovesRecord = false
+        gamesPlayed = [:]
         stopCountdown()
         UserDefaults.standard.removeObject(forKey: Keys.currentStreak)
         UserDefaults.standard.removeObject(forKey: Keys.allTimeHighStreak)
         UserDefaults.standard.removeObject(forKey: Keys.currentMoveCount)
-        (3...8).forEach { UserDefaults.standard.removeObject(forKey: Keys.personalBest(for: $0)) }
+        (3...8).forEach {
+            UserDefaults.standard.removeObject(forKey: Keys.personalBest(for: $0))
+            UserDefaults.standard.removeObject(forKey: Keys.gamesPlayed(for: $0))
+        }
     }
 
     func resetSettings() {

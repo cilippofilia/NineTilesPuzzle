@@ -85,7 +85,7 @@ struct SettingsView: View {
                 Button("Reset", role: .destructive) { state.resetStats() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Your current streak, best streak, move counter, and personal bests will be cleared.")
+                Text("Your current streak, best streak, move counter, personal bests, and games played will be cleared.")
             }
             .alert("Reset Settings?", isPresented: $showResetSettingsAlert) {
                 Button("Reset", role: .destructive) { state.resetSettings() }
