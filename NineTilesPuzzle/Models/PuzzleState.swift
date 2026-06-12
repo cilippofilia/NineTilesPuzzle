@@ -147,21 +147,23 @@ final class PuzzleState {
 
         if isSolved {
             stopCountdown()
-            let existing = personalBestMoves[gridSize]
-            if existing == nil || currentMoveCount < existing! {
-                personalBestMoves[gridSize] = currentMoveCount
-                isNewMovesRecord = true
-                UserDefaults.standard.set(currentMoveCount, forKey: Keys.personalBest(for: gridSize))
+            if !debugOverlayEnabled {
+                let existing = personalBestMoves[gridSize]
+                if existing == nil || currentMoveCount < existing! {
+                    personalBestMoves[gridSize] = currentMoveCount
+                    isNewMovesRecord = true
+                    UserDefaults.standard.set(currentMoveCount, forKey: Keys.personalBest(for: gridSize))
+                }
+                gamesPlayed[gridSize, default: 0] += 1
+                UserDefaults.standard.set(gamesPlayed[gridSize]!, forKey: Keys.gamesPlayed(for: gridSize))
             }
-            gamesPlayed[gridSize, default: 0] += 1
-            UserDefaults.standard.set(gamesPlayed[gridSize]!, forKey: Keys.gamesPlayed(for: gridSize))
         }
 
         let newlyLocked = tiles.filter { $0.isLocked }.count - lockedBefore
         if newlyLocked > 0 {
             currentStreak += 1
             if !isSolved { startCountdown() }
-            if currentStreak > allTimeHighStreak {
+            if !debugOverlayEnabled && currentStreak > allTimeHighStreak {
                 allTimeHighStreak = currentStreak
                 isNewRecord = true
                 UserDefaults.standard.set(allTimeHighStreak, forKey: Keys.allTimeHighStreak)
@@ -172,7 +174,7 @@ final class PuzzleState {
             stopCountdown()
         }
 
-        checkAchievements()
+        if !debugOverlayEnabled { checkAchievements() }
         saveToUserDefaults()
     }
 

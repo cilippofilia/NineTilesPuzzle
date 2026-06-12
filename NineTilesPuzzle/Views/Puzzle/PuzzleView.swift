@@ -49,14 +49,15 @@ struct PuzzleView: View {
             // Layer 2: streak counter + move counter float at top — outside layout flow so
             // they don't shift the grid's vertical center
             VStack {
-                ZStack {
-                    StreakCounterView(currentStreak: state.currentStreak, bestStreak: state.allTimeHighStreak, timerRemaining: state.timerRemaining, isTimerRunning: state.isTimerRunning)
-                    HStack {
-                        Spacer()
-                        MoveCounterView(moves: state.currentMoveCount, personalBest: state.personalBestForCurrentSize)
-                            .padding(.trailing)
-                    }
-                }
+                PuzzleStatusBarView(
+                    debugOverlayEnabled: state.debugOverlayEnabled,
+                    currentStreak: state.currentStreak,
+                    bestStreak: state.allTimeHighStreak,
+                    timerRemaining: state.timerRemaining,
+                    isTimerRunning: state.isTimerRunning,
+                    moveCount: state.currentMoveCount,
+                    personalBest: state.personalBestForCurrentSize
+                )
                 .frame(maxWidth: .infinity)
                 .padding(.top)
                 .opacity(streakVisible ? 1 : 0)
@@ -68,7 +69,7 @@ struct PuzzleView: View {
 
             // Layer 3: completion overlay
             VStack {
-                CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, isNewMovesRecord: showNewMovesRecord, personalBest: state.personalBestForCurrentSize)
+                CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, isNewMovesRecord: showNewMovesRecord, personalBest: state.personalBestForCurrentSize, isPracticeMode: state.debugOverlayEnabled)
                     .padding(.top)
                     .padding(.horizontal)
                     .offset(x: bannerOffset.width, y: (showCompletion ? 0 : -300) + bannerOffset.height)

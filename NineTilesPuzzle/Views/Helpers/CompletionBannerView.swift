@@ -13,6 +13,7 @@ struct CompletionBannerView: View {
     let moveCount: Int
     let isNewMovesRecord: Bool
     let personalBest: Int?
+    let isPracticeMode: Bool
 
     private static let goldColor = Color(hue: 0.12, saturation: 0.9, brightness: 0.85)
 
@@ -28,18 +29,20 @@ struct CompletionBannerView: View {
                 .font(.largeTitle)
                 .bold()
 
-            HStack(spacing: 20) {
-                Label("\(streak)", systemImage: "flame.fill")
-                    .foregroundStyle(.orange)
-                    .bold()
+            if !isPracticeMode {
+                HStack(spacing: 20) {
+                    Label("\(streak)", systemImage: "flame.fill")
+                        .foregroundStyle(.orange)
+                        .bold()
 
-                Label("\(moveCount) moves", systemImage: "arrow.left.arrow.right")
-            }
+                    Label("\(moveCount) moves", systemImage: "arrow.left.arrow.right")
+                }
 
-            if let best = personalBest, best != moveCount {
-                Text("Best: \(best)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                if let best = personalBest, best != moveCount {
+                    Text("Best: \(best)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
         .padding(.horizontal, 24)
@@ -69,7 +72,8 @@ struct CompletionBannerView: View {
             isNewRecord: true,
             moveCount: 23,
             isNewMovesRecord: true,
-            personalBest: nil
+            personalBest: nil,
+            isPracticeMode: false
         )
         Spacer()
         CompletionBannerView(
@@ -77,7 +81,8 @@ struct CompletionBannerView: View {
             isNewRecord: false,
             moveCount: 31,
             isNewMovesRecord: false,
-            personalBest: 23
+            personalBest: 23,
+            isPracticeMode: false
         )
         Spacer()
         CompletionBannerView(
@@ -85,7 +90,8 @@ struct CompletionBannerView: View {
             isNewRecord: false,
             moveCount: 18,
             isNewMovesRecord: false,
-            personalBest: nil
+            personalBest: nil,
+            isPracticeMode: true
         )
     }
 }

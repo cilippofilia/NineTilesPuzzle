@@ -14,6 +14,7 @@ struct SettingsView: View {
 
     @State private var showResetStatsAlert = false
     @State private var showResetSettingsAlert = false
+    @State private var showDebugOverlayAlert = false
 
     var body: some View {
         NavigationStack {
@@ -50,14 +51,18 @@ struct SettingsView: View {
                     ))
                 }
 
-                #if DEBUG
-                Section("Debug") {
+                Section("Super easy mode?") {
                     Toggle("Show Tile Indices", isOn: Binding(
                         get: { state.debugOverlayEnabled },
-                        set: { state.setDebugOverlayEnabled($0) }
+                        set: { newValue in
+                            if newValue {
+                                showDebugOverlayAlert = true
+                            } else {
+                                state.setDebugOverlayEnabled(false)
+                            }
+                        }
                     ))
                 }
-                #endif
 
                 Section {
                     Button("Reset Stats", role: .destructive) {
@@ -87,6 +92,12 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Photo source, preview time, streak countdown, and difficulty will be restored to their default values.")
+            }
+            .alert("Turn On Tile Indices?", isPresented: $showDebugOverlayAlert) {
+                Button("Turn On") { state.setDebugOverlayEnabled(true) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("While enabled, your streak, best moves, games played, and achievements won't be updated. Turn this off to resume tracking your progress.")
             }
         }
         .presentationDetents([.medium])
