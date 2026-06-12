@@ -11,34 +11,34 @@ All modes reuse the stateless `PuzzleEngine` and `PuzzleState`. The natural star
 a `GameMode` enum threaded through `PuzzleState`, with mode selection routed via the existing
 `GameRoute` enum in `Views/MenuView.swift`.
 
-### Daily Challenge — **M**
+[] ### Daily Challenge — **M**
 One puzzle per day, identical for every player: seed the shuffle deterministically from the
 date (`PuzzleEngine.shuffle` would accept a `RandomNumberGenerator`) and use a fixed image per
 day (a bundled pack indexed by date, or a date-seeded picsum ID). Track a calendar streak of
 completed days, separate from the in-game move streak. This is the single highest-leverage
 feature for retention, and the natural companion to an online leaderboard (see §3).
 
-### Time Attack — **S/M**
+[] ### Time Attack — **S/M**
 Solve the whole puzzle before a countdown expires, with time budget scaled by grid size.
 The streak countdown timer in `PuzzleState` already provides the timer infrastructure —
 this generalizes it from "time per correct move" to "time per puzzle".
 
-### Limited Moves — **S**
+[] ### Limited Moves — **S**
 Solve within a move budget per difficulty. The move counter already exists; this only adds
 a budget check and a fail state. Pairs naturally with the power-up economy (§2).
 
-### Zen Mode — **S**
+[] ### Zen Mode — **S**
 No timers, no streak pressure, no fail states — just the picture. Cheapest mode to build
 because it *disables* existing systems rather than adding new ones. Good for the audience
 that plays with personal photos.
 
-### Classic Slide (15-puzzle variant) — **M/L**
+[] ### Classic Slide (15-puzzle variant) — **M/L**
 One empty cell, tiles slide instead of swap. Needs new engine rules (legal-move adjacency
 and a solvability parity check on shuffle — half of random permutations are unsolvable) but
 reuses the entire image-slicing and grid-rendering pipeline. Effectively a second game in
 the same app.
 
-### Fog / Reveal Mode — **M**
+[] ### Fog / Reveal Mode — **M**
 Tiles start desaturated or hidden and reveal in full color only when locked, with no image
 preview. A visual-twist mode built almost entirely in `TileView` rendering, on top of the
 existing lock state.

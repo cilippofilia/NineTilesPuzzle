@@ -11,6 +11,7 @@ enum GameRoute: Hashable {
     case game
     case gridSizePicker
     case achievements
+    case gameModes
 }
 
 struct MenuView: View {
@@ -49,6 +50,21 @@ struct MenuView: View {
                         personalBestMoves: state.personalBestForCurrentSize
                     )
                     .frame(height: 88)
+
+                    Button {
+                        path.append(.gameModes)
+                    } label: {
+                        HStack {
+                            LabeledContent("Game Mode", value: state.selectedGameMode.title)
+                            Image(systemName: "chevron.forward")
+                                .imageScale(.small)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .contentShape(.rect(cornerRadius: 20))
+                    }
+                    .foregroundStyle(.primary)
+                    .background(.quaternary, in: .rect(cornerRadius: 20))
 
                     Button {
                         path.append(.gridSizePicker)
@@ -136,6 +152,8 @@ struct MenuView: View {
                     GridSizePickerView()
                 case .achievements:
                     AchievementsView()
+                case .gameModes:
+                    GameModeView()
                 }
             }
         }

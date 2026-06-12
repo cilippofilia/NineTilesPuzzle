@@ -36,6 +36,7 @@ final class PuzzleState {
     var streakCountdownDuration: Double = 30
     var hapticsEnabled: Bool = true
     var debugOverlayEnabled: Bool = false
+    var selectedGameMode: GameMode = .classic
 
     private(set) var timerRemaining: Double = 30
     private(set) var isTimerRunning = false
@@ -209,6 +210,7 @@ extension PuzzleState {
         static func achievement(id: String) -> String { "puzzle.achievement.\(id)" }
         static let hapticsEnabled = "puzzle.hapticsEnabled"
         static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
+        static let gameMode = "puzzle.gameMode"
     }
 }
 
@@ -221,6 +223,7 @@ private extension PuzzleState {
         UserDefaults.standard.set(streakCountdownDuration, forKey: Keys.streakCountdownDuration)
         UserDefaults.standard.set(hapticsEnabled, forKey: Keys.hapticsEnabled)
         UserDefaults.standard.set(debugOverlayEnabled, forKey: Keys.debugOverlayEnabled)
+        UserDefaults.standard.set(selectedGameMode.rawValue, forKey: Keys.gameMode)
         guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
         UserDefaults.standard.set(tilesData, forKey: Keys.tiles)
 
@@ -248,6 +251,9 @@ private extension PuzzleState {
         }
         if UserDefaults.standard.object(forKey: Keys.debugOverlayEnabled) != nil {
             debugOverlayEnabled = UserDefaults.standard.bool(forKey: Keys.debugOverlayEnabled)
+        }
+        if let savedGameMode = UserDefaults.standard.string(forKey: Keys.gameMode).flatMap(GameMode.init(rawValue:)) {
+            selectedGameMode = savedGameMode
         }
 
         if let rawSource = UserDefaults.standard.string(forKey: Keys.imageSourceType),

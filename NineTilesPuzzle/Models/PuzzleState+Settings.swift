@@ -83,6 +83,12 @@ extension PuzzleState {
         UserDefaults.standard.set(value, forKey: Keys.debugOverlayEnabled)
     }
 
+    func setGameMode(_ mode: GameMode) {
+        guard mode.isAvailable, mode != selectedGameMode else { return }
+        selectedGameMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: Keys.gameMode)
+    }
+
     func setStreakCountdownDuration(_ duration: Double) {
         guard duration != streakCountdownDuration else { return }
         streakCountdownDuration = duration
