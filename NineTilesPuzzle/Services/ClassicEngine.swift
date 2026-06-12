@@ -1,16 +1,18 @@
 //
-//  PuzzleEngine.swift
+//  ClassicEngine.swift
 //  NineTilesPuzzle
 //
-//  Created by Filippo Cilia on 5/25/26.
+//  Created by Filippo Cilia on 6/12/26.
 //
 
-import SwiftUI
+import Foundation
 
+/// Classic mode: every tile is swappable; a tile that lands on its correct position
+/// locks in place and can no longer be moved.
 @MainActor
-struct PuzzleEngine {
+struct ClassicEngine: GameEngine {
     /// Shuffles tiles into a derangement — no tile lands on its correct position.
-    func shuffle(_ tiles: [TileModel]) -> [TileModel] {
+    func shuffle(_ tiles: [TileModel], gridSize: Int) -> [TileModel] {
         guard tiles.count > 1 else { return tiles }
 
         let shuffledTiles = tiles
@@ -50,10 +52,5 @@ struct PuzzleEngine {
         if tiles[targetOffset].id == tiles[targetOffset].currentIndex {
             tiles[targetOffset].isLocked = true
         }
-    }
-
-    /// Returns true when every tile is locked in its correct position.
-    func isSolved(_ tiles: [TileModel]) -> Bool {
-        tiles.allSatisfy { $0.isLocked }
     }
 }

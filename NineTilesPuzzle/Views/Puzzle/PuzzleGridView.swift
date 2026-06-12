@@ -21,11 +21,17 @@ struct PuzzleGridView: View {
                     let calculatedTileSize = geoWidth / CGFloat(state.gridSize)
 
                     ZStack(alignment: .topLeading) {
+                        if state.selectedGameMode == .slide {
+                            Rectangle()
+                                .fill(.quaternary)
+                        }
+
                         ForEach(state.tiles) { tile in
                             let col = tile.currentIndex % state.gridSize
                             let row = tile.currentIndex / state.gridSize
+                            let isBlank = state.selectedGameMode == .slide && tile.id == state.tiles.count - 1
 
-                            if let cgImage = state.tileImages[tile.id] {
+                            if !isBlank, let cgImage = state.tileImages[tile.id] {
                                 TileView(
                                     tile: tile,
                                     image: cgImage,
@@ -56,14 +62,22 @@ struct PuzzleGridView: View {
         draggingTileID = nil
         guard currentTileSize > 0 else { return }
 
-        // Calculate target rows/cols using the geometry-provided tile size passed into the function
-        let targetCol = min(max(Int(point.x / currentTileSize), 0), state.gridSize - 1)
-        let targetRow = min(max(Int(point.y / currentTileSize), 0), state.gridSize - 1)
-        let targetIndex = targetRow * state.gridSize + targetCol
-        let didMove = tile.currentIndex != targetIndex
+        var didMove = false
 
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            state.swapTiles(from: tile.currentIndex, to: targetIndex)
+        if state.selectedGameMode == .slide {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                didMove = state.slideTile(from: tile.currentIndex)
+            }
+        } else {
+            // Calculate target rows/cols using the geometry-provided tile size passed into the function
+            let targetCol = min(max(Int(point.x / currentTileSize), 0), state.gridSize - 1)
+            let targetRow = min(max(Int(point.y / currentTileSize), 0), state.gridSize - 1)
+            let targetIndex = targetRow * state.gridSize + targetCol
+            didMove = tile.currentIndex != targetIndex
+
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                state.swapTiles(from: tile.currentIndex, to: targetIndex)
+            }
         }
 
         if didMove {

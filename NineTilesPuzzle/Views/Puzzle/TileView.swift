@@ -26,10 +26,10 @@ struct TileView: View {
             .frame(width: tileSize, height: tileSize)
             .clipShape(.rect)
             .offset(dragOffset)
-            .scaleEffect(isDragging ? 1.08 : (tile.isLocked ? 1.0 : 0.98))
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: tile.isLocked)
+            .scaleEffect(isDragging ? 1.08 : (tile.isCorrect ? 1.0 : 0.98))
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: tile.isCorrect)
             .shadow(radius: isDragging ? 8 : 0)
-            .sensoryFeedback(.impact(flexibility: .rigid, intensity: 0.7), trigger: tile.isLocked) { _, newValue in
+            .sensoryFeedback(.impact(flexibility: .rigid, intensity: 0.7), trigger: tile.isCorrect) { _, newValue in
                 newValue && hapticsEnabled
             }
             .overlay(alignment: .topLeading) {

@@ -1,17 +1,17 @@
 //
-//  PuzzleEngineTests.swift
+//  ClassicEngineTests.swift
 //  NineTilesPuzzleTests
 //
-//  Created by Filippo Cilia on 5/25/26.
+//  Created by Filippo Cilia on 6/12/26.
 //
 
 import Testing
 @testable import NineTilesPuzzle
 
-@Suite("PuzzleEngine")
+@Suite("ClassicEngine")
 @MainActor
-struct PuzzleEngineTests {
-    private let engine = PuzzleEngine()
+struct ClassicEngineTests {
+    private let engine = ClassicEngine()
 
     private func solvedTiles() -> [TileModel] {
         (0..<9).map { TileModel(id: $0, currentIndex: $0, isLocked: false) }
@@ -22,23 +22,23 @@ struct PuzzleEngineTests {
     @Test func shuffleIsNeverSolved() {
         let tiles = solvedTiles()
         for _ in 0..<200 {
-            _ = engine.shuffle(tiles)
-            #expect(!engine.isSolved(tiles))
+            let shuffled = engine.shuffle(tiles, gridSize: 3)
+            #expect(!engine.isSolved(shuffled))
         }
     }
 
     @Test func shuffleIsDerangement() {
         let tiles = solvedTiles()
         for _ in 0..<200 {
-            _ = engine.shuffle(tiles)
-            #expect(tiles.allSatisfy { $0.currentIndex != $0.id })
+            let shuffled = engine.shuffle(tiles, gridSize: 3)
+            #expect(shuffled.allSatisfy { $0.currentIndex != $0.id })
         }
     }
 
     @Test func shuffleProducesAllIndices() {
         let tiles = solvedTiles()
-        _ = engine.shuffle(tiles)
-        #expect(tiles.map { $0.currentIndex }.sorted() == Array(0..<9))
+        let shuffled = engine.shuffle(tiles, gridSize: 3)
+        #expect(shuffled.map { $0.currentIndex }.sorted() == Array(0..<9))
     }
 
     // MARK: - swap
@@ -80,14 +80,15 @@ struct PuzzleEngineTests {
 
     // MARK: - isSolved
 
-    @Test func isSolvedReturnsTrueWhenAllLocked() {
-        let tiles = (0..<9).map { TileModel(id: $0, currentIndex: $0, isLocked: true) }
+    @Test func isSolvedReturnsTrueWhenAllTilesAreInPosition() {
+        let tiles = solvedTiles()
         #expect(engine.isSolved(tiles))
     }
 
-    @Test func isSolvedReturnsFalseWhenAnyUnlocked() {
-        var tiles = (0..<9).map { TileModel(id: $0, currentIndex: $0, isLocked: true) }
-        tiles[4].isLocked = false
+    @Test func isSolvedReturnsFalseWhenATileIsOutOfPosition() {
+        var tiles = solvedTiles()
+        tiles[4].currentIndex = 5
+        tiles[5].currentIndex = 4
         #expect(!engine.isSolved(tiles))
     }
 }

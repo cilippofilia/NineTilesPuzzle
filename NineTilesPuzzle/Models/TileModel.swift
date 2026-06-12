@@ -23,6 +23,9 @@ final class TileModel: Identifiable, Equatable {
         self.currentIndex = currentIndex
         self.isLocked = isLocked
     }
+
+    /// Whether this tile currently sits on its target grid position, regardless of `isLocked`.
+    var isCorrect: Bool { currentIndex == id }
 }
 
 extension TileModel {

@@ -10,8 +10,13 @@ import SwiftUI
 @MainActor
 @Observable
 final class PuzzleState {
-    private let puzzleEngine = PuzzleEngine()
+    private let classicEngine = ClassicEngine()
+    private let slideEngine = SlideEngine()
     private var previewSleepTask: Task<Void, Never>?
+
+    private var activeEngine: any GameEngine {
+        selectedGameMode == .slide ? slideEngine : classicEngine
+    }
 
     var gridSize: Int = 3
     var useRandomSize: Bool = false
@@ -121,7 +126,7 @@ final class PuzzleState {
                 isPreviewing = false
             }
 
-            tiles = puzzleEngine.shuffle(initial)
+            tiles = activeEngine.shuffle(initial, gridSize: gridSize)
             if currentStreak > 0 { startCountdown() }
             saveToUserDefaults()
         } catch {
@@ -140,11 +145,31 @@ final class PuzzleState {
             !target.isLocked
         else { return }
 
-        currentMoveCount += 1
+        let correctBefore = tiles.filter { $0.isCorrect }.count
+        classicEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
+        registerMove(correctBefore: correctBefore)
+    }
 
-        let lockedBefore = tiles.filter { $0.isLocked }.count
-        puzzleEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
-        isSolved = puzzleEngine.isSolved(tiles)
+    /// Attempts to slide the tile at `sourceIndex` into the empty cell; no-ops unless they're adjacent.
+    /// Returns whether a move occurred.
+    @discardableResult
+    func slideTile(from sourceIndex: Int) -> Bool {
+        guard
+            let blankIndex = slideEngine.blankIndex(in: tiles),
+            blankIndex != sourceIndex,
+            slideEngine.areAdjacent(sourceIndex, blankIndex, gridSize: gridSize)
+        else { return false }
+
+        let correctBefore = tiles.filter { $0.isCorrect }.count
+        slideEngine.slide(&tiles, from: sourceIndex, gridSize: gridSize)
+        registerMove(correctBefore: correctBefore)
+        return true
+    }
+
+    /// Shared bookkeeping after a move: move count, solved/streak/records, achievements, and persistence.
+    private func registerMove(correctBefore: Int) {
+        currentMoveCount += 1
+        isSolved = activeEngine.isSolved(tiles)
 
         if isSolved {
             stopCountdown()
@@ -160,8 +185,8 @@ final class PuzzleState {
             }
         }
 
-        let newlyLocked = tiles.filter { $0.isLocked }.count - lockedBefore
-        if newlyLocked > 0 {
+        let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
+        if newlyCorrect > 0 {
             currentStreak += 1
             if !isSolved { startCountdown() }
             if !debugOverlayEnabled && currentStreak > allTimeHighStreak {
@@ -276,7 +301,7 @@ private extension PuzzleState {
         sourceImage = restoredImage
         let slices = ImageSlicer().slice(restoredImage, into: gridSize * gridSize)
         tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
-        isSolved = puzzleEngine.isSolved(tiles)
+        isSolved = activeEngine.isSolved(tiles)
         currentStreak = UserDefaults.standard.integer(forKey: Keys.currentStreak)
         currentMoveCount = UserDefaults.standard.integer(forKey: Keys.currentMoveCount)
         personalBestMoves = (3...8).reduce(into: [:]) { dict, size in
