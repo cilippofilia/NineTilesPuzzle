@@ -16,6 +16,7 @@ struct PuzzleView: View {
     @State private var showNewMovesRecord = false
     @State private var showQuitAlert = false
     @State private var bannerOffset: CGSize = .zero
+    @State private var isSolving = false
 
     var body: some View {
         ZStack {
@@ -154,6 +155,13 @@ struct PuzzleView: View {
                     }
                 }
             }
+
+            if showSolveButton {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Solve", systemImage: "wand.and.stars", action: solvePuzzle)
+                        .disabled(isSolving)
+                }
+            }
         }
         .alert("Quit this run?", isPresented: $showQuitAlert) {
             Button("Quit", role: .destructive) {
@@ -173,6 +181,15 @@ struct PuzzleView: View {
         (!state.tiles.isEmpty || state.isPreviewing) && !state.isSolved
     }
 
+    private var showSolveButton: Bool {
+        let result = state.debugOverlayEnabled
+            && state.selectedGameMode == .slide
+            && !state.tiles.isEmpty
+            && !state.isSolved
+        print("showSolveButton: \(result) (debugOverlayEnabled=\(state.debugOverlayEnabled), gameMode=\(state.selectedGameMode), tiles=\(state.tiles.count), isSolved=\(state.isSolved))")
+        return result
+    }
+
     private var streakVisible: Bool {
         !showCompletion && !state.isLoading && state.error == nil
     }
@@ -180,6 +197,34 @@ struct PuzzleView: View {
     private func startNewGame() {
         bannerOffset = .zero
         Task { await state.startNewGame() }
+    }
+
+    /// Debug-only: walks the puzzle to its solved state, one slide at a time, so the slide
+    /// mode's win condition and animations can be verified end to end.
+    private func solvePuzzle() {
+        print("solvePuzzle: tapped, isSolving=\(isSolving)")
+        guard !isSolving else { return }
+        isSolving = true
+
+        let moves = SlideSolver().solve(tiles: state.tiles, gridSize: state.gridSize)
+        print("solvePuzzle: computed \(moves.count) moves: \(moves)")
+
+        Task {
+            for move in moves {
+                guard !state.isSolved else {
+                    print("solvePuzzle: already solved, stopping early")
+                    break
+                }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    let didMove = state.slideTile(from: move)
+                    print("solvePuzzle: slide from \(move) -> \(didMove)")
+                }
+                soundService.playTileClick()
+                try? await Task.sleep(for: .milliseconds(120))
+            }
+            print("solvePuzzle: done, isSolved=\(state.isSolved)")
+            isSolving = false
+        }
     }
 }
 

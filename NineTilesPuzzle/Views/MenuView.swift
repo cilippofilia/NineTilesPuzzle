@@ -20,28 +20,13 @@ struct MenuView: View {
     @State private var showStats = false
     @State private var showSettings = false
 
-    var puzzleColor: LinearGradient {
-        LinearGradient(colors: [.red, .yellow], startPoint: .bottomLeading, endPoint: .topTrailing)
-    }
-
     var body: some View {
         NavigationStack(path: $path) {
             VStack {
                 Spacer()
 
-                HStack(spacing: 0) {
-                    Image(systemName: "puzzlepiece.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: 44)
-                        .rotationEffect(Angle(degrees: -45))
-                        .foregroundStyle(puzzleColor)
-
-                    Text("Nine Tiles")
-                        .font(.largeTitle)
-                        .bold()
-                }
-                .padding()
+                BrandMarkView()
+                    .padding()
 
                 VStack(spacing: 12) {
                     StreakStatsView(

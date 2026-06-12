@@ -50,6 +50,18 @@ struct PuzzleGridView: View {
                                     y: (CGFloat(row) * calculatedTileSize) + (calculatedTileSize / 2)
                                 )
                                 .zIndex(draggingTileID == tile.id ? 1000 : 0)
+                            } else if isBlank {
+                                BrandMarkView(
+                                    layout: .vertical,
+                                    iconSize: calculatedTileSize * 0.35,
+                                    font: .system(size: calculatedTileSize * 0.14)
+                                )
+                                .opacity(0.5)
+                                .frame(width: calculatedTileSize, height: calculatedTileSize)
+                                .position(
+                                    x: (CGFloat(col) * calculatedTileSize) + (calculatedTileSize / 2),
+                                    y: (CGFloat(row) * calculatedTileSize) + (calculatedTileSize / 2)
+                                )
                             }
                         }
                     }

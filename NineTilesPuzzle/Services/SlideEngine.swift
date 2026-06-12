@@ -24,20 +24,23 @@ struct SlideEngine: GameEngine {
         let shuffled = tiles
         let blankID = shuffled.count - 1
         let identity = Array(0..<shuffled.count)
-        var indices: [Int]
+        // `board[position]` is the tile id occupying that position, matching `isSolvable`'s
+        // expected representation.
+        var board: [Int]
 
         repeat {
-            indices = identity.shuffled()
-            if !isSolvable(indices, blankID: blankID, gridSize: gridSize) {
-                let blankPosition = indices.firstIndex(of: blankID)!
-                let others = (0..<indices.count).filter { $0 != blankPosition }
-                indices.swapAt(others[0], others[1])
+            board = identity.shuffled()
+            if !isSolvable(board, blankID: blankID, gridSize: gridSize) {
+                let blankPosition = board.firstIndex(of: blankID)!
+                let others = (0..<board.count).filter { $0 != blankPosition }
+                board.swapAt(others[0], others[1])
             }
-        } while indices == identity
+        } while board == identity
 
-        for i in 0..<shuffled.count {
-            shuffled[i].currentIndex = indices[i]
-            shuffled[i].isLocked = false
+        for position in 0..<board.count {
+            let tileID = board[position]
+            shuffled[tileID].currentIndex = position
+            shuffled[tileID].isLocked = false
         }
 
         return shuffled
