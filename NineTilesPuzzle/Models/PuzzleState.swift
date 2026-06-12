@@ -205,17 +205,25 @@ extension PuzzleState {
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
         static let currentMoveCount = "puzzle.currentMoveCount"
         static let useRandomSize = "puzzle.useRandomSize"
-        static func personalBest(for size: Int) -> String { "puzzle.personalBest.\(size)" }
-        static func gamesPlayed(for size: Int) -> String { "puzzle.gamesPlayed.\(size)" }
-        static func achievement(id: String) -> String { "puzzle.achievement.\(id)" }
         static let hapticsEnabled = "puzzle.hapticsEnabled"
         static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
         static let gameMode = "puzzle.gameMode"
+
+        static func personalBest(for size: Int) -> String { "puzzle.personalBest.\(size)" }
+        static func gamesPlayed(for size: Int) -> String { "puzzle.gamesPlayed.\(size)" }
+        static func achievement(id: String) -> String { "puzzle.achievement.\(id)" }
     }
 }
 
 private extension PuzzleState {
     func saveToUserDefaults() {
+        guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
+        UserDefaults.standard.set(tilesData, forKey: Keys.tiles)
+
+        if let image = sourceImage, let jpegData = jpeg(from: image) {
+            UserDefaults.standard.set(jpegData, forKey: Keys.sourceImage)
+        }
+
         UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
         UserDefaults.standard.set(useRandomSize, forKey: Keys.useRandomSize)
         UserDefaults.standard.set(imageSourceType.rawValue, forKey: Keys.imageSourceType)
@@ -224,12 +232,6 @@ private extension PuzzleState {
         UserDefaults.standard.set(hapticsEnabled, forKey: Keys.hapticsEnabled)
         UserDefaults.standard.set(debugOverlayEnabled, forKey: Keys.debugOverlayEnabled)
         UserDefaults.standard.set(selectedGameMode.rawValue, forKey: Keys.gameMode)
-        guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
-        UserDefaults.standard.set(tilesData, forKey: Keys.tiles)
-
-        if let image = sourceImage, let jpegData = jpeg(from: image) {
-            UserDefaults.standard.set(jpegData, forKey: Keys.sourceImage)
-        }
         UserDefaults.standard.set(currentStreak, forKey: Keys.currentStreak)
         UserDefaults.standard.set(currentMoveCount, forKey: Keys.currentMoveCount)
     }
