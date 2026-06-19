@@ -13,13 +13,16 @@ import Foundation
 @MainActor
 @Observable
 final class StatsStore {
+    private let defaults: UserDefaults
+
     var personalBestMoves: [StatsKey: Int] = [:]
     var personalBestTime: [StatsKey: TimeInterval] = [:]
     var gamesPlayed: [StatsKey: Int] = [:]
     var currentStreak: [StatsKey: Int] = [:]
     var allTimeHighStreak: [StatsKey: Int] = [:]
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         restoreFromUserDefaults()
     }
 
@@ -39,14 +42,14 @@ final class StatsStore {
         if existingMoves == nil || moves < existingMoves! {
             personalBestMoves[key] = moves
             isNewMovesRecord = true
-            UserDefaults.standard.set(moves, forKey: Keys.personalBest(for: key.gridSize, mode: key.gameMode))
+            defaults.set(moves, forKey: Keys.personalBest(for: key.gridSize, mode: key.gameMode))
         }
 
         let existingTime = personalBestTime[key]
         if existingTime == nil || time < existingTime! {
             personalBestTime[key] = time
             isNewBestTime = true
-            UserDefaults.standard.set(time, forKey: Keys.personalBestTime(for: key.gridSize, mode: key.gameMode))
+            defaults.set(time, forKey: Keys.personalBestTime(for: key.gridSize, mode: key.gameMode))
         }
 
         recordGamePlayed(for: key)
@@ -57,7 +60,7 @@ final class StatsStore {
     /// personal bests but still count toward total-games achievements.
     func recordGamePlayed(for key: StatsKey) {
         gamesPlayed[key, default: 0] += 1
-        UserDefaults.standard.set(gamesPlayed[key]!, forKey: Keys.gamesPlayed(for: key.gridSize, mode: key.gameMode))
+        defaults.set(gamesPlayed[key]!, forKey: Keys.gamesPlayed(for: key.gridSize, mode: key.gameMode))
     }
 
     /// Increments the streak at `key`. When `trackRecord` is false (e.g. practice/debug
@@ -66,18 +69,18 @@ final class StatsStore {
     func recordStreakIncrement(for key: StatsKey, trackRecord: Bool) -> (streak: Int, isNewRecord: Bool) {
         let streak = currentStreak[key, default: 0] + 1
         currentStreak[key] = streak
-        UserDefaults.standard.set(streak, forKey: Keys.currentStreak(for: key.gridSize, mode: key.gameMode))
+        defaults.set(streak, forKey: Keys.currentStreak(for: key.gridSize, mode: key.gameMode))
 
         guard trackRecord, streak > (allTimeHighStreak[key] ?? 0) else { return (streak, false) }
 
         allTimeHighStreak[key] = streak
-        UserDefaults.standard.set(streak, forKey: Keys.allTimeHighStreak(for: key.gridSize, mode: key.gameMode))
+        defaults.set(streak, forKey: Keys.allTimeHighStreak(for: key.gridSize, mode: key.gameMode))
         return (streak, true)
     }
 
     func resetStreak(for key: StatsKey) {
         currentStreak[key] = 0
-        UserDefaults.standard.set(0, forKey: Keys.currentStreak(for: key.gridSize, mode: key.gameMode))
+        defaults.set(0, forKey: Keys.currentStreak(for: key.gridSize, mode: key.gameMode))
     }
 
     func resetStats() {
@@ -88,11 +91,11 @@ final class StatsStore {
         allTimeHighStreak = [:]
         for mode in GameMode.allCases {
             for size in 3...8 {
-                UserDefaults.standard.removeObject(forKey: Keys.personalBest(for: size, mode: mode))
-                UserDefaults.standard.removeObject(forKey: Keys.personalBestTime(for: size, mode: mode))
-                UserDefaults.standard.removeObject(forKey: Keys.gamesPlayed(for: size, mode: mode))
-                UserDefaults.standard.removeObject(forKey: Keys.currentStreak(for: size, mode: mode))
-                UserDefaults.standard.removeObject(forKey: Keys.allTimeHighStreak(for: size, mode: mode))
+                defaults.removeObject(forKey: Keys.personalBest(for: size, mode: mode))
+                defaults.removeObject(forKey: Keys.personalBestTime(for: size, mode: mode))
+                defaults.removeObject(forKey: Keys.gamesPlayed(for: size, mode: mode))
+                defaults.removeObject(forKey: Keys.currentStreak(for: size, mode: mode))
+                defaults.removeObject(forKey: Keys.allTimeHighStreak(for: size, mode: mode))
             }
         }
     }
@@ -111,15 +114,15 @@ private extension StatsStore {
         for mode in GameMode.allCases {
             for size in 3...8 {
                 let key = StatsKey(gridSize: size, gameMode: mode)
-                let moves = UserDefaults.standard.integer(forKey: Keys.personalBest(for: size, mode: mode))
+                let moves = defaults.integer(forKey: Keys.personalBest(for: size, mode: mode))
                 if moves > 0 { personalBestMoves[key] = moves }
-                let time = UserDefaults.standard.double(forKey: Keys.personalBestTime(for: size, mode: mode))
+                let time = defaults.double(forKey: Keys.personalBestTime(for: size, mode: mode))
                 if time > 0 { personalBestTime[key] = time }
-                let played = UserDefaults.standard.integer(forKey: Keys.gamesPlayed(for: size, mode: mode))
+                let played = defaults.integer(forKey: Keys.gamesPlayed(for: size, mode: mode))
                 if played > 0 { gamesPlayed[key] = played }
-                let streak = UserDefaults.standard.integer(forKey: Keys.currentStreak(for: size, mode: mode))
+                let streak = defaults.integer(forKey: Keys.currentStreak(for: size, mode: mode))
                 if streak > 0 { currentStreak[key] = streak }
-                let bestStreak = UserDefaults.standard.integer(forKey: Keys.allTimeHighStreak(for: size, mode: mode))
+                let bestStreak = defaults.integer(forKey: Keys.allTimeHighStreak(for: size, mode: mode))
                 if bestStreak > 0 { allTimeHighStreak[key] = bestStreak }
             }
         }

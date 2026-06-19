@@ -10,10 +10,13 @@ import Foundation
 @MainActor
 @Observable
 final class AchievementsStore {
+    private let defaults: UserDefaults
+
     var achievements: [Achievement] = []
     var newlyUnlockedAchievement: Achievement?
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         loadAchievements()
     }
 
@@ -21,7 +24,7 @@ final class AchievementsStore {
         guard let definitions = try? await AchievementService.fetchRemote() else { return }
         achievements = definitions.map { achievement in
             var a = achievement
-            a.isUnlocked = UserDefaults.standard.bool(forKey: Keys.achievement(id: achievement.id))
+            a.isUnlocked = defaults.bool(forKey: Keys.achievement(id: achievement.id))
             return a
         }
     }
@@ -46,7 +49,7 @@ final class AchievementsStore {
             }
             if shouldUnlock {
                 achievements[i].isUnlocked = true
-                UserDefaults.standard.set(true, forKey: Keys.achievement(id: achievements[i].id))
+                defaults.set(true, forKey: Keys.achievement(id: achievements[i].id))
                 if newlyUnlockedAchievement == nil {
                     newlyUnlockedAchievement = achievements[i]
                 }
@@ -68,7 +71,7 @@ private extension AchievementsStore {
         let definitions = AchievementService.loadCached() ?? AchievementService.loadBundle()
         achievements = definitions.map { achievement in
             var a = achievement
-            a.isUnlocked = UserDefaults.standard.bool(forKey: Keys.achievement(id: achievement.id))
+            a.isUnlocked = defaults.bool(forKey: Keys.achievement(id: achievement.id))
             return a
         }
     }
