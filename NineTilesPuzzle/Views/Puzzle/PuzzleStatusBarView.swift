@@ -32,22 +32,20 @@ struct PuzzleStatusBarView: View {
                 .padding(.vertical, 8)
                 .background(.regularMaterial, in: .capsule)
         } else if gameMode == .slide {
-            ZStack {
+            HStack {
                 TimeCounterView(elapsed: elapsedTime, personalBest: personalBestTime)
-                HStack {
-                    Spacer()
-                    MoveCounterView(moves: moveCount, personalBest: personalBest)
-                        .padding(.trailing)
-                }
+                    .padding(.leading)
+                Spacer()
+                MoveCounterView(moves: moveCount, personalBest: personalBest)
+                    .padding(.trailing)
             }
         } else {
-            ZStack {
+            HStack {
                 StreakCounterView(currentStreak: currentStreak, bestStreak: bestStreak, timerRemaining: timerRemaining, isTimerRunning: isTimerRunning)
-                HStack {
-                    Spacer()
-                    MoveCounterView(moves: moveCount, personalBest: personalBest)
-                        .padding(.trailing)
-                }
+                    .padding(.leading)
+                Spacer()
+                MoveCounterView(moves: moveCount, personalBest: personalBest)
+                    .padding(.trailing)
             }
         }
     }

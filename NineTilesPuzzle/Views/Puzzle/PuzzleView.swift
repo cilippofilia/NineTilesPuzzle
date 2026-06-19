@@ -74,7 +74,7 @@ struct PuzzleView: View {
 
             // Layer 3: completion overlay
             VStack {
-                CompletionBannerView(gameMode: state.selectedGameMode, streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, isNewMovesRecord: showNewMovesRecord, personalBest: state.personalBestForCurrentSize, elapsedTime: state.elapsedTime, personalBestTime: state.personalBestTimeForCurrentSize, isNewBestTime: showNewBestTime, isPracticeMode: state.debugOverlayEnabled)
+                CompletionBannerView(gameMode: state.selectedGameMode, streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, personalBest: state.personalBestForCurrentSize, elapsedTime: state.elapsedTime, personalBestTime: state.personalBestTimeForCurrentSize, isPracticeMode: state.debugOverlayEnabled)
                     .padding(.top)
                     .padding(.horizontal)
                     .offset(x: bannerOffset.width, y: (showCompletion ? 0 : -300) + bannerOffset.height)
@@ -94,6 +94,21 @@ struct PuzzleView: View {
                                 }
                             }
                     )
+
+                // Floats below the banner as its own layer — rather than growing the
+                // banner's card — and slides down out from behind it on appear.
+                if showCompletion && hasNewBestBadge {
+                    NewBestBadgesView(
+                        showsStreak: state.selectedGameMode != .slide,
+                        moveCount: state.currentMoveCount,
+                        isNewMovesRecord: showNewMovesRecord,
+                        elapsedTime: state.elapsedTime,
+                        isNewBestTime: showNewBestTime
+                    )
+                    .padding(.horizontal)
+                    .offset(bannerOffset)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
 
                 Spacer()
 
@@ -122,6 +137,15 @@ struct PuzzleView: View {
             guard state.newlyUnlockedAchievement != nil else { return }
             try? await Task.sleep(for: .seconds(3))
             await state.dismissAchievementNotification()
+        }
+        .task(id: state.isSolved) {
+            guard state.isSolved else { return }
+            try? await Task.sleep(for: .seconds(4))
+            withAnimation(.easeInOut(duration: 0.35)) {
+                showNewRecord = false
+                showNewMovesRecord = false
+                showNewBestTime = false
+            }
         }
         .task {
             await state.startNewGame()
@@ -200,6 +224,10 @@ struct PuzzleView: View {
 
     private var streakVisible: Bool {
         !showCompletion && !state.isLoading && state.error == nil
+    }
+
+    private var hasNewBestBadge: Bool {
+        showNewMovesRecord || (state.selectedGameMode == .slide && showNewBestTime)
     }
 
     private func startNewGame() {

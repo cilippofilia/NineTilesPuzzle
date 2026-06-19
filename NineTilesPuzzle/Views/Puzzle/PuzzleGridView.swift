@@ -67,6 +67,7 @@ struct PuzzleGridView: View {
                 }
             }
             .coordinateSpace(.named("puzzleGrid"))
+            .allowsHitTesting(!state.isSolved)
     }
 
     private func handleDrop(_ point: CGPoint, for tile: TileModel, currentTileSize: CGFloat) {
