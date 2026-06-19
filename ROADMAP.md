@@ -27,7 +27,7 @@ this generalizes it from "time per correct move" to "time per puzzle".
 Solve within a move budget per difficulty. The move counter already exists; this only adds
 a budget check and a fail state. Pairs naturally with the power-up economy (§2).
 
-[] ### Zen Mode — **S**
+[X] ### Zen Mode — **S**
 No timers, no streak pressure, no fail states — just the picture. Cheapest mode to build
 because it *disables* existing systems rather than adding new ones. Good for the audience
 that plays with personal photos.
@@ -259,9 +259,9 @@ unearned awards. One-shot achievements (e.g. "solve an 8×8") stay binary, no ba
 
 **`GameMode`** (`Models/GameMode.swift`) — flat `enum` with 7 cases: `classic`, `slide`,
 `timeTrial`, `limitedMoves`, `zen`, `fog`, `chaos`. Each has `title`, `description`, `icon`,
-and an `isAvailable` flag. Only `.classic` and `.slide` are available today — the rest show
-as "Coming soon…" in `GameModeView`. The enum is purely presentational metadata; it carries
-no gameplay logic itself.
+and an `isAvailable` flag. `.classic`, `.slide`, and `.zen` are available today — the rest
+show as "Coming soon…" in `GameModeView`. The enum is purely presentational metadata; it
+carries no gameplay logic itself.
 
 **`GameEngine`** (`Services/GameEngine.swift`) — the contract every mode implements:
 `shuffle(tiles:gridSize:) -> [TileModel]`, plus a shared default `isSolved()`. This is the
@@ -281,12 +281,14 @@ else → classic"), streak/move/achievement bookkeeping, persistence, and the im
 **`SlideSolver`** — standalone BFS/reduction solver, used only by a debug "Solve" button,
 mode-gated to `.slide`.
 
-**Architectural gap for the modes above:** none of Time Trial / Limited Moves / Zen / Fog /
-Chaos need a new `GameEngine` — they're modifiers on top of Classic/Slide's move rules, not
-new move rules. But today there's only one axis (which engine handles shuffle/move); there's
-no home yet for "is there a timer," "is there a move budget," "is failure possible." Building
-each mode as more `if selectedGameMode == .x` branches in `PuzzleState` will compound. Worth
-introducing a small composable `GameModeRules` (timer budget, move budget, fail condition)
-that pairs with an engine, rather than letting `PuzzleState` accumulate mode-conditionals.
+**Architectural gap for the modes above:** none of Time Trial / Limited Moves / Fog / Chaos
+need a new `GameEngine` — they're modifiers on top of Classic/Slide's move rules, not new
+move rules. But today there's only one axis (which engine handles shuffle/move); there's no
+home yet for "is there a timer," "is there a move budget," "is failure possible." Zen shipped
+as exactly this kind of modifier — an `isZenMode` flag gating streak/record/achievement logic
+in `PuzzleState` and UI chrome in `PuzzleView` — and already shows the conditional creep this
+section warns about. Worth introducing a small composable `GameModeRules` (timer budget, move
+budget, fail condition) before the next mode adds another layer of
+`if selectedGameMode == .x` branches.
 
 ---

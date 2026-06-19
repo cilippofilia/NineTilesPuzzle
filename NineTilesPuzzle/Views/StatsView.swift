@@ -25,7 +25,7 @@ struct StatsView: View {
                     }
                 }
 
-                ForEach(GameMode.allCases.filter(\.isAvailable)) { mode in
+                ForEach(GameMode.allCases.filter { $0.isAvailable && $0 != .zen }) { mode in
                     Section("Personal Bests · \(mode.title)") {
                         ForEach(3...8, id: \.self) { size in
                             let best = state.personalBestMoves[PuzzleState.StatsKey(gridSize: size, gameMode: mode)]

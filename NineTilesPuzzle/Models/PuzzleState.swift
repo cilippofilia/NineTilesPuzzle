@@ -59,6 +59,10 @@ final class PuzzleState {
     private var countdownTask: Task<Void, Never>?
     private var stopwatchTask: Task<Void, Never>?
 
+    /// Zen mode tracks nothing but the number of games played: no streaks, no personal
+    /// bests, no achievements — just an uninterrupted, judgment-free puzzle loop.
+    var isZenMode: Bool { selectedGameMode == .zen }
+
     private var activeEngine: any GameEngine {
         switch selectedGameMode {
         case .slide:
@@ -229,7 +233,11 @@ final class PuzzleState {
         if isSolved {
             stopCountdown()
             stopStopwatch()
-            if !debugOverlayEnabled {
+            if isZenMode {
+                let key = StatsKey(gridSize: gridSize, gameMode: selectedGameMode)
+                gamesPlayed[key, default: 0] += 1
+                UserDefaults.standard.set(gamesPlayed[key]!, forKey: Keys.gamesPlayed(for: gridSize, mode: selectedGameMode))
+            } else if !debugOverlayEnabled {
                 let key = StatsKey(gridSize: gridSize, gameMode: selectedGameMode)
                 let existing = personalBestMoves[key]
                 if existing == nil || currentMoveCount < existing! {
@@ -248,22 +256,24 @@ final class PuzzleState {
             }
         }
 
-        let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
-        if newlyCorrect > 0 {
-            currentStreak += 1
-            if !isSolved { startCountdown() }
-            if !debugOverlayEnabled && currentStreak > allTimeHighStreak {
-                allTimeHighStreak = currentStreak
-                isNewRecord = true
-                UserDefaults.standard.set(allTimeHighStreak, forKey: Keys.allTimeHighStreak)
+        if !isZenMode {
+            let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
+            if newlyCorrect > 0 {
+                currentStreak += 1
+                if !isSolved { startCountdown() }
+                if !debugOverlayEnabled && currentStreak > allTimeHighStreak {
+                    allTimeHighStreak = currentStreak
+                    isNewRecord = true
+                    UserDefaults.standard.set(allTimeHighStreak, forKey: Keys.allTimeHighStreak)
+                }
+            } else {
+                currentStreak = 0
+                isNewRecord = false
+                stopCountdown()
             }
-        } else {
-            currentStreak = 0
-            isNewRecord = false
-            stopCountdown()
-        }
 
-        if !debugOverlayEnabled { checkAchievements() }
+            if !debugOverlayEnabled { checkAchievements() }
+        }
         saveToUserDefaults()
     }
 

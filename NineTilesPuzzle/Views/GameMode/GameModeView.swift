@@ -103,12 +103,7 @@ private struct GameModeRowView: View {
     let isSelected: Bool
 
     var body: some View {
-        LabeledContent {
-            if isSelected {
-                Image(systemName: "checkmark")
-                    .foregroundStyle(.tint)
-            }
-        } label: {
+        HStack {
             Label {
                 VStack(alignment: .leading) {
                     HStack {
@@ -125,6 +120,13 @@ private struct GameModeRowView: View {
                 }
             } icon: {
                 Image(systemName: mode.icon)
+            }
+
+            Spacer()
+
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .foregroundStyle(.tint)
             }
         }
     }

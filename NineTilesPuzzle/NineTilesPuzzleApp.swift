@@ -27,6 +27,7 @@ struct NineTilesPuzzleApp: App {
                     .zIndex(1)
                 }
             }
+            .preferredColorScheme(.dark)
         }
     }
 }
