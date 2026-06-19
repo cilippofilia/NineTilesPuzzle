@@ -10,7 +10,7 @@ import SwiftUI
 import UIKit
 
 struct GameModeView: View {
-    @Environment(PuzzleState.self) private var state
+    @Environment(GameSession.self) private var session
     @Environment(\.openURL) private var openURL
 
     @State private var authStatus: PHAuthorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -21,9 +21,9 @@ struct GameModeView: View {
                 ForEach(GameMode.allCases) { mode in
                     if mode.isAvailable {
                         Button {
-                            state.setGameMode(mode)
+                            session.setGameMode(mode)
                         } label: {
-                            GameModeRowView(mode: mode, isSelected: state.selectedGameMode == mode)
+                            GameModeRowView(mode: mode, isSelected: session.selectedGameMode == mode)
                         }
                         .foregroundStyle(.primary)
                     } else {
@@ -37,36 +37,36 @@ struct GameModeView: View {
                 MediaSourceRowView(
                     title: MediaSourceType.random.label,
                     subtitle: "A new image from the internet each game",
-                    isSelected: state.mediaSourceType == .random
+                    isSelected: session.mediaSourceType == .random
                 ) {
-                    state.setMediaSourceType(.random)
+                    session.setMediaSourceType(.random)
                 }
 
                 MediaSourceRowView(
                     title: MediaSourceType.local.label,
                     subtitle: "A random photo from your library",
-                    isSelected: state.mediaSourceType == .local
+                    isSelected: session.mediaSourceType == .local
                 ) {
-                    state.setMediaSourceType(.local)
+                    session.setMediaSourceType(.local)
                     requestPhotoAccess()
                 }
 
                 MediaSourceRowView(
                     title: MediaSourceType.mixed.label,
                     subtitle: "Randomly picks internet or your library each game",
-                    isSelected: state.mediaSourceType == .mixed
+                    isSelected: session.mediaSourceType == .mixed
                 ) {
-                    state.setMediaSourceType(.mixed)
+                    session.setMediaSourceType(.mixed)
                     requestPhotoAccess()
                 }
 
-                if state.selectedGameMode == .slide {
+                if session.selectedGameMode == .slide {
                     MediaSourceRowView(
                         title: MediaSourceType.numbers.label,
                         subtitle: "No picture — tiles show the number they belong at",
-                        isSelected: state.mediaSourceType == .numbers
+                        isSelected: session.mediaSourceType == .numbers
                     ) {
-                        state.setMediaSourceType(.numbers)
+                        session.setMediaSourceType(.numbers)
                     }
                 }
 
@@ -174,8 +174,11 @@ private struct MediaSourceLabelView: View {
 }
 
 #Preview {
+    let stats = StatsStore()
+    let settings = SettingsStore()
+    let achievements = AchievementsStore()
     NavigationStack {
         GameModeView()
-            .environment(PuzzleState())
+            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
     }
 }

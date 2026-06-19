@@ -9,15 +9,35 @@ import SwiftUI
 
 @main
 struct NineTilesPuzzleApp: App {
-    @State private var state = PuzzleState()
+    @State private var statsStore: StatsStore
+    @State private var settingsStore: SettingsStore
+    @State private var achievementsStore: AchievementsStore
+    @State private var gameSession: GameSession
     @State private var soundService = SoundService()
     @State private var showSplash = true
+
+    init() {
+        let statsStore = StatsStore()
+        let settingsStore = SettingsStore()
+        let achievementsStore = AchievementsStore()
+        _statsStore = State(initialValue: statsStore)
+        _settingsStore = State(initialValue: settingsStore)
+        _achievementsStore = State(initialValue: achievementsStore)
+        _gameSession = State(initialValue: GameSession(
+            statsStore: statsStore,
+            achievementsStore: achievementsStore,
+            settingsStore: settingsStore
+        ))
+    }
 
     var body: some Scene {
         WindowGroup {
             ZStack {
                 MenuView()
-                    .environment(state)
+                    .environment(gameSession)
+                    .environment(statsStore)
+                    .environment(settingsStore)
+                    .environment(achievementsStore)
                     .environment(soundService)
 
                 if showSplash {

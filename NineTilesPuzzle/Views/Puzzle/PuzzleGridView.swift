@@ -10,7 +10,8 @@ import SwiftUI
 struct PuzzleGridView: View {
     let showReveal: Bool
 
-    @Environment(PuzzleState.self) private var state
+    @Environment(GameSession.self) private var session
+    @Environment(SettingsStore.self) private var settings
     @Environment(SoundService.self) private var soundService
     @State private var draggingTileID: Int?
 
@@ -20,27 +21,27 @@ struct PuzzleGridView: View {
             .overlay {
                 GeometryReader { geometry in
                     let geoWidth = geometry.size.width
-                    let calculatedTileSize = geoWidth / CGFloat(state.gridSize)
+                    let calculatedTileSize = geoWidth / CGFloat(session.gridSize)
 
                     ZStack(alignment: .topLeading) {
-                        if state.selectedGameMode == .slide {
+                        if session.selectedGameMode == .slide {
                             Rectangle()
                                 .fill(.quaternary)
                         }
 
-                        ForEach(state.tiles) { tile in
-                            let col = tile.currentIndex % state.gridSize
-                            let row = tile.currentIndex / state.gridSize
-                            let isBlank = state.selectedGameMode == .slide && tile.id == state.tiles.count - 1
-                            let cgImage = state.tileImages[tile.id]
+                        ForEach(session.tiles) { tile in
+                            let col = tile.currentIndex % session.gridSize
+                            let row = tile.currentIndex / session.gridSize
+                            let isBlank = session.selectedGameMode == .slide && tile.id == session.tiles.count - 1
+                            let cgImage = session.tileImages[tile.id]
 
-                            if !isBlank, state.mediaSourceType == .numbers || cgImage != nil {
+                            if !isBlank, session.mediaSourceType == .numbers || cgImage != nil {
                                 TileView(
                                     tile: tile,
                                     image: cgImage,
                                     tileSize: calculatedTileSize,
-                                    hapticsEnabled: state.hapticsEnabled,
-                                    debugOverlayEnabled: state.debugOverlayEnabled,
+                                    hapticsEnabled: settings.hapticsEnabled,
+                                    debugOverlayEnabled: settings.debugOverlayEnabled,
                                     onDragStarted: { draggingTileID = tile.id },
                                     onDragEnded: { point in
                                         handleDrop(point, for: tile, currentTileSize: calculatedTileSize)
@@ -56,7 +57,7 @@ struct PuzzleGridView: View {
                             }
                         }
 
-                        if let revealImage = state.croppedSourceImage {
+                        if let revealImage = session.croppedSourceImage {
                             Image(decorative: revealImage, scale: 1.0)
                                 .resizable()
                                 .frame(width: geoWidth, height: geoWidth)
@@ -67,7 +68,7 @@ struct PuzzleGridView: View {
                 }
             }
             .coordinateSpace(.named("puzzleGrid"))
-            .allowsHitTesting(!state.isSolved)
+            .allowsHitTesting(!session.isSolved)
     }
 
     private func handleDrop(_ point: CGPoint, for tile: TileModel, currentTileSize: CGFloat) {
@@ -76,19 +77,19 @@ struct PuzzleGridView: View {
 
         var didMove = false
 
-        if state.selectedGameMode == .slide {
+        if session.selectedGameMode == .slide {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                didMove = state.slideTile(from: tile.currentIndex)
+                didMove = session.slideTile(from: tile.currentIndex)
             }
         } else {
             // Calculate target rows/cols using the geometry-provided tile size passed into the function
-            let targetCol = min(max(Int(point.x / currentTileSize), 0), state.gridSize - 1)
-            let targetRow = min(max(Int(point.y / currentTileSize), 0), state.gridSize - 1)
-            let targetIndex = targetRow * state.gridSize + targetCol
+            let targetCol = min(max(Int(point.x / currentTileSize), 0), session.gridSize - 1)
+            let targetRow = min(max(Int(point.y / currentTileSize), 0), session.gridSize - 1)
+            let targetIndex = targetRow * session.gridSize + targetCol
             didMove = tile.currentIndex != targetIndex
 
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                state.swapTiles(from: tile.currentIndex, to: targetIndex)
+                session.swapTiles(from: tile.currentIndex, to: targetIndex)
             }
         }
 

@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct StreakCountdownPickerView: View {
-    @Environment(PuzzleState.self) private var state
+    @Environment(SettingsStore.self) private var settings
+    @Environment(GameSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     private let options: [(label: String, value: Double)] = [
@@ -23,11 +24,12 @@ struct StreakCountdownPickerView: View {
         List {
             ForEach(options, id: \.value) { option in
                 Button {
-                    state.setStreakCountdownDuration(option.value)
+                    settings.setStreakCountdownDuration(option.value)
+                    if option.value == 0 { session.stopCountdown() }
                     dismiss()
                 } label: {
                     LabeledContent {
-                        if state.streakCountdownDuration == option.value {
+                        if settings.streakCountdownDuration == option.value {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(.tint)
                         }
@@ -44,8 +46,12 @@ struct StreakCountdownPickerView: View {
 }
 
 #Preview {
+    let stats = StatsStore()
+    let settings = SettingsStore()
+    let achievements = AchievementsStore()
     NavigationStack {
         StreakCountdownPickerView()
-            .environment(PuzzleState())
+            .environment(settings)
+            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
     }
 }

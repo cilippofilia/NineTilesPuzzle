@@ -15,7 +15,8 @@ enum GameRoute: Hashable {
 }
 
 struct MenuView: View {
-    @Environment(PuzzleState.self) private var state
+    @Environment(GameSession.self) private var session
+    @Environment(AchievementsStore.self) private var achievementsStore
     @State private var path: [GameRoute] = []
     @State private var showStats = false
     @State private var showSettings = false
@@ -35,9 +36,9 @@ struct MenuView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     StreakStatsView(
-                        currentStreak: state.classicStreakForCurrentSize,
-                        allTimeHigh: state.classicBestStreakForCurrentSize,
-                        personalBestMoves: state.classicBestMovesForCurrentSize
+                        currentStreak: session.classicStreakForCurrentSize,
+                        allTimeHigh: session.classicBestStreakForCurrentSize,
+                        personalBestMoves: session.classicBestMovesForCurrentSize
                     )
                     .frame(height: 88)
 
@@ -45,7 +46,7 @@ struct MenuView: View {
                         path.append(.gameModes)
                     } label: {
                         HStack {
-                            LabeledContent("Game Mode", value: state.selectedGameMode.title)
+                            LabeledContent("Game Mode", value: session.selectedGameMode.title)
                             Image(systemName: "chevron.forward")
                                 .imageScale(.small)
                                 .foregroundStyle(.secondary)
@@ -60,7 +61,7 @@ struct MenuView: View {
                         path.append(.gridSizePicker)
                     } label: {
                         HStack {
-                            LabeledContent("Difficulty", value: state.difficultyDisplayValue)
+                            LabeledContent("Difficulty", value: session.difficultyDisplayValue)
                             Image(systemName: "chevron.forward")
                                 .imageScale(.small)
                                 .foregroundStyle(.secondary)
@@ -76,7 +77,7 @@ struct MenuView: View {
                         HStack {
                             Label("Achievements", systemImage: "trophy.fill")
                             Spacer()
-                            Text("\(state.achievements.filter(\.isUnlocked).count)/\(state.achievements.count)")
+                            Text("\(achievementsStore.achievements.filter(\.isUnlocked).count)/\(achievementsStore.achievements.count)")
                                 .foregroundStyle(.secondary)
                             Image(systemName: "chevron.forward")
                                 .imageScale(.small)
@@ -151,6 +152,12 @@ struct MenuView: View {
 }
 
 #Preview {
+    let stats = StatsStore()
+    let settings = SettingsStore()
+    let achievements = AchievementsStore()
     MenuView()
-        .environment(PuzzleState())
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+        .environment(stats)
+        .environment(settings)
+        .environment(achievements)
 }

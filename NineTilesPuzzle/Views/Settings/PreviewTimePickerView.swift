@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct PreviewTimePickerView: View {
-    @Environment(PuzzleState.self) private var state
+    @Environment(SettingsStore.self) private var settings
     @Environment(\.dismiss) private var dismiss
 
     private let options: [(label: String, value: Double)] = [
@@ -23,11 +23,11 @@ struct PreviewTimePickerView: View {
         List {
             ForEach(options, id: \.value) { option in
                 Button {
-                    state.setPreviewDuration(option.value)
+                    settings.setPreviewDuration(option.value)
                     dismiss()
                 } label: {
                     LabeledContent {
-                        if state.previewDuration == option.value {
+                        if settings.previewDuration == option.value {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(.tint)
                         }
@@ -46,6 +46,6 @@ struct PreviewTimePickerView: View {
 #Preview {
     NavigationStack {
         PreviewTimePickerView()
-            .environment(PuzzleState())
+            .environment(SettingsStore())
     }
 }

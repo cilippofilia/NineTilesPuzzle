@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct StatsView: View {
-    @Environment(PuzzleState.self) private var state
+    @Environment(GameSession.self) private var session
+    @Environment(StatsStore.self) private var statsStore
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -16,19 +17,19 @@ struct StatsView: View {
             List {
                 Section("Streaks") {
                     LabeledContent("Current Streak") {
-                        Text(state.currentStreakForCurrentSize > 0 ? "\(state.currentStreakForCurrentSize)" : "--")
-                            .foregroundStyle(state.currentStreakForCurrentSize > 0 ? .primary : .secondary)
+                        Text(session.currentStreakForCurrentSize > 0 ? "\(session.currentStreakForCurrentSize)" : "--")
+                            .foregroundStyle(session.currentStreakForCurrentSize > 0 ? .primary : .secondary)
                     }
                     LabeledContent("Best Streak") {
-                        Text(state.allTimeHighStreakForCurrentSize > 0 ? "\(state.allTimeHighStreakForCurrentSize)" : "--")
-                            .foregroundStyle(state.allTimeHighStreakForCurrentSize > 0 ? .primary : .secondary)
+                        Text(session.allTimeHighStreakForCurrentSize > 0 ? "\(session.allTimeHighStreakForCurrentSize)" : "--")
+                            .foregroundStyle(session.allTimeHighStreakForCurrentSize > 0 ? .primary : .secondary)
                     }
                 }
 
                 ForEach(GameMode.allCases.filter { $0.isAvailable && $0 != .zen }) { mode in
                     Section("Personal Bests · \(mode.title)") {
                         ForEach(3...8, id: \.self) { size in
-                            let best = state.personalBestMoves[PuzzleState.StatsKey(gridSize: size, gameMode: mode)]
+                            let best = statsStore.personalBestMoves[StatsKey(gridSize: size, gameMode: mode)]
                             LabeledContent(difficultyLabel(for: size)) {
                                 Text(best.map { "\($0) moves" } ?? "--")
                                     .foregroundStyle(best != nil ? .primary : .secondary)
@@ -39,7 +40,7 @@ struct StatsView: View {
 
                 Section("Games Played") {
                     ForEach(3...8, id: \.self) { size in
-                        let count = state.gamesPlayedCount(forSize: size)
+                        let count = statsStore.gamesPlayedCount(forSize: size)
                         LabeledContent(difficultyLabel(for: size)) {
                             Text(count > 0 ? "\(count)" : "--")
                                 .foregroundStyle(count > 0 ? .primary : .secondary)
@@ -73,9 +74,13 @@ private extension StatsView {
 }
 
 #Preview {
+    let stats = StatsStore()
+    let settings = SettingsStore()
+    let achievements = AchievementsStore()
     Color.clear
         .sheet(isPresented: .constant(true)) {
             StatsView()
-                .environment(PuzzleState())
+                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+                .environment(stats)
         }
 }

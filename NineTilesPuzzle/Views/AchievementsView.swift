@@ -8,15 +8,15 @@
 import SwiftUI
 
 struct AchievementsView: View {
-    @Environment(PuzzleState.self) private var state
+    @Environment(AchievementsStore.self) private var achievementsStore
 
-    private var unlockedCount: Int { state.achievements.filter(\.isUnlocked).count }
-    private var totalCount: Int { state.achievements.count }
+    private var unlockedCount: Int { achievementsStore.achievements.filter(\.isUnlocked).count }
+    private var totalCount: Int { achievementsStore.achievements.count }
 
     var body: some View {
         List {
             Section {
-                ForEach(state.achievements) { achievement in
+                ForEach(achievementsStore.achievements) { achievement in
                     AchievementRowView(achievement: achievement)
                 }
             } header: {
@@ -34,6 +34,6 @@ struct AchievementsView: View {
 #Preview {
     NavigationStack {
         AchievementsView()
-            .environment(PuzzleState())
+            .environment(AchievementsStore())
     }
 }

@@ -8,7 +8,9 @@
 import SwiftUI
 
 struct PuzzleView: View {
-    @Environment(PuzzleState.self) private var state
+    @Environment(GameSession.self) private var session
+    @Environment(SettingsStore.self) private var settings
+    @Environment(AchievementsStore.self) private var achievementsStore
     @Environment(SoundService.self) private var soundService
     @Environment(\.dismiss) private var dismiss
     @State private var showCompletion = false
@@ -27,13 +29,13 @@ struct PuzzleView: View {
             // Layer 1: centered main content — only Spacer/content/Spacer so centering
             // is never affected by supplementary elements in other layers
             VStack {
-                if state.isLoading {
+                if session.isLoading {
                     LoadingView()
                         .transition(.opacity)
-                } else if state.isPreviewing, let image = state.sourceImage {
-                    ImagePreviewView(image: image, onSkip: state.skipPreview)
+                } else if session.isPreviewing, let image = session.sourceImage {
+                    ImagePreviewView(image: image, onSkip: session.skipPreview)
                         .transition(.asymmetric(insertion: .opacity, removal: .identity))
-                } else if let error = state.error {
+                } else if let error = session.error {
                     PuzzleErrorView(error: error, onRetry: startNewGame)
                         .transition(.opacity)
                 } else {
@@ -50,7 +52,7 @@ struct PuzzleView: View {
                                     lineWidth: 4
                                 )
                                 .blur(radius: 7)
-                                .opacity(state.isZenMode ? zenGlowOpacity : 0)
+                                .opacity(session.isZenMode ? zenGlowOpacity : 0)
                         }
                         .overlay {
                             GeometryReader { proxy in
@@ -59,11 +61,11 @@ struct PuzzleView: View {
                                         .position(x: sparkle.x * proxy.size.width, y: sparkle.y * proxy.size.height)
                                 }
                             }
-                            .opacity(state.isZenMode ? zenGlowOpacity : 0)
+                            .opacity(session.isZenMode ? zenGlowOpacity : 0)
                             .allowsHitTesting(false)
                         }
-                        .shadow(color: .teal.opacity(state.isZenMode ? zenGlowOpacity * 0.7 : 0), radius: 28)
-                        .scaleEffect(state.isZenMode ? zenBreathScale : 1)
+                        .shadow(color: .teal.opacity(session.isZenMode ? zenGlowOpacity * 0.7 : 0), radius: 28)
+                        .scaleEffect(session.isZenMode ? zenBreathScale : 1)
                         .padding(.horizontal)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.95).combined(with: .opacity),
@@ -72,31 +74,31 @@ struct PuzzleView: View {
                     Spacer()
                 }
             }
-            .animation(.easeInOut(duration: 0.35), value: state.isLoading)
-            .animation(.easeInOut(duration: 0.35), value: state.isPreviewing)
+            .animation(.easeInOut(duration: 0.35), value: session.isLoading)
+            .animation(.easeInOut(duration: 0.35), value: session.isPreviewing)
 
             // Layer 2: streak counter + move counter float at top — outside layout flow so
             // they don't shift the grid's vertical center. Hidden entirely in Zen mode, which
             // shows nothing but the puzzle itself.
-            if !state.isZenMode {
+            if !session.isZenMode {
                 VStack {
                     PuzzleStatusBarView(
-                        gameMode: state.selectedGameMode,
-                        debugOverlayEnabled: state.debugOverlayEnabled,
-                        currentStreak: state.currentStreakForCurrentSize,
-                        bestStreak: state.allTimeHighStreakForCurrentSize,
-                        timerRemaining: state.timerRemaining,
-                        isTimerRunning: state.isTimerRunning,
-                        moveCount: state.currentMoveCount,
-                        personalBest: state.personalBestForCurrentSize,
-                        elapsedTime: state.elapsedTime,
-                        personalBestTime: state.personalBestTimeForCurrentSize
+                        gameMode: session.selectedGameMode,
+                        debugOverlayEnabled: settings.debugOverlayEnabled,
+                        currentStreak: session.currentStreakForCurrentSize,
+                        bestStreak: session.allTimeHighStreakForCurrentSize,
+                        timerRemaining: session.timerRemaining,
+                        isTimerRunning: session.isTimerRunning,
+                        moveCount: session.currentMoveCount,
+                        personalBest: session.personalBestForCurrentSize,
+                        elapsedTime: session.elapsedTime,
+                        personalBestTime: session.personalBestTimeForCurrentSize
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.top)
                     .opacity(streakVisible ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.35), value: state.isLoading)
-                    .animation(.easeInOut(duration: 0.35), value: state.isPreviewing)
+                    .animation(.easeInOut(duration: 0.35), value: session.isLoading)
+                    .animation(.easeInOut(duration: 0.35), value: session.isPreviewing)
                     .animation(.spring(response: 0.5, dampingFraction: 0.75), value: showCompletion)
                     Spacer()
                 }
@@ -104,9 +106,9 @@ struct PuzzleView: View {
 
             // Layer 3: completion overlay. Skipped in Zen mode — the solved picture reveal
             // (in PuzzleGridView) is the only feedback; the next puzzle starts on its own.
-            if !state.isZenMode {
+            if !session.isZenMode {
                 VStack {
-                    CompletionBannerView(gameMode: state.selectedGameMode, streak: state.currentStreakForCurrentSize, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, personalBest: state.personalBestForCurrentSize, elapsedTime: state.elapsedTime, personalBestTime: state.personalBestTimeForCurrentSize, isPracticeMode: state.debugOverlayEnabled)
+                    CompletionBannerView(gameMode: session.selectedGameMode, streak: session.currentStreakForCurrentSize, isNewRecord: showNewRecord, moveCount: session.currentMoveCount, personalBest: session.personalBestForCurrentSize, elapsedTime: session.elapsedTime, personalBestTime: session.personalBestTimeForCurrentSize, isPracticeMode: settings.debugOverlayEnabled)
                         .padding(.top)
                         .padding(.horizontal)
                         .offset(x: bannerOffset.width, y: (showCompletion ? 0 : -300) + bannerOffset.height)
@@ -131,10 +133,10 @@ struct PuzzleView: View {
                     // banner's card — and slides down out from behind it on appear.
                     if showCompletion && hasNewBestBadge {
                         NewBestBadgesView(
-                            showsStreak: state.selectedGameMode != .slide,
-                            moveCount: state.currentMoveCount,
+                            showsStreak: session.selectedGameMode != .slide,
+                            moveCount: session.currentMoveCount,
                             isNewMovesRecord: showNewMovesRecord,
-                            elapsedTime: state.elapsedTime,
+                            elapsedTime: session.elapsedTime,
                             isNewBestTime: showNewBestTime
                         )
                         .padding(.horizontal)
@@ -156,7 +158,7 @@ struct PuzzleView: View {
 
             // Layer 4: achievement unlock toast — only shown mid-game to avoid overlapping the
             // completion banner. Achievements aren't tracked in Zen mode, so this never fires there.
-            if let achievement = state.newlyUnlockedAchievement, !state.isSolved {
+            if let achievement = achievementsStore.newlyUnlockedAchievement, !session.isSolved {
                 VStack {
                     Spacer()
                     AchievementToastView(achievement: achievement)
@@ -166,14 +168,14 @@ struct PuzzleView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: state.newlyUnlockedAchievement)
-        .task(id: state.newlyUnlockedAchievement?.id) {
-            guard state.newlyUnlockedAchievement != nil else { return }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: achievementsStore.newlyUnlockedAchievement)
+        .task(id: achievementsStore.newlyUnlockedAchievement?.id) {
+            guard achievementsStore.newlyUnlockedAchievement != nil else { return }
             try? await Task.sleep(for: .seconds(3))
-            await state.dismissAchievementNotification()
+            await achievementsStore.dismissAchievementNotification()
         }
-        .task(id: state.isSolved) {
-            guard state.isSolved else { return }
+        .task(id: session.isSolved) {
+            guard session.isSolved else { return }
             try? await Task.sleep(for: .seconds(4))
             withAnimation(.easeInOut(duration: 0.35)) {
                 showNewRecord = false
@@ -184,8 +186,8 @@ struct PuzzleView: View {
         // Zen mode has no completion banner or "Continue" button to tap: the solved picture
         // breathes gently in and out — one inhale, one exhale — and the next puzzle begins
         // the moment it settles, with no further prompt needed.
-        .task(id: state.isSolved) {
-            guard state.isSolved, state.isZenMode else {
+        .task(id: session.isSolved) {
+            guard session.isSolved, session.isZenMode else {
                 zenBreathScale = 1
                 zenGlowOpacity = 0
                 return
@@ -196,53 +198,53 @@ struct PuzzleView: View {
                 zenGlowOpacity = 0.65
             }
             try? await Task.sleep(for: .seconds(1.3))
-            guard state.isSolved else { return }
+            guard session.isSolved else { return }
             withAnimation(.easeInOut(duration: 1.1)) {
                 zenBreathScale = 1
                 zenGlowOpacity = 0
             }
             try? await Task.sleep(for: .seconds(1.1))
-            guard state.isSolved else { return }
+            guard session.isSolved else { return }
             startNewGame()
         }
         // `.task` can be delayed in actually starting while the MainActor is busy (e.g. the
         // NavigationStack push transition), leaving the previous game's stale tiles briefly
         // visible and tappable. `.onAppear` runs synchronously, closing that window.
         .onAppear {
-            state.tiles = []
-            state.isLoading = true
+            session.tiles = []
+            session.isLoading = true
         }
         .task {
-            await state.startNewGame()
+            await session.startNewGame()
         }
-        .sensoryFeedback(.success, trigger: state.isSolved) { _, newValue in
-            newValue && state.hapticsEnabled
+        .sensoryFeedback(.success, trigger: session.isSolved) { _, newValue in
+            newValue && settings.hapticsEnabled
         }
-        .sensoryFeedback(.warning, trigger: state.didBreakStreak) { _, _ in
-            state.hapticsEnabled
+        .sensoryFeedback(.warning, trigger: session.didBreakStreak) { _, _ in
+            settings.hapticsEnabled
         }
-        .onChange(of: state.isSolved) { _, solved in
+        .onChange(of: session.isSolved) { _, solved in
             if solved { soundService.playCompletion() }
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75).delay(solved ? 0.3 : 0)) {
                 showCompletion = solved
             }
         }
-        .onChange(of: state.isNewRecord) { _, isRecord in
+        .onChange(of: session.isNewRecord) { _, isRecord in
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
                 showNewRecord = isRecord
             }
         }
-        .onChange(of: state.isNewMovesRecord) { _, isRecord in
+        .onChange(of: session.isNewMovesRecord) { _, isRecord in
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
                 showNewMovesRecord = isRecord
             }
         }
-        .onChange(of: state.isNewBestTime) { _, isRecord in
+        .onChange(of: session.isNewBestTime) { _, isRecord in
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
                 showNewBestTime = isRecord
             }
         }
-        .navigationTitle(state.isZenMode ? "" : "Puzzle")
+        .navigationTitle(session.isZenMode ? "" : "Puzzle")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isGameActive)
         .toolbar {
@@ -251,8 +253,8 @@ struct PuzzleView: View {
                     Button("Back", systemImage: "chevron.left") {
                         // Zen mode never tracks progress, so there's nothing a quit
                         // confirmation would actually be protecting — leave immediately.
-                        if state.isZenMode {
-                            state.leaveGame()
+                        if session.isZenMode {
+                            session.leaveGame()
                             dismiss()
                         } else {
                             showQuitAlert = true
@@ -270,7 +272,7 @@ struct PuzzleView: View {
         }
         .alert("Quit this run?", isPresented: $showQuitAlert) {
             Button("Quit", role: .destructive) {
-                state.leaveGame()
+                session.leaveGame()
                 dismiss()
             }
             Button("Keep Playing", role: .cancel) { }
@@ -278,33 +280,33 @@ struct PuzzleView: View {
             Text("Your progress on this puzzle will be lost.")
         }
         .onDisappear {
-            state.leaveGame()
+            session.leaveGame()
         }
     }
 
     private var isGameActive: Bool {
-        (!state.tiles.isEmpty || state.isPreviewing) && !state.isSolved
+        (!session.tiles.isEmpty || session.isPreviewing) && !session.isSolved
     }
 
     private var showSolveButton: Bool {
-        let result = state.debugOverlayEnabled
-            && state.selectedGameMode == .slide
-            && !state.tiles.isEmpty
-            && !state.isSolved
+        let result = settings.debugOverlayEnabled
+            && session.selectedGameMode == .slide
+            && !session.tiles.isEmpty
+            && !session.isSolved
         return result
     }
 
     private var streakVisible: Bool {
-        !showCompletion && !state.isLoading && state.error == nil
+        !showCompletion && !session.isLoading && session.error == nil
     }
 
     private var hasNewBestBadge: Bool {
-        showNewMovesRecord || (state.selectedGameMode == .slide && showNewBestTime)
+        showNewMovesRecord || (session.selectedGameMode == .slide && showNewBestTime)
     }
 
     private func startNewGame() {
         bannerOffset = .zero
-        Task { await state.startNewGame() }
+        Task { await session.startNewGame() }
     }
 
     /// Debug-only: walks the puzzle to its solved state, one slide at a time, so the slide
@@ -313,15 +315,15 @@ struct PuzzleView: View {
         guard !isSolving else { return }
         isSolving = true
 
-        let moves = SlideSolver().solve(tiles: state.tiles, gridSize: state.gridSize)
+        let moves = SlideSolver().solve(tiles: session.tiles, gridSize: session.gridSize)
 
         Task {
             for move in moves {
-                guard !state.isSolved else {
+                guard !session.isSolved else {
                     break
                 }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    _ = state.slideTile(from: move)
+                    _ = session.slideTile(from: move)
                 }
                 soundService.playTileClick()
                 try? await Task.sleep(for: .milliseconds(120))
@@ -332,7 +334,12 @@ struct PuzzleView: View {
 }
 
 #Preview {
+    let stats = StatsStore()
+    let settings = SettingsStore()
+    let achievements = AchievementsStore()
     PuzzleView()
-        .environment(PuzzleState())
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+        .environment(settings)
+        .environment(achievements)
         .environment(SoundService())
 }

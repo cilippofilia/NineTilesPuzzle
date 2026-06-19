@@ -1,5 +1,5 @@
 //
-//  PuzzleState.swift
+//  GameSession.swift
 //  NineTilesPuzzle
 //
 //  Created by Filippo Cilia on 5/25/26.
@@ -7,15 +7,16 @@
 
 import SwiftUI
 
+/// The game currently configured and/or in progress: which mode/size/media to play, the
+/// live board, and the timers that run while playing. Reports completed moves and games to
+/// `StatsStore` and `AchievementsStore`, and reads `SettingsStore` for preferences that
+/// affect play (preview length, streak countdown length, debug/practice mode).
 @MainActor
 @Observable
-final class PuzzleState {
-    /// Grid size and move-mechanic differ enough per mode (e.g. Slide needs far more moves
-    /// than Classic to solve the same grid) that per-size stats must also be split by mode.
-    struct StatsKey: Hashable {
-        let gridSize: Int
-        let gameMode: GameMode
-    }
+final class GameSession {
+    private let statsStore: StatsStore
+    private let achievementsStore: AchievementsStore
+    private let settingsStore: SettingsStore
 
     private let classicEngine = ClassicEngine()
     private let slideEngine = SlideEngine()
@@ -33,23 +34,12 @@ final class PuzzleState {
     var isLoading = false
     var isPreviewing = false
     var isSolved = false
-    var currentStreak: [StatsKey: Int] = [:]
-    var allTimeHighStreak: [StatsKey: Int] = [:]
     var isNewRecord: Bool = false
     var currentMoveCount: Int = 0
-    var personalBestMoves: [StatsKey: Int] = [:]
     var isNewMovesRecord: Bool = false
-    var gamesPlayed: [StatsKey: Int] = [:]
     var elapsedTime: TimeInterval = 0
-    var personalBestTime: [StatsKey: TimeInterval] = [:]
     var isNewBestTime: Bool = false
-    var achievements: [Achievement] = []
-    var newlyUnlockedAchievement: Achievement? = nil
     var error: Error?
-    var previewDuration: Double = 3
-    var streakCountdownDuration: Double = 30
-    var hapticsEnabled: Bool = true
-    var debugOverlayEnabled: Bool = false
     var selectedGameMode: GameMode = .classic
 
     private(set) var timerRemaining: Double = 30
@@ -63,6 +53,8 @@ final class PuzzleState {
     /// bests, no achievements — just an uninterrupted, judgment-free puzzle loop.
     var isZenMode: Bool { selectedGameMode == .zen }
 
+    var currentStatsKey: StatsKey { StatsKey(gridSize: gridSize, gameMode: selectedGameMode) }
+
     private var activeEngine: any GameEngine {
         switch selectedGameMode {
         case .slide:
@@ -72,26 +64,31 @@ final class PuzzleState {
         }
     }
 
-    init() {
+    init(statsStore: StatsStore, achievementsStore: AchievementsStore, settingsStore: SettingsStore) {
+        self.statsStore = statsStore
+        self.achievementsStore = achievementsStore
+        self.settingsStore = settingsStore
         restoreFromUserDefaults()
-        loadAchievements()
-        checkAchievements()
-        Task { await refreshAchievementsFromRemote() }
+        achievementsStore.checkAchievements(using: statsStore)
+        Task {
+            await achievementsStore.refreshAchievementsFromRemote()
+            achievementsStore.checkAchievements(using: statsStore)
+        }
     }
 
     func startCountdown() {
-        guard streakCountdownDuration > 0 else { return }
+        guard settingsStore.streakCountdownDuration > 0 else { return }
         stopCountdown()
-        timerRemaining = streakCountdownDuration
+        timerRemaining = settingsStore.streakCountdownDuration
         isTimerRunning = true
-        let end = Date.now.addingTimeInterval(streakCountdownDuration)
+        let end = Date.now.addingTimeInterval(settingsStore.streakCountdownDuration)
         countdownTask = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(100))
                 guard !Task.isCancelled else { break }
                 let remaining = end.timeIntervalSinceNow
                 if remaining <= 0 {
-                    currentStreak[currentStatsKey] = 0
+                    statsStore.resetStreak(for: currentStatsKey)
                     isNewRecord = false
                     didBreakStreak.toggle()
                     stopCountdown()
@@ -105,7 +102,7 @@ final class PuzzleState {
     func stopCountdown() {
         countdownTask?.cancel()
         countdownTask = nil
-        timerRemaining = streakCountdownDuration
+        timerRemaining = settingsStore.streakCountdownDuration
         isTimerRunning = false
     }
 
@@ -174,9 +171,9 @@ final class PuzzleState {
 
             isLoading = false
 
-            if isRemote && previewDuration > 0 {
+            if isRemote && settingsStore.previewDuration > 0 {
                 isPreviewing = true
-                previewSleepTask = Task { try? await Task.sleep(for: .seconds(previewDuration)) }
+                previewSleepTask = Task { try? await Task.sleep(for: .seconds(settingsStore.previewDuration)) }
                 await previewSleepTask?.value
                 previewSleepTask = nil
                 isPreviewing = false
@@ -230,51 +227,34 @@ final class PuzzleState {
         currentMoveCount += 1
         isSolved = activeEngine.isSolved(tiles)
 
+        let key = currentStatsKey
+        let debugOverlayEnabled = settingsStore.debugOverlayEnabled
+
         if isSolved {
             stopCountdown()
             stopStopwatch()
             if isZenMode {
-                let key = StatsKey(gridSize: gridSize, gameMode: selectedGameMode)
-                gamesPlayed[key, default: 0] += 1
-                UserDefaults.standard.set(gamesPlayed[key]!, forKey: Keys.gamesPlayed(for: gridSize, mode: selectedGameMode))
+                statsStore.recordGamePlayed(for: key)
             } else if !debugOverlayEnabled {
-                let key = StatsKey(gridSize: gridSize, gameMode: selectedGameMode)
-                let existing = personalBestMoves[key]
-                if existing == nil || currentMoveCount < existing! {
-                    personalBestMoves[key] = currentMoveCount
-                    isNewMovesRecord = true
-                    UserDefaults.standard.set(currentMoveCount, forKey: Keys.personalBest(for: gridSize, mode: selectedGameMode))
-                }
-                let existingTime = personalBestTime[key]
-                if existingTime == nil || elapsedTime < existingTime! {
-                    personalBestTime[key] = elapsedTime
-                    isNewBestTime = true
-                    UserDefaults.standard.set(elapsedTime, forKey: Keys.personalBestTime(for: gridSize, mode: selectedGameMode))
-                }
-                gamesPlayed[key, default: 0] += 1
-                UserDefaults.standard.set(gamesPlayed[key]!, forKey: Keys.gamesPlayed(for: gridSize, mode: selectedGameMode))
+                let result = statsStore.recordCompletion(for: key, moves: currentMoveCount, time: elapsedTime)
+                isNewMovesRecord = result.isNewMovesRecord
+                isNewBestTime = result.isNewBestTime
             }
         }
 
         if !isZenMode {
-            let key = currentStatsKey
             let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
             if newlyCorrect > 0 {
-                let streak = currentStreak[key, default: 0] + 1
-                currentStreak[key] = streak
+                let result = statsStore.recordStreakIncrement(for: key, trackRecord: !debugOverlayEnabled)
                 if !isSolved { startCountdown() }
-                if !debugOverlayEnabled && streak > (allTimeHighStreak[key] ?? 0) {
-                    allTimeHighStreak[key] = streak
-                    isNewRecord = true
-                    UserDefaults.standard.set(streak, forKey: Keys.allTimeHighStreak(for: key.gridSize, mode: key.gameMode))
-                }
+                if result.isNewRecord { isNewRecord = true }
             } else {
-                currentStreak[key] = 0
+                statsStore.resetStreak(for: key)
                 isNewRecord = false
                 stopCountdown()
             }
 
-            if !debugOverlayEnabled { checkAchievements() }
+            if !debugOverlayEnabled { achievementsStore.checkAchievements(using: statsStore) }
         }
         saveToUserDefaults()
     }
@@ -292,33 +272,113 @@ final class PuzzleState {
     }
 }
 
+// MARK: - Configuration & current-size stats
+
+extension GameSession {
+    var difficultyLabel: String {
+        switch gridSize {
+        case 3: "Easy"
+        case 4: "Medium"
+        case 5: "Hard"
+        case 6: "Expert"
+        case 7: "Master"
+        default: "Insane"
+        }
+    }
+
+    var difficultyDisplayValue: String {
+        useRandomSize ? "Random" : "\(difficultyLabel)  \(gridSize) × \(gridSize)"
+    }
+
+    var personalBestForCurrentSize: Int? { statsStore.personalBestMoves[currentStatsKey] }
+    var personalBestTimeForCurrentSize: TimeInterval? { statsStore.personalBestTime[currentStatsKey] }
+    var currentStreakForCurrentSize: Int { statsStore.currentStreak[currentStatsKey] ?? 0 }
+    var allTimeHighStreakForCurrentSize: Int { statsStore.allTimeHighStreak[currentStatsKey] ?? 0 }
+
+    /// Streaks only make sense in Classic mode (see `PuzzleStatusBarView`), so the menu's
+    /// streak card always shows Classic's stats regardless of the currently selected mode.
+    var classicBestMovesForCurrentSize: Int? {
+        statsStore.personalBestMoves[StatsKey(gridSize: gridSize, gameMode: .classic)]
+    }
+    var classicStreakForCurrentSize: Int {
+        statsStore.currentStreak[StatsKey(gridSize: gridSize, gameMode: .classic)] ?? 0
+    }
+    var classicBestStreakForCurrentSize: Int {
+        statsStore.allTimeHighStreak[StatsKey(gridSize: gridSize, gameMode: .classic)] ?? 0
+    }
+
+    /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
+    func setGridSize(_ size: Int) {
+        guard size != gridSize || useRandomSize else { return }
+        useRandomSize = false
+        gridSize = size
+        tiles = []
+        tileImages = [:]
+        sourceImage = nil
+        croppedSourceImage = nil
+        isSolved = false
+        isNewRecord = false
+        UserDefaults.standard.set(false, forKey: Keys.useRandomSize)
+        UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
+        UserDefaults.standard.removeObject(forKey: Keys.tiles)
+        UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
+    }
+
+    func setRandomSize() {
+        useRandomSize = true
+        tiles = []
+        tileImages = [:]
+        sourceImage = nil
+        croppedSourceImage = nil
+        isSolved = false
+        isNewRecord = false
+        UserDefaults.standard.set(true, forKey: Keys.useRandomSize)
+        UserDefaults.standard.removeObject(forKey: Keys.tiles)
+        UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
+    }
+
+    func setMediaSourceType(_ type: MediaSourceType) {
+        guard type != mediaSourceType else { return }
+        guard type != .numbers || selectedGameMode == .slide else { return }
+        mediaSourceType = type
+        UserDefaults.standard.set(type.rawValue, forKey: Keys.mediaSourceType)
+    }
+
+    func setGameMode(_ mode: GameMode) {
+        guard mode.isAvailable, mode != selectedGameMode else { return }
+        selectedGameMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: Keys.gameMode)
+
+        // Numbers media mode is Slide-only for now; fall back if it's no longer valid.
+        if mediaSourceType == .numbers && mode != .slide {
+            setMediaSourceType(.random)
+        }
+    }
+
+    func resetConfiguration() {
+        setGridSize(3)
+        setMediaSourceType(.random)
+        useRandomSize = false
+        UserDefaults.standard.set(false, forKey: Keys.useRandomSize)
+    }
+}
+
 // MARK: - Persistence
 
-extension PuzzleState {
+extension GameSession {
     enum Keys {
         static let gridSize = "puzzle.gridSize"
         static let mediaSourceType = "puzzle.mediaSourceType"
         static let tiles = "puzzle.tiles"
         static let sourceImage = "puzzle.sourceImage"
-        static let previewDuration = "puzzle.previewDuration"
-        static let streakCountdownDuration = "puzzle.streakCountdownDuration"
         static let currentMoveCount = "puzzle.currentMoveCount"
         static let elapsedTime = "puzzle.elapsedTime"
         static let useRandomSize = "puzzle.useRandomSize"
-        static let hapticsEnabled = "puzzle.hapticsEnabled"
-        static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
         static let gameMode = "puzzle.gameMode"
-
-        static func personalBest(for size: Int, mode: GameMode) -> String { "puzzle.personalBest.\(mode.rawValue).\(size)" }
-        static func personalBestTime(for size: Int, mode: GameMode) -> String { "puzzle.personalBestTime.\(mode.rawValue).\(size)" }
-        static func gamesPlayed(for size: Int, mode: GameMode) -> String { "puzzle.gamesPlayed.\(mode.rawValue).\(size)" }
-        static func currentStreak(for size: Int, mode: GameMode) -> String { "puzzle.currentStreak.\(mode.rawValue).\(size)" }
-        static func allTimeHighStreak(for size: Int, mode: GameMode) -> String { "puzzle.allTimeHighStreak.\(mode.rawValue).\(size)" }
-        static func achievement(id: String) -> String { "puzzle.achievement.\(id)" }
     }
 }
 
-private extension PuzzleState {
+private extension GameSession {
     func saveToUserDefaults() {
         guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
         UserDefaults.standard.set(tilesData, forKey: Keys.tiles)
@@ -330,16 +390,9 @@ private extension PuzzleState {
         UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
         UserDefaults.standard.set(useRandomSize, forKey: Keys.useRandomSize)
         UserDefaults.standard.set(mediaSourceType.rawValue, forKey: Keys.mediaSourceType)
-        UserDefaults.standard.set(previewDuration, forKey: Keys.previewDuration)
-        UserDefaults.standard.set(streakCountdownDuration, forKey: Keys.streakCountdownDuration)
-        UserDefaults.standard.set(hapticsEnabled, forKey: Keys.hapticsEnabled)
-        UserDefaults.standard.set(debugOverlayEnabled, forKey: Keys.debugOverlayEnabled)
         UserDefaults.standard.set(selectedGameMode.rawValue, forKey: Keys.gameMode)
         UserDefaults.standard.set(currentMoveCount, forKey: Keys.currentMoveCount)
         UserDefaults.standard.set(elapsedTime, forKey: Keys.elapsedTime)
-        for (key, value) in currentStreak {
-            UserDefaults.standard.set(value, forKey: Keys.currentStreak(for: key.gridSize, mode: key.gameMode))
-        }
     }
 
     func restoreFromUserDefaults() {
@@ -347,18 +400,6 @@ private extension PuzzleState {
         if (3...8).contains(savedSize) { gridSize = savedSize }
         useRandomSize = UserDefaults.standard.bool(forKey: Keys.useRandomSize)
 
-        if UserDefaults.standard.object(forKey: Keys.previewDuration) != nil {
-            previewDuration = UserDefaults.standard.double(forKey: Keys.previewDuration)
-        }
-        if UserDefaults.standard.object(forKey: Keys.streakCountdownDuration) != nil {
-            streakCountdownDuration = UserDefaults.standard.double(forKey: Keys.streakCountdownDuration)
-        }
-        if UserDefaults.standard.object(forKey: Keys.hapticsEnabled) != nil {
-            hapticsEnabled = UserDefaults.standard.bool(forKey: Keys.hapticsEnabled)
-        }
-        if UserDefaults.standard.object(forKey: Keys.debugOverlayEnabled) != nil {
-            debugOverlayEnabled = UserDefaults.standard.bool(forKey: Keys.debugOverlayEnabled)
-        }
         if let savedGameMode = UserDefaults.standard.string(forKey: Keys.gameMode).flatMap(GameMode.init(rawValue:)) {
             selectedGameMode = savedGameMode
         }
@@ -370,29 +411,6 @@ private extension PuzzleState {
         // Numbers media mode is Slide-only for now.
         if mediaSourceType == .numbers && selectedGameMode != .slide {
             mediaSourceType = .random
-        }
-
-        // Restored unconditionally (not gated behind the tiles guard below) since these
-        // stats persist independently of whatever game happened to be in progress.
-        personalBestMoves = [:]
-        personalBestTime = [:]
-        gamesPlayed = [:]
-        currentStreak = [:]
-        allTimeHighStreak = [:]
-        for mode in GameMode.allCases {
-            for size in 3...8 {
-                let key = StatsKey(gridSize: size, gameMode: mode)
-                let moves = UserDefaults.standard.integer(forKey: Keys.personalBest(for: size, mode: mode))
-                if moves > 0 { personalBestMoves[key] = moves }
-                let time = UserDefaults.standard.double(forKey: Keys.personalBestTime(for: size, mode: mode))
-                if time > 0 { personalBestTime[key] = time }
-                let played = UserDefaults.standard.integer(forKey: Keys.gamesPlayed(for: size, mode: mode))
-                if played > 0 { gamesPlayed[key] = played }
-                let streak = UserDefaults.standard.integer(forKey: Keys.currentStreak(for: size, mode: mode))
-                if streak > 0 { currentStreak[key] = streak }
-                let bestStreak = UserDefaults.standard.integer(forKey: Keys.allTimeHighStreak(for: size, mode: mode))
-                if bestStreak > 0 { allTimeHighStreak[key] = bestStreak }
-            }
         }
 
         guard

@@ -9,7 +9,7 @@ import Foundation
 
 /// Computes a sequence of slide moves that brings a slide-mode board to its solved state.
 ///
-/// Each returned value is a grid index suitable for `PuzzleState.slideTile(from:)`: the
+/// Each returned value is a grid index suitable for `GameSession.slideTile(from:)`: the
 /// position of the tile that slides into the empty cell for that step.
 ///
 /// For a 3x3 board the solution is found directly via breadth-first search over the whole

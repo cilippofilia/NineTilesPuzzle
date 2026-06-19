@@ -17,11 +17,14 @@ discussion for forward-looking recommendations.
 
 ```
 NineTilesPuzzle/
-├── NineTilesPuzzleApp.swift        — @main, builds PuzzleState + SoundService, splash screen
+├── NineTilesPuzzleApp.swift        — @main, constructs the four stores below + SoundService
 ├── Models/
-│   ├── PuzzleState.swift           — the app's single @Observable state object (see below)
-│   ├── PuzzleState+Achievements.swift
-│   ├── PuzzleState+Settings.swift
+│   ├── GameSession.swift           — the game currently configured/in progress (see below)
+│   ├── StatsStore.swift            — personal bests, games played, streaks (keyed by StatsKey)
+│   ├── SettingsStore.swift         — app prefs unrelated to "which game": preview/streak
+│   │                                  countdown durations, haptics, debug overlay
+│   ├── AchievementsStore.swift     — achievement definitions, unlock checks, remote refresh
+│   ├── StatsKey.swift              — Hashable(gridSize, gameMode) used by GameSession/StatsStore
 │   ├── GameMode.swift              — enum: classic/slide/timeTrial/limitedMoves/zen/fog/chaos
 │   ├── TileModel.swift             — @Observable tile: id, currentIndex, isLocked
 │   ├── Achievement.swift           — Codable achievement definition + unlock flag
@@ -66,51 +69,69 @@ NineTilesPuzzleTests/                 — engine/solver/image-service/image-slic
 ## Core data flow
 
 ```
-NineTilesPuzzleApp
-   └─ injects PuzzleState + SoundService into the environment (app-wide singletons)
+NineTilesPuzzleApp.init()
+   constructs, in dependency order:
+     StatsStore()  SettingsStore()  AchievementsStore()  ──▶  GameSession(stats:, achievements:, settings:)
+   injects all four + SoundService into the environment (app-wide singletons)
         │
         ▼
 MenuView ── NavigationStack(GameRoute) ──▶ PuzzleView / GameModeView / StatsView / ...
+        (each view reads only the store(s) it actually needs from the environment)
         │
         ▼
-PuzzleState (@Observable, @MainActor)
-   • owns: tiles, images, mode/settings, streaks, move/time records, achievements, timers
+GameSession (@Observable, @MainActor)
+   • owns: gridSize/mediaSourceType/selectedGameMode config, tiles, images, timers, live flags
    • owns instances of: ClassicEngine, SlideEngine
-   • talks directly to: UserDefaults, ImageService, ImageSlicer, AchievementService
+   • depends on (read-only): StatsStore, AchievementsStore, SettingsStore
+   • talks directly to: UserDefaults (its own keys), ImageService, ImageSlicer
         │
         ├─ selectedGameMode ──▶ activeEngine (computed: .slide → SlideEngine, else Classic)
         │                              │
         │                  shuffle() / isSolved()   (shared GameEngine protocol)
-        │                  swap() / slide()         (mode-specific, called directly by PuzzleState)
+        │                  swap() / slide()         (mode-specific, called directly by GameSession)
         │
-        └─ persistence: manual UserDefaults get/set per field, JSON-encoded tiles + JPEG image
+        └─ registerMove() reports completions/streaks to StatsStore, then asks
+           AchievementsStore.checkAchievements(using: StatsStore) to re-evaluate unlocks
 ```
 
-**`PuzzleState`** is the only `@Observable` model in the app (besides the per-tile
-`TileModel` and `SoundService`). Every view that needs game state, settings, stats, or
-achievements reads from this one object via `@Environment(PuzzleState.self)`. It currently
-owns five distinct concerns in one type: live game session, user settings, stats/records,
-achievements, and persistence — see `ROADMAP.md` §6 for the specific scaling gap this
-creates as more game modes are added.
+**Four stores, one dependency direction.** `GameSession` is the only one with dependencies
+(`StatsStore`, `AchievementsStore`, `SettingsStore`, injected at init); the other three know
+nothing about each other or about `GameSession`. This used to be a single god object
+(`PuzzleState`) owning all five concerns — split in June 2026 (see `ROADMAP.md` §6, which
+diagnosed the gap, and the conversation that did the split). Why the boundaries fell where
+they did:
+- **`GameSession`** owns `gridSize`/`mediaSourceType`/`selectedGameMode` (not `SettingsStore`)
+  because changing them must synchronously clear the in-progress board — keeping that inside
+  one type avoids needing cross-store reactive wiring.
+- **`StatsStore`** doesn't know "current" anything (no grid size, no selected mode) — it only
+  answers questions keyed by `StatsKey`. `GameSession` exposes the "for current size/mode"
+  convenience accessors (`currentStreakForCurrentSize`, `classicBestMovesForCurrentSize`, …)
+  since it's the one place that knows what "current" means.
+- **`AchievementsStore.checkAchievements(using:)`** takes `StatsStore` as a parameter rather
+  than holding a permanent reference, so it stays decoupled and easy to test with fake stats.
 
 **Game modes today**: `GameMode` is 7 cases, but `isAvailable` gates 3 of them
 (`.classic`, `.slide`, `.zen`); the other 4 are listed in the UI as "Coming soon…" with no
-behavior. Mode-specific behavior is currently expressed as scattered conditionals
-(`isZenMode`, `selectedGameMode == .slide`, `debugOverlayEnabled`) inside `PuzzleState` and
-`PuzzleView`/`PuzzleGridView`, rather than through a single abstraction.
+behavior. Mode-specific behavior is still expressed as scattered conditionals (`isZenMode`,
+`selectedGameMode == .slide`, `settingsStore.debugOverlayEnabled`) inside `GameSession` and
+`PuzzleView`/`PuzzleGridView` — the store split didn't address this axis, since with only
+Zen as a real data point any `GameModeRules`-style abstraction would be guessing at shape
+(see `ROADMAP.md` §6's closing note). Worth revisiting once Time Trial or Limited Moves
+actually exists.
 
 **Image pipeline**: `ImageSource` protocol → `RemoteImageSource` (picsum.photos) /
 `PhotoLibraryImageSource` / `LocalImageSource` (bundled fallback) → `ImageService` (primary
 + fallback on `URLError`) → `ImageSlicer` (center-crop + slice into per-tile `CGImage`s,
-stored in `PuzzleState.tileImages`).
+stored in `GameSession.tileImages`).
 
-**Persistence**: everything lives in `UserDefaults` — settings, in-progress tile state
-(JSON), the in-progress source image (JPEG-encoded), and per-`(gridSize, gameMode)` stats
-(personal best moves/time, games played) via string-keyed lookups built from a nested
-`3...8 × GameMode.allCases` loop. No SwiftData yet (flagged in `ROADMAP.md` §4 as the
-natural next step once stats history/charts are wanted).
+**Persistence**: still `UserDefaults` only, but each store now owns and persists only its
+own keys (no more single 400-line file mixing all of them). `StatsStore`'s per-`(gridSize,
+gameMode)` stats use string-keyed lookups built from a `3...8 × GameMode.allCases` loop. No
+SwiftData yet (flagged in `ROADMAP.md` §4 as the natural next step once stats history/charts
+are wanted) — and no repository/protocol seam yet either, so each store still calls
+`UserDefaults.standard` directly (a deliberately deferred follow-up, not an oversight).
 
 **Testing**: `NineTilesPuzzleTests` covers the stateless/testable layer well — both engines,
-`SlideSolver`, `ImageService`, `ImageSlicer`. `PuzzleState` itself has no tests; it's
-tightly coupled to `UserDefaults` and constructs its own engine/service instances
-internally, which makes it hard to test in isolation today.
+`SlideSolver`, `ImageService`, `ImageSlicer`. The four stores have no tests yet, but are now
+small enough and decoupled enough (especially `StatsStore` and `AchievementsStore`, which
+have zero UI coupling) to actually write unit tests against, unlike the old `PuzzleState`.

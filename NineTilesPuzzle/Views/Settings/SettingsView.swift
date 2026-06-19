@@ -8,7 +8,9 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @Environment(PuzzleState.self) private var state
+    @Environment(GameSession.self) private var session
+    @Environment(StatsStore.self) private var statsStore
+    @Environment(SettingsStore.self) private var settings
     @Environment(SoundService.self) private var soundService
     @Environment(\.dismiss) private var dismiss
 
@@ -23,13 +25,13 @@ struct SettingsView: View {
                     NavigationLink {
                         PreviewTimePickerView()
                     } label: {
-                        LabeledContent("Preview Time", value: state.previewDurationLabel)
+                        LabeledContent("Preview Time", value: settings.previewDurationLabel)
                     }
 
                     NavigationLink {
                         StreakCountdownPickerView()
                     } label: {
-                        LabeledContent("Streak Countdown", value: state.streakCountdownLabel)
+                        LabeledContent("Streak Countdown", value: settings.streakCountdownLabel)
                     }
                 }
 
@@ -40,19 +42,19 @@ struct SettingsView: View {
                     ))
 
                     Toggle("Haptic Feedback", isOn: Binding(
-                        get: { state.hapticsEnabled },
-                        set: { state.setHapticsEnabled($0) }
+                        get: { settings.hapticsEnabled },
+                        set: { settings.setHapticsEnabled($0) }
                     ))
                 }
 
                 Section {
                     Toggle("Show debug tools", isOn: Binding(
-                        get: { state.debugOverlayEnabled },
+                        get: { settings.debugOverlayEnabled },
                         set: { newValue in
                             if newValue {
                                 showDebugOverlayAlert = true
                             } else {
-                                state.setDebugOverlayEnabled(false)
+                                settings.setDebugOverlayEnabled(false)
                             }
                         }
                     ))
@@ -80,19 +82,22 @@ struct SettingsView: View {
                 }
             }
             .alert("Reset Stats?", isPresented: $showResetStatsAlert) {
-                Button("Reset", role: .destructive) { state.resetStats() }
+                Button("Reset", role: .destructive) { statsStore.resetStats() }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Your current streak, best streak, move counter, personal bests, and games played will be cleared.")
             }
             .alert("Reset Settings?", isPresented: $showResetSettingsAlert) {
-                Button("Reset", role: .destructive) { state.resetSettings() }
+                Button("Reset", role: .destructive) {
+                    session.resetConfiguration()
+                    settings.resetSettings()
+                }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Media source, preview time, streak countdown, and difficulty will be restored to their default values.")
             }
             .alert("Turn On Tile Indices?", isPresented: $showDebugOverlayAlert) {
-                Button("Turn On") { state.setDebugOverlayEnabled(true) }
+                Button("Turn On") { settings.setDebugOverlayEnabled(true) }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("While enabled, your streak, best moves, games played, and achievements won't be updated. Turn this off to resume tracking your progress.")
@@ -103,10 +108,15 @@ struct SettingsView: View {
 }
 
 #Preview {
+    let stats = StatsStore()
+    let settings = SettingsStore()
+    let achievements = AchievementsStore()
     Color.clear
         .sheet(isPresented: .constant(true)) {
             SettingsView()
-                .environment(PuzzleState())
+                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+                .environment(stats)
+                .environment(settings)
                 .environment(SoundService())
         }
 }

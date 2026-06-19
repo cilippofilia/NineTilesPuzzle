@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct GridSizePickerView: View {
-    @Environment(PuzzleState.self) private var state
+    @Environment(GameSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     private let sizes = Array(3...8)
@@ -27,11 +27,11 @@ struct GridSizePickerView: View {
     var body: some View {
         List {
             Button {
-                state.setRandomSize()
+                session.setRandomSize()
                 dismiss()
             } label: {
                 LabeledContent {
-                    if state.useRandomSize {
+                    if session.useRandomSize {
                         Image(systemName: "checkmark")
                             .foregroundStyle(.tint)
                     }
@@ -46,11 +46,11 @@ struct GridSizePickerView: View {
 
             ForEach(sizes, id: \.self) { size in
                 Button {
-                    state.setGridSize(size)
+                    session.setGridSize(size)
                     dismiss()
                 } label: {
                     LabeledContent {
-                        if !state.useRandomSize && state.gridSize == size {
+                        if !session.useRandomSize && session.gridSize == size {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(.tint)
                         }
@@ -67,8 +67,11 @@ struct GridSizePickerView: View {
 }
 
 #Preview {
+    let stats = StatsStore()
+    let settings = SettingsStore()
+    let achievements = AchievementsStore()
     NavigationStack {
         GridSizePickerView()
-            .environment(PuzzleState())
+            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
     }
 }
