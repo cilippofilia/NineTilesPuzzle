@@ -29,10 +29,15 @@ struct MenuView: View {
                     .padding()
 
                 VStack(spacing: 12) {
+                    Text("Classic Stats")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
                     StreakStatsView(
                         currentStreak: state.currentStreak,
                         allTimeHigh: state.allTimeHighStreak,
-                        personalBestMoves: state.personalBestForCurrentSize
+                        personalBestMoves: state.classicBestMovesForCurrentSize
                     )
                     .frame(height: 88)
 

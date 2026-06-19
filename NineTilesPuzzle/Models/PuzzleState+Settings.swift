@@ -36,6 +36,12 @@ extension PuzzleState {
     var personalBestForCurrentSize: Int? { personalBestMoves[currentStatsKey] }
     var personalBestTimeForCurrentSize: TimeInterval? { personalBestTime[currentStatsKey] }
 
+    /// Streaks only make sense in Classic mode (see `PuzzleStatusBarView`), so the menu's
+    /// streak card always shows Classic's best moves regardless of the currently selected mode.
+    var classicBestMovesForCurrentSize: Int? {
+        personalBestMoves[StatsKey(gridSize: gridSize, gameMode: .classic)]
+    }
+
     /// Total games played at `size`, summed across every game mode.
     func gamesPlayedCount(forSize size: Int) -> Int {
         gamesPlayed.filter { $0.key.gridSize == size }.values.reduce(0, +)
