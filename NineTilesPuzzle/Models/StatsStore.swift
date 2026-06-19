@@ -13,7 +13,7 @@ import Foundation
 @MainActor
 @Observable
 final class StatsStore {
-    private let defaults: UserDefaults
+    private let defaults: PersistenceStore
 
     var personalBestMoves: [StatsKey: Int] = [:]
     var personalBestTime: [StatsKey: TimeInterval] = [:]
@@ -21,7 +21,7 @@ final class StatsStore {
     var currentStreak: [StatsKey: Int] = [:]
     var allTimeHighStreak: [StatsKey: Int] = [:]
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
         restoreFromUserDefaults()
     }

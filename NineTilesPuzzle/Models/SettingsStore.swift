@@ -13,12 +13,15 @@ import Foundation
 @MainActor
 @Observable
 final class SettingsStore {
+    private let defaults: PersistenceStore
+
     var previewDuration: Double = 3
     var streakCountdownDuration: Double = 30
     var hapticsEnabled: Bool = true
     var debugOverlayEnabled: Bool = false
 
-    init() {
+    init(defaults: PersistenceStore = UserDefaults.standard) {
+        self.defaults = defaults
         restoreFromUserDefaults()
     }
 
@@ -33,23 +36,23 @@ final class SettingsStore {
     func setPreviewDuration(_ duration: Double) {
         guard duration != previewDuration else { return }
         previewDuration = duration
-        UserDefaults.standard.set(duration, forKey: Keys.previewDuration)
+        defaults.set(duration, forKey: Keys.previewDuration)
     }
 
     func setStreakCountdownDuration(_ duration: Double) {
         guard duration != streakCountdownDuration else { return }
         streakCountdownDuration = duration
-        UserDefaults.standard.set(duration, forKey: Keys.streakCountdownDuration)
+        defaults.set(duration, forKey: Keys.streakCountdownDuration)
     }
 
     func setHapticsEnabled(_ value: Bool) {
         hapticsEnabled = value
-        UserDefaults.standard.set(value, forKey: Keys.hapticsEnabled)
+        defaults.set(value, forKey: Keys.hapticsEnabled)
     }
 
     func setDebugOverlayEnabled(_ value: Bool) {
         debugOverlayEnabled = value
-        UserDefaults.standard.set(value, forKey: Keys.debugOverlayEnabled)
+        defaults.set(value, forKey: Keys.debugOverlayEnabled)
     }
 
     func resetSettings() {
@@ -68,17 +71,17 @@ private extension SettingsStore {
     }
 
     func restoreFromUserDefaults() {
-        if UserDefaults.standard.object(forKey: Keys.previewDuration) != nil {
-            previewDuration = UserDefaults.standard.double(forKey: Keys.previewDuration)
+        if defaults.object(forKey: Keys.previewDuration) != nil {
+            previewDuration = defaults.double(forKey: Keys.previewDuration)
         }
-        if UserDefaults.standard.object(forKey: Keys.streakCountdownDuration) != nil {
-            streakCountdownDuration = UserDefaults.standard.double(forKey: Keys.streakCountdownDuration)
+        if defaults.object(forKey: Keys.streakCountdownDuration) != nil {
+            streakCountdownDuration = defaults.double(forKey: Keys.streakCountdownDuration)
         }
-        if UserDefaults.standard.object(forKey: Keys.hapticsEnabled) != nil {
-            hapticsEnabled = UserDefaults.standard.bool(forKey: Keys.hapticsEnabled)
+        if defaults.object(forKey: Keys.hapticsEnabled) != nil {
+            hapticsEnabled = defaults.bool(forKey: Keys.hapticsEnabled)
         }
-        if UserDefaults.standard.object(forKey: Keys.debugOverlayEnabled) != nil {
-            debugOverlayEnabled = UserDefaults.standard.bool(forKey: Keys.debugOverlayEnabled)
+        if defaults.object(forKey: Keys.debugOverlayEnabled) != nil {
+            debugOverlayEnabled = defaults.bool(forKey: Keys.debugOverlayEnabled)
         }
     }
 }

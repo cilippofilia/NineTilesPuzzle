@@ -11,13 +11,10 @@ import Testing
 @Suite("AchievementsStore")
 @MainActor
 struct AchievementsStoreTests {
-    /// A fresh, isolated `UserDefaults` suite per test so unlocking real achievement ids
-    /// (e.g. "firstSolve") in a test never writes to the app's real unlock flags.
+    /// A fresh in-memory store per test so unlocking real achievement ids (e.g.
+    /// "firstSolve") in a test never writes to the app's real unlock flags.
     private func makeStore(achievements: [Achievement]) -> AchievementsStore {
-        let suiteName = "AchievementsStoreTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        let store = AchievementsStore(defaults: defaults)
+        let store = AchievementsStore(defaults: InMemoryPersistenceStore())
         store.achievements = achievements
         return store
     }
@@ -27,10 +24,7 @@ struct AchievementsStoreTests {
         personalBestMoves: [StatsKey: Int] = [:],
         allTimeHighStreak: [StatsKey: Int] = [:]
     ) -> StatsStore {
-        let suiteName = "AchievementsStoreTests.stats.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        let stats = StatsStore(defaults: defaults)
+        let stats = StatsStore(defaults: InMemoryPersistenceStore())
         for (key, count) in gamesPlayed {
             for _ in 0..<count { stats.recordGamePlayed(for: key) }
         }

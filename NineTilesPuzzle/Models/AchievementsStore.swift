@@ -10,12 +10,12 @@ import Foundation
 @MainActor
 @Observable
 final class AchievementsStore {
-    private let defaults: UserDefaults
+    private let defaults: PersistenceStore
 
     var achievements: [Achievement] = []
     var newlyUnlockedAchievement: Achievement?
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
         loadAchievements()
     }

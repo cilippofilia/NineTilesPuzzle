@@ -17,6 +17,7 @@ final class GameSession {
     private let statsStore: StatsStore
     private let achievementsStore: AchievementsStore
     private let settingsStore: SettingsStore
+    private let defaults: PersistenceStore
 
     private let classicEngine = ClassicEngine()
     private let slideEngine = SlideEngine()
@@ -64,10 +65,16 @@ final class GameSession {
         }
     }
 
-    init(statsStore: StatsStore, achievementsStore: AchievementsStore, settingsStore: SettingsStore) {
+    init(
+        statsStore: StatsStore,
+        achievementsStore: AchievementsStore,
+        settingsStore: SettingsStore,
+        defaults: PersistenceStore = UserDefaults.standard
+    ) {
         self.statsStore = statsStore
         self.achievementsStore = achievementsStore
         self.settingsStore = settingsStore
+        self.defaults = defaults
         restoreFromUserDefaults()
         achievementsStore.checkAchievements(using: statsStore)
         Task {
@@ -318,10 +325,10 @@ extension GameSession {
         croppedSourceImage = nil
         isSolved = false
         isNewRecord = false
-        UserDefaults.standard.set(false, forKey: Keys.useRandomSize)
-        UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
-        UserDefaults.standard.removeObject(forKey: Keys.tiles)
-        UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
+        defaults.set(false, forKey: Keys.useRandomSize)
+        defaults.set(gridSize, forKey: Keys.gridSize)
+        defaults.removeObject(forKey: Keys.tiles)
+        defaults.removeObject(forKey: Keys.sourceImage)
     }
 
     func setRandomSize() {
@@ -332,22 +339,22 @@ extension GameSession {
         croppedSourceImage = nil
         isSolved = false
         isNewRecord = false
-        UserDefaults.standard.set(true, forKey: Keys.useRandomSize)
-        UserDefaults.standard.removeObject(forKey: Keys.tiles)
-        UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
+        defaults.set(true, forKey: Keys.useRandomSize)
+        defaults.removeObject(forKey: Keys.tiles)
+        defaults.removeObject(forKey: Keys.sourceImage)
     }
 
     func setMediaSourceType(_ type: MediaSourceType) {
         guard type != mediaSourceType else { return }
         guard type != .numbers || selectedGameMode == .slide else { return }
         mediaSourceType = type
-        UserDefaults.standard.set(type.rawValue, forKey: Keys.mediaSourceType)
+        defaults.set(type.rawValue, forKey: Keys.mediaSourceType)
     }
 
     func setGameMode(_ mode: GameMode) {
         guard mode.isAvailable, mode != selectedGameMode else { return }
         selectedGameMode = mode
-        UserDefaults.standard.set(mode.rawValue, forKey: Keys.gameMode)
+        defaults.set(mode.rawValue, forKey: Keys.gameMode)
 
         // Numbers media mode is Slide-only for now; fall back if it's no longer valid.
         if mediaSourceType == .numbers && mode != .slide {
@@ -359,7 +366,7 @@ extension GameSession {
         setGridSize(3)
         setMediaSourceType(.random)
         useRandomSize = false
-        UserDefaults.standard.set(false, forKey: Keys.useRandomSize)
+        defaults.set(false, forKey: Keys.useRandomSize)
     }
 }
 
@@ -381,30 +388,30 @@ extension GameSession {
 private extension GameSession {
     func saveToUserDefaults() {
         guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
-        UserDefaults.standard.set(tilesData, forKey: Keys.tiles)
+        defaults.set(tilesData, forKey: Keys.tiles)
 
         if let image = sourceImage, let jpegData = jpeg(from: image) {
-            UserDefaults.standard.set(jpegData, forKey: Keys.sourceImage)
+            defaults.set(jpegData, forKey: Keys.sourceImage)
         }
 
-        UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
-        UserDefaults.standard.set(useRandomSize, forKey: Keys.useRandomSize)
-        UserDefaults.standard.set(mediaSourceType.rawValue, forKey: Keys.mediaSourceType)
-        UserDefaults.standard.set(selectedGameMode.rawValue, forKey: Keys.gameMode)
-        UserDefaults.standard.set(currentMoveCount, forKey: Keys.currentMoveCount)
-        UserDefaults.standard.set(elapsedTime, forKey: Keys.elapsedTime)
+        defaults.set(gridSize, forKey: Keys.gridSize)
+        defaults.set(useRandomSize, forKey: Keys.useRandomSize)
+        defaults.set(mediaSourceType.rawValue, forKey: Keys.mediaSourceType)
+        defaults.set(selectedGameMode.rawValue, forKey: Keys.gameMode)
+        defaults.set(currentMoveCount, forKey: Keys.currentMoveCount)
+        defaults.set(elapsedTime, forKey: Keys.elapsedTime)
     }
 
     func restoreFromUserDefaults() {
-        let savedSize = UserDefaults.standard.integer(forKey: Keys.gridSize)
+        let savedSize = defaults.integer(forKey: Keys.gridSize)
         if (3...8).contains(savedSize) { gridSize = savedSize }
-        useRandomSize = UserDefaults.standard.bool(forKey: Keys.useRandomSize)
+        useRandomSize = defaults.bool(forKey: Keys.useRandomSize)
 
-        if let savedGameMode = UserDefaults.standard.string(forKey: Keys.gameMode).flatMap(GameMode.init(rawValue:)) {
+        if let savedGameMode = defaults.string(forKey: Keys.gameMode).flatMap(GameMode.init(rawValue:)) {
             selectedGameMode = savedGameMode
         }
 
-        if let rawSource = UserDefaults.standard.string(forKey: Keys.mediaSourceType),
+        if let rawSource = defaults.string(forKey: Keys.mediaSourceType),
            let savedSource = MediaSourceType(rawValue: rawSource) {
             mediaSourceType = savedSource
         }
@@ -414,7 +421,7 @@ private extension GameSession {
         }
 
         guard
-            let tilesData = UserDefaults.standard.data(forKey: Keys.tiles),
+            let tilesData = defaults.data(forKey: Keys.tiles),
             let restoredTiles = try? JSONDecoder().decode([TileModel].self, from: tilesData)
         else { return }
 
@@ -424,7 +431,7 @@ private extension GameSession {
             tiles = restoredTiles
         } else {
             guard
-                let imageData = UserDefaults.standard.data(forKey: Keys.sourceImage),
+                let imageData = defaults.data(forKey: Keys.sourceImage),
                 let restoredImage = cgImage(fromJPEG: imageData)
             else { return }
 
@@ -437,8 +444,8 @@ private extension GameSession {
         }
 
         isSolved = activeEngine.isSolved(tiles)
-        currentMoveCount = UserDefaults.standard.integer(forKey: Keys.currentMoveCount)
-        elapsedTime = UserDefaults.standard.double(forKey: Keys.elapsedTime)
+        currentMoveCount = defaults.integer(forKey: Keys.currentMoveCount)
+        elapsedTime = defaults.double(forKey: Keys.elapsedTime)
         if !isSolved && currentStreakForCurrentSize > 0 { startCountdown() }
         // Resume the stopwatch only if it had actually started (i.e. a move was already made);
         // otherwise it should still wait for the first move, same as a fresh game.

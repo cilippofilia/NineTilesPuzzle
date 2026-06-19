@@ -11,13 +11,10 @@ import Testing
 @Suite("StatsStore")
 @MainActor
 struct StatsStoreTests {
-    /// A fresh, isolated `UserDefaults` suite per test so these never touch (or get
-    /// polluted by) the app's real persisted stats.
+    /// A fresh in-memory store per test so these never touch (or get polluted by) the
+    /// app's real persisted stats.
     private func makeStore() -> StatsStore {
-        let suiteName = "StatsStoreTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        return StatsStore(defaults: defaults)
+        StatsStore(defaults: InMemoryPersistenceStore())
     }
 
     private let classic3 = StatsKey(gridSize: 3, gameMode: .classic)
@@ -150,9 +147,7 @@ struct StatsStoreTests {
     // MARK: - persistence round-trip
 
     @Test func restoresPersistedStatsOnInit() {
-        let suiteName = "StatsStoreTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
+        let defaults = InMemoryPersistenceStore()
 
         let first = StatsStore(defaults: defaults)
         first.recordCompletion(for: classic3, moves: 12, time: 18)
