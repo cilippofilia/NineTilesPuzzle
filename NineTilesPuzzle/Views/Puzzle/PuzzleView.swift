@@ -13,16 +13,9 @@ struct PuzzleView: View {
     @Environment(AchievementsStore.self) private var achievementsStore
     @Environment(SoundService.self) private var soundService
     @Environment(\.dismiss) private var dismiss
-    @State private var showCompletion = false
-    @State private var showNewRecord = false
-    @State private var showNewMovesRecord = false
-    @State private var showNewBestTime = false
+    @State private var completion = PuzzleCompletionViewModel()
     @State private var showQuitAlert = false
-    @State private var bannerOffset: CGSize = .zero
     @State private var isSolving = false
-    @State private var zenBreathScale: CGFloat = 1
-    @State private var zenGlowOpacity: Double = 0
-    @State private var zenSparkles = ZenSparkle.makeCluster()
 
     var body: some View {
         ZStack {
@@ -40,7 +33,7 @@ struct PuzzleView: View {
                         .transition(.opacity)
                 } else {
                     Spacer()
-                    PuzzleGridView(showReveal: showCompletion)
+                    PuzzleGridView(showReveal: completion.showCompletion)
                         .clipShape(.rect(cornerRadius: 12))
                         // Zen mode's only acknowledgment that a puzzle is done: the finished
                         // picture takes one slow, soft breath, with a little magic dust
@@ -52,20 +45,20 @@ struct PuzzleView: View {
                                     lineWidth: 4
                                 )
                                 .blur(radius: 7)
-                                .opacity(session.isZenMode ? zenGlowOpacity : 0)
+                                .opacity(session.isZenMode ? completion.zenGlowOpacity : 0)
                         }
                         .overlay {
                             GeometryReader { proxy in
-                                ForEach(zenSparkles) { sparkle in
+                                ForEach(completion.zenSparkles) { sparkle in
                                     ZenSparkleView(size: sparkle.size, color: sparkle.color, delay: sparkle.delay)
                                         .position(x: sparkle.x * proxy.size.width, y: sparkle.y * proxy.size.height)
                                 }
                             }
-                            .opacity(session.isZenMode ? zenGlowOpacity : 0)
+                            .opacity(session.isZenMode ? completion.zenGlowOpacity : 0)
                             .allowsHitTesting(false)
                         }
-                        .shadow(color: .teal.opacity(session.isZenMode ? zenGlowOpacity * 0.7 : 0), radius: 28)
-                        .scaleEffect(session.isZenMode ? zenBreathScale : 1)
+                        .shadow(color: .teal.opacity(session.isZenMode ? completion.zenGlowOpacity * 0.7 : 0), radius: 28)
+                        .scaleEffect(session.isZenMode ? completion.zenBreathScale : 1)
                         .padding(.horizontal)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.95).combined(with: .opacity),
@@ -99,7 +92,7 @@ struct PuzzleView: View {
                     .opacity(streakVisible ? 1 : 0)
                     .animation(.easeInOut(duration: 0.35), value: session.isLoading)
                     .animation(.easeInOut(duration: 0.35), value: session.isPreviewing)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.75), value: showCompletion)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.75), value: completion.showCompletion)
                     Spacer()
                 }
             }
@@ -108,39 +101,29 @@ struct PuzzleView: View {
             // (in PuzzleGridView) is the only feedback; the next puzzle starts on its own.
             if !session.isZenMode {
                 VStack {
-                    CompletionBannerView(gameMode: session.selectedGameMode, streak: session.currentStreakForCurrentSize, isNewRecord: showNewRecord, moveCount: session.currentMoveCount, personalBest: session.personalBestForCurrentSize, elapsedTime: session.elapsedTime, personalBestTime: session.personalBestTimeForCurrentSize, isPracticeMode: settings.debugOverlayEnabled)
+                    CompletionBannerView(gameMode: session.selectedGameMode, streak: session.currentStreakForCurrentSize, isNewRecord: completion.showNewRecord, moveCount: session.currentMoveCount, personalBest: session.personalBestForCurrentSize, elapsedTime: session.elapsedTime, personalBestTime: session.personalBestTimeForCurrentSize, isPracticeMode: settings.debugOverlayEnabled)
                         .padding(.top)
                         .padding(.horizontal)
-                        .offset(x: bannerOffset.width, y: (showCompletion ? 0 : -300) + bannerOffset.height)
-                        .opacity(showCompletion ? 1 : 0)
+                        .offset(x: completion.bannerOffset.width, y: (completion.showCompletion ? 0 : -300) + completion.bannerOffset.height)
+                        .opacity(completion.showCompletion ? 1 : 0)
                         .gesture(
                             DragGesture()
-                                .onChanged { value in
-                                    var transaction = Transaction()
-                                    transaction.disablesAnimations = true
-                                    withTransaction(transaction) {
-                                        bannerOffset = value.translation
-                                    }
-                                }
-                                .onEnded { _ in
-                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                        bannerOffset = .zero
-                                    }
-                                }
+                                .onChanged { value in completion.updateBannerDrag(value.translation) }
+                                .onEnded { _ in completion.endBannerDrag() }
                         )
 
                     // Floats below the banner as its own layer — rather than growing the
                     // banner's card — and slides down out from behind it on appear.
-                    if showCompletion && hasNewBestBadge {
+                    if completion.showCompletion && completion.hasNewBestBadge(selectedGameMode: session.selectedGameMode) {
                         NewBestBadgesView(
                             showsStreak: session.selectedGameMode != .slide,
                             moveCount: session.currentMoveCount,
-                            isNewMovesRecord: showNewMovesRecord,
+                            isNewMovesRecord: completion.showNewMovesRecord,
                             elapsedTime: session.elapsedTime,
-                            isNewBestTime: showNewBestTime
+                            isNewBestTime: completion.showNewBestTime
                         )
                         .padding(.horizontal)
-                        .offset(bannerOffset)
+                        .offset(completion.bannerOffset)
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
@@ -150,10 +133,10 @@ struct PuzzleView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                         .padding(.bottom)
-                        .offset(y: showCompletion ? 0 : 300)
-                        .opacity(showCompletion ? 1 : 0)
+                        .offset(y: completion.showCompletion ? 0 : 300)
+                        .opacity(completion.showCompletion ? 1 : 0)
                 }
-                .allowsHitTesting(showCompletion)
+                .allowsHitTesting(completion.showCompletion)
             }
 
             // Layer 4: achievement unlock toast — only shown mid-game to avoid overlapping the
@@ -175,37 +158,14 @@ struct PuzzleView: View {
             await achievementsStore.dismissAchievementNotification()
         }
         .task(id: session.isSolved) {
-            guard session.isSolved else { return }
-            try? await Task.sleep(for: .seconds(4))
-            withAnimation(.easeInOut(duration: 0.35)) {
-                showNewRecord = false
-                showNewMovesRecord = false
-                showNewBestTime = false
-            }
+            await completion.clearRecordFlagsAfterDelay(isSolved: session.isSolved)
         }
-        // Zen mode has no completion banner or "Continue" button to tap: the solved picture
-        // breathes gently in and out — one inhale, one exhale — and the next puzzle begins
-        // the moment it settles, with no further prompt needed.
         .task(id: session.isSolved) {
-            guard session.isSolved, session.isZenMode else {
-                zenBreathScale = 1
-                zenGlowOpacity = 0
-                return
-            }
-            zenSparkles = ZenSparkle.makeCluster()
-            withAnimation(.easeInOut(duration: 1.3)) {
-                zenBreathScale = 1.025
-                zenGlowOpacity = 0.65
-            }
-            try? await Task.sleep(for: .seconds(1.3))
-            guard session.isSolved else { return }
-            withAnimation(.easeInOut(duration: 1.1)) {
-                zenBreathScale = 1
-                zenGlowOpacity = 0
-            }
-            try? await Task.sleep(for: .seconds(1.1))
-            guard session.isSolved else { return }
-            startNewGame()
+            await completion.runZenCompletionSequence(
+                isZenMode: session.isZenMode,
+                isSolved: { session.isSolved },
+                onComplete: startNewGame
+            )
         }
         // `.task` can be delayed in actually starting while the MainActor is busy (e.g. the
         // NavigationStack push transition), leaving the previous game's stale tiles briefly
@@ -224,25 +184,16 @@ struct PuzzleView: View {
             settings.hapticsEnabled
         }
         .onChange(of: session.isSolved) { _, solved in
-            if solved { soundService.playCompletion() }
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.75).delay(solved ? 0.3 : 0)) {
-                showCompletion = solved
-            }
+            completion.handleSolvedChange(solved, onSolved: soundService.playCompletion)
         }
         .onChange(of: session.isNewRecord) { _, isRecord in
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
-                showNewRecord = isRecord
-            }
+            completion.handleNewRecordChange(isRecord)
         }
         .onChange(of: session.isNewMovesRecord) { _, isRecord in
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
-                showNewMovesRecord = isRecord
-            }
+            completion.handleNewMovesRecordChange(isRecord)
         }
         .onChange(of: session.isNewBestTime) { _, isRecord in
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
-                showNewBestTime = isRecord
-            }
+            completion.handleNewBestTimeChange(isRecord)
         }
         .navigationTitle(session.isZenMode ? "" : "Puzzle")
         .navigationBarTitleDisplayMode(.inline)
@@ -297,15 +248,11 @@ struct PuzzleView: View {
     }
 
     private var streakVisible: Bool {
-        !showCompletion && !session.isLoading && session.error == nil
-    }
-
-    private var hasNewBestBadge: Bool {
-        showNewMovesRecord || (session.selectedGameMode == .slide && showNewBestTime)
+        !completion.showCompletion && !session.isLoading && session.error == nil
     }
 
     private func startNewGame() {
-        bannerOffset = .zero
+        completion.prepareForNewGame()
         Task { await session.startNewGame() }
     }
 
