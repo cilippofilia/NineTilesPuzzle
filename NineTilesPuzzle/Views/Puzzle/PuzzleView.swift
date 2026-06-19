@@ -221,7 +221,7 @@ struct PuzzleView: View {
                     break
                 }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    let didMove = state.slideTile(from: move)
+                    _ = state.slideTile(from: move)
                 }
                 soundService.playTileClick()
                 try? await Task.sleep(for: .milliseconds(120))
