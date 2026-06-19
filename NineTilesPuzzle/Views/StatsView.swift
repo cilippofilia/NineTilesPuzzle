@@ -16,12 +16,12 @@ struct StatsView: View {
             List {
                 Section("Streaks") {
                     LabeledContent("Current Streak") {
-                        Text(state.currentStreak > 0 ? "\(state.currentStreak)" : "--")
-                            .foregroundStyle(state.currentStreak > 0 ? .primary : .secondary)
+                        Text(state.currentStreakForCurrentSize > 0 ? "\(state.currentStreakForCurrentSize)" : "--")
+                            .foregroundStyle(state.currentStreakForCurrentSize > 0 ? .primary : .secondary)
                     }
                     LabeledContent("Best Streak") {
-                        Text(state.allTimeHighStreak > 0 ? "\(state.allTimeHighStreak)" : "--")
-                            .foregroundStyle(state.allTimeHighStreak > 0 ? .primary : .secondary)
+                        Text(state.allTimeHighStreakForCurrentSize > 0 ? "\(state.allTimeHighStreakForCurrentSize)" : "--")
+                            .foregroundStyle(state.allTimeHighStreakForCurrentSize > 0 ? .primary : .secondary)
                     }
                 }
 

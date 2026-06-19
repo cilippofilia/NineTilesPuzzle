@@ -83,8 +83,8 @@ struct PuzzleView: View {
                     PuzzleStatusBarView(
                         gameMode: state.selectedGameMode,
                         debugOverlayEnabled: state.debugOverlayEnabled,
-                        currentStreak: state.currentStreak,
-                        bestStreak: state.allTimeHighStreak,
+                        currentStreak: state.currentStreakForCurrentSize,
+                        bestStreak: state.allTimeHighStreakForCurrentSize,
                         timerRemaining: state.timerRemaining,
                         isTimerRunning: state.isTimerRunning,
                         moveCount: state.currentMoveCount,
@@ -106,7 +106,7 @@ struct PuzzleView: View {
             // (in PuzzleGridView) is the only feedback; the next puzzle starts on its own.
             if !state.isZenMode {
                 VStack {
-                    CompletionBannerView(gameMode: state.selectedGameMode, streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, personalBest: state.personalBestForCurrentSize, elapsedTime: state.elapsedTime, personalBestTime: state.personalBestTimeForCurrentSize, isPracticeMode: state.debugOverlayEnabled)
+                    CompletionBannerView(gameMode: state.selectedGameMode, streak: state.currentStreakForCurrentSize, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, personalBest: state.personalBestForCurrentSize, elapsedTime: state.elapsedTime, personalBestTime: state.personalBestTimeForCurrentSize, isPracticeMode: state.debugOverlayEnabled)
                         .padding(.top)
                         .padding(.horizontal)
                         .offset(x: bannerOffset.width, y: (showCompletion ? 0 : -300) + bannerOffset.height)

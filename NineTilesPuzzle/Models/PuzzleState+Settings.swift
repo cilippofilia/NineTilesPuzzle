@@ -31,15 +31,26 @@ extension PuzzleState {
         streakCountdownDuration == 0 ? "Off" : streakCountdownDuration < 60 ? "\(Int(streakCountdownDuration))s" : "\(Int(streakCountdownDuration / 60))m"
     }
 
-    private var currentStatsKey: StatsKey { StatsKey(gridSize: gridSize, gameMode: selectedGameMode) }
+    var currentStatsKey: StatsKey { StatsKey(gridSize: gridSize, gameMode: selectedGameMode) }
 
     var personalBestForCurrentSize: Int? { personalBestMoves[currentStatsKey] }
     var personalBestTimeForCurrentSize: TimeInterval? { personalBestTime[currentStatsKey] }
+    var currentStreakForCurrentSize: Int { currentStreak[currentStatsKey] ?? 0 }
+    var allTimeHighStreakForCurrentSize: Int { allTimeHighStreak[currentStatsKey] ?? 0 }
 
     /// Streaks only make sense in Classic mode (see `PuzzleStatusBarView`), so the menu's
     /// streak card always shows Classic's best moves regardless of the currently selected mode.
     var classicBestMovesForCurrentSize: Int? {
         personalBestMoves[StatsKey(gridSize: gridSize, gameMode: .classic)]
+    }
+
+    /// Classic's current/best streak at the current grid size, for the same reason as
+    /// `classicBestMovesForCurrentSize` above — the menu's streak card is always Classic's.
+    var classicStreakForCurrentSize: Int {
+        currentStreak[StatsKey(gridSize: gridSize, gameMode: .classic)] ?? 0
+    }
+    var classicBestStreakForCurrentSize: Int {
+        allTimeHighStreak[StatsKey(gridSize: gridSize, gameMode: .classic)] ?? 0
     }
 
     /// Total games played at `size`, summed across every game mode.
@@ -119,8 +130,8 @@ extension PuzzleState {
     }
 
     func resetStats() {
-        currentStreak = 0
-        allTimeHighStreak = 0
+        currentStreak = [:]
+        allTimeHighStreak = [:]
         isNewRecord = false
         currentMoveCount = 0
         personalBestMoves = [:]
@@ -131,8 +142,6 @@ extension PuzzleState {
         isNewBestTime = false
         stopCountdown()
         stopStopwatch()
-        UserDefaults.standard.removeObject(forKey: Keys.currentStreak)
-        UserDefaults.standard.removeObject(forKey: Keys.allTimeHighStreak)
         UserDefaults.standard.removeObject(forKey: Keys.currentMoveCount)
         UserDefaults.standard.removeObject(forKey: Keys.elapsedTime)
         for mode in GameMode.allCases {
@@ -140,6 +149,8 @@ extension PuzzleState {
                 UserDefaults.standard.removeObject(forKey: Keys.personalBest(for: size, mode: mode))
                 UserDefaults.standard.removeObject(forKey: Keys.personalBestTime(for: size, mode: mode))
                 UserDefaults.standard.removeObject(forKey: Keys.gamesPlayed(for: size, mode: mode))
+                UserDefaults.standard.removeObject(forKey: Keys.currentStreak(for: size, mode: mode))
+                UserDefaults.standard.removeObject(forKey: Keys.allTimeHighStreak(for: size, mode: mode))
             }
         }
     }

@@ -35,8 +35,8 @@ struct MenuView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     StreakStatsView(
-                        currentStreak: state.currentStreak,
-                        allTimeHigh: state.allTimeHighStreak,
+                        currentStreak: state.classicStreakForCurrentSize,
+                        allTimeHigh: state.classicBestStreakForCurrentSize,
                         personalBestMoves: state.classicBestMovesForCurrentSize
                     )
                     .frame(height: 88)

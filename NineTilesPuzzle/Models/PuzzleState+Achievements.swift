@@ -41,8 +41,8 @@ extension PuzzleState {
             case "solveEightByEight": shouldUnlock = gamesPlayedCount(forSize: 8) >= 1
             case "under20Moves3x3":   shouldUnlock = personalBestMoves[StatsKey(gridSize: 3, gameMode: .classic)].map { $0 <= 20 } ?? false
             case "under60Moves4x4":   shouldUnlock = personalBestMoves[StatsKey(gridSize: 4, gameMode: .classic)].map { $0 <= 60 } ?? false
-            case "streak10":          shouldUnlock = allTimeHighStreak >= 10
-            case "streak25":          shouldUnlock = allTimeHighStreak >= 25
+            case "streak10":          shouldUnlock = (allTimeHighStreak.values.max() ?? 0) >= 10
+            case "streak25":          shouldUnlock = (allTimeHighStreak.values.max() ?? 0) >= 25
             default:                  shouldUnlock = false
             }
             if shouldUnlock {

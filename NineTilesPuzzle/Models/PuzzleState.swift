@@ -33,8 +33,8 @@ final class PuzzleState {
     var isLoading = false
     var isPreviewing = false
     var isSolved = false
-    var currentStreak: Int = 0
-    var allTimeHighStreak: Int = 0
+    var currentStreak: [StatsKey: Int] = [:]
+    var allTimeHighStreak: [StatsKey: Int] = [:]
     var isNewRecord: Bool = false
     var currentMoveCount: Int = 0
     var personalBestMoves: [StatsKey: Int] = [:]
@@ -91,7 +91,7 @@ final class PuzzleState {
                 guard !Task.isCancelled else { break }
                 let remaining = end.timeIntervalSinceNow
                 if remaining <= 0 {
-                    currentStreak = 0
+                    currentStreak[currentStatsKey] = 0
                     isNewRecord = false
                     didBreakStreak.toggle()
                     stopCountdown()
@@ -152,7 +152,7 @@ final class PuzzleState {
         guard mediaSourceType != .numbers else {
             isLoading = false
             tiles = activeEngine.shuffle(initial, gridSize: gridSize)
-            if currentStreak > 0 { startCountdown() }
+            if currentStreakForCurrentSize > 0 { startCountdown() }
             saveToUserDefaults()
             return
         }
@@ -183,7 +183,7 @@ final class PuzzleState {
             }
 
             tiles = activeEngine.shuffle(initial, gridSize: gridSize)
-            if currentStreak > 0 { startCountdown() }
+            if currentStreakForCurrentSize > 0 { startCountdown() }
             saveToUserDefaults()
         } catch {
             self.error = error
@@ -257,17 +257,19 @@ final class PuzzleState {
         }
 
         if !isZenMode {
+            let key = currentStatsKey
             let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
             if newlyCorrect > 0 {
-                currentStreak += 1
+                let streak = currentStreak[key, default: 0] + 1
+                currentStreak[key] = streak
                 if !isSolved { startCountdown() }
-                if !debugOverlayEnabled && currentStreak > allTimeHighStreak {
-                    allTimeHighStreak = currentStreak
+                if !debugOverlayEnabled && streak > (allTimeHighStreak[key] ?? 0) {
+                    allTimeHighStreak[key] = streak
                     isNewRecord = true
-                    UserDefaults.standard.set(allTimeHighStreak, forKey: Keys.allTimeHighStreak)
+                    UserDefaults.standard.set(streak, forKey: Keys.allTimeHighStreak(for: key.gridSize, mode: key.gameMode))
                 }
             } else {
-                currentStreak = 0
+                currentStreak[key] = 0
                 isNewRecord = false
                 stopCountdown()
             }
@@ -298,8 +300,6 @@ extension PuzzleState {
         static let mediaSourceType = "puzzle.mediaSourceType"
         static let tiles = "puzzle.tiles"
         static let sourceImage = "puzzle.sourceImage"
-        static let currentStreak = "puzzle.currentStreak"
-        static let allTimeHighStreak = "puzzle.allTimeHighStreak"
         static let previewDuration = "puzzle.previewDuration"
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
         static let currentMoveCount = "puzzle.currentMoveCount"
@@ -312,6 +312,8 @@ extension PuzzleState {
         static func personalBest(for size: Int, mode: GameMode) -> String { "puzzle.personalBest.\(mode.rawValue).\(size)" }
         static func personalBestTime(for size: Int, mode: GameMode) -> String { "puzzle.personalBestTime.\(mode.rawValue).\(size)" }
         static func gamesPlayed(for size: Int, mode: GameMode) -> String { "puzzle.gamesPlayed.\(mode.rawValue).\(size)" }
+        static func currentStreak(for size: Int, mode: GameMode) -> String { "puzzle.currentStreak.\(mode.rawValue).\(size)" }
+        static func allTimeHighStreak(for size: Int, mode: GameMode) -> String { "puzzle.allTimeHighStreak.\(mode.rawValue).\(size)" }
         static func achievement(id: String) -> String { "puzzle.achievement.\(id)" }
     }
 }
@@ -333,16 +335,17 @@ private extension PuzzleState {
         UserDefaults.standard.set(hapticsEnabled, forKey: Keys.hapticsEnabled)
         UserDefaults.standard.set(debugOverlayEnabled, forKey: Keys.debugOverlayEnabled)
         UserDefaults.standard.set(selectedGameMode.rawValue, forKey: Keys.gameMode)
-        UserDefaults.standard.set(currentStreak, forKey: Keys.currentStreak)
         UserDefaults.standard.set(currentMoveCount, forKey: Keys.currentMoveCount)
         UserDefaults.standard.set(elapsedTime, forKey: Keys.elapsedTime)
+        for (key, value) in currentStreak {
+            UserDefaults.standard.set(value, forKey: Keys.currentStreak(for: key.gridSize, mode: key.gameMode))
+        }
     }
 
     func restoreFromUserDefaults() {
         let savedSize = UserDefaults.standard.integer(forKey: Keys.gridSize)
         if (3...8).contains(savedSize) { gridSize = savedSize }
         useRandomSize = UserDefaults.standard.bool(forKey: Keys.useRandomSize)
-        allTimeHighStreak = UserDefaults.standard.integer(forKey: Keys.allTimeHighStreak)
 
         if UserDefaults.standard.object(forKey: Keys.previewDuration) != nil {
             previewDuration = UserDefaults.standard.double(forKey: Keys.previewDuration)
@@ -369,6 +372,29 @@ private extension PuzzleState {
             mediaSourceType = .random
         }
 
+        // Restored unconditionally (not gated behind the tiles guard below) since these
+        // stats persist independently of whatever game happened to be in progress.
+        personalBestMoves = [:]
+        personalBestTime = [:]
+        gamesPlayed = [:]
+        currentStreak = [:]
+        allTimeHighStreak = [:]
+        for mode in GameMode.allCases {
+            for size in 3...8 {
+                let key = StatsKey(gridSize: size, gameMode: mode)
+                let moves = UserDefaults.standard.integer(forKey: Keys.personalBest(for: size, mode: mode))
+                if moves > 0 { personalBestMoves[key] = moves }
+                let time = UserDefaults.standard.double(forKey: Keys.personalBestTime(for: size, mode: mode))
+                if time > 0 { personalBestTime[key] = time }
+                let played = UserDefaults.standard.integer(forKey: Keys.gamesPlayed(for: size, mode: mode))
+                if played > 0 { gamesPlayed[key] = played }
+                let streak = UserDefaults.standard.integer(forKey: Keys.currentStreak(for: size, mode: mode))
+                if streak > 0 { currentStreak[key] = streak }
+                let bestStreak = UserDefaults.standard.integer(forKey: Keys.allTimeHighStreak(for: size, mode: mode))
+                if bestStreak > 0 { allTimeHighStreak[key] = bestStreak }
+            }
+        }
+
         guard
             let tilesData = UserDefaults.standard.data(forKey: Keys.tiles),
             let restoredTiles = try? JSONDecoder().decode([TileModel].self, from: tilesData)
@@ -393,24 +419,9 @@ private extension PuzzleState {
         }
 
         isSolved = activeEngine.isSolved(tiles)
-        currentStreak = UserDefaults.standard.integer(forKey: Keys.currentStreak)
         currentMoveCount = UserDefaults.standard.integer(forKey: Keys.currentMoveCount)
         elapsedTime = UserDefaults.standard.double(forKey: Keys.elapsedTime)
-        personalBestMoves = [:]
-        personalBestTime = [:]
-        gamesPlayed = [:]
-        for mode in GameMode.allCases {
-            for size in 3...8 {
-                let key = StatsKey(gridSize: size, gameMode: mode)
-                let moves = UserDefaults.standard.integer(forKey: Keys.personalBest(for: size, mode: mode))
-                if moves > 0 { personalBestMoves[key] = moves }
-                let time = UserDefaults.standard.double(forKey: Keys.personalBestTime(for: size, mode: mode))
-                if time > 0 { personalBestTime[key] = time }
-                let played = UserDefaults.standard.integer(forKey: Keys.gamesPlayed(for: size, mode: mode))
-                if played > 0 { gamesPlayed[key] = played }
-            }
-        }
-        if !isSolved && currentStreak > 0 { startCountdown() }
+        if !isSolved && currentStreakForCurrentSize > 0 { startCountdown() }
         // Resume the stopwatch only if it had actually started (i.e. a move was already made);
         // otherwise it should still wait for the first move, same as a fresh game.
         if !isSolved && currentMoveCount > 0 { startStopwatch() }
