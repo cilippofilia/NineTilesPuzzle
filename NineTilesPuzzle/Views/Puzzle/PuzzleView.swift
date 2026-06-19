@@ -147,6 +147,13 @@ struct PuzzleView: View {
                 showNewBestTime = false
             }
         }
+        // `.task` can be delayed in actually starting while the MainActor is busy (e.g. the
+        // NavigationStack push transition), leaving the previous game's stale tiles briefly
+        // visible and tappable. `.onAppear` runs synchronously, closing that window.
+        .onAppear {
+            state.tiles = []
+            state.isLoading = true
+        }
         .task {
             await state.startNewGame()
         }
