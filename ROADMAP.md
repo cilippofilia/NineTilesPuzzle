@@ -32,7 +32,7 @@ No timers, no streak pressure, no fail states — just the picture. Cheapest mod
 because it *disables* existing systems rather than adding new ones. Good for the audience
 that plays with personal photos.
 
-[] ### Classic Slide (15-puzzle variant) — **M/L**
+[X] ### Classic Slide (15-puzzle variant) — **M/L**
 One empty cell, tiles slide instead of swap. Needs new engine rules (legal-move adjacency
 and a solvability parity check on shuffle — half of random permutations are unsolvable) but
 reuses the entire image-slicing and grid-rendering pipeline. Effectively a second game in
@@ -216,5 +216,77 @@ unearned awards. One-shot achievements (e.g. "solve an 8×8") stay binary, no ba
   tier-color badge stays the source of truth: generation needs Apple Intelligence-capable
   hardware, takes a few seconds, has no style consistency, and can fail — so it's an
   enhancement layer, never the only artwork.
+
+---
+
+## 6. Current Game Mode Architecture (snapshot)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                          MenuView                                │
+│        (picks: game mode, difficulty, image source...)           │
+└───────────────────────────┬───────────────────────────────────────┘
+                             │ NavigationStack(.game)
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         PuzzleView                                │
+│   (renders grid/preview/loading/error, observes PuzzleState)     │
+└───────────────────────────┬───────────────────────────────────────┘
+                             │ reads/calls
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    PuzzleState (@Observable)                     │
+│  single source of truth: tiles, mode, streaks, moves, settings   │
+│                                                                   │
+│   selectedGameMode: GameMode  ───────►  activeEngine (computed)  │
+│                                                                   │
+└──────────┬───────────────────────────────────────┬────────────────┘
+           │ delegates shuffle/move/isSolved        │
+           ▼                                        ▼
+   ┌───────────────────┐                  ┌───────────────────┐
+   │   ClassicEngine    │                  │   SlideEngine      │
+   │  (swap any 2 tiles)│                  │ (slide into blank) │
+   └───────────────────┘                  └───────────────────┘
+           ▲                                        ▲
+           └────────────────┬───────────────────────┘
+                             │ both conform to
+                  ┌──────────────────────┐
+                  │  GameEngine protocol  │
+                  │  - shuffle(tiles:)     │
+                  │  - isSolved() (shared) │
+                  └──────────────────────┘
+```
+
+**`GameMode`** (`Models/GameMode.swift`) — flat `enum` with 7 cases: `classic`, `slide`,
+`timeTrial`, `limitedMoves`, `zen`, `fog`, `chaos`. Each has `title`, `description`, `icon`,
+and an `isAvailable` flag. Only `.classic` and `.slide` are available today — the rest show
+as "Coming soon…" in `GameModeView`. The enum is purely presentational metadata; it carries
+no gameplay logic itself.
+
+**`GameEngine`** (`Services/GameEngine.swift`) — the contract every mode implements:
+`shuffle(tiles:gridSize:) -> [TileModel]`, plus a shared default `isSolved()`. This is the
+extension point for new modes.
+
+**`ClassicEngine`** / **`SlideEngine`** — the only two concrete engines. Classic shuffles
+into a derangement and swaps any two unlocked tiles, locking ones that land correctly. Slide
+shuffles into a parity-checked solvable permutation and only slides into the adjacent blank
+cell. Each owns mode-specific methods beyond the protocol (`swap`, `slide`, `areAdjacent`)
+since move semantics differ per mode.
+
+**`PuzzleState`** — owns everything: tile array, both engine instances, a computed
+`activeEngine` that switches on `selectedGameMode` (currently binary: `slide` vs. "everything
+else → classic"), streak/move/achievement bookkeeping, persistence, and the image pipeline.
+`PuzzleView` branches on mode directly to decide which engine call to wire up to gestures.
+
+**`SlideSolver`** — standalone BFS/reduction solver, used only by a debug "Solve" button,
+mode-gated to `.slide`.
+
+**Architectural gap for the modes above:** none of Time Trial / Limited Moves / Zen / Fog /
+Chaos need a new `GameEngine` — they're modifiers on top of Classic/Slide's move rules, not
+new move rules. But today there's only one axis (which engine handles shuffle/move); there's
+no home yet for "is there a timer," "is there a move budget," "is failure possible." Building
+each mode as more `if selectedGameMode == .x` branches in `PuzzleState` will compound. Worth
+introducing a small composable `GameModeRules` (timer budget, move budget, fail condition)
+that pairs with an engine, rather than letting `PuzzleState` accumulate mode-conditionals.
 
 ---

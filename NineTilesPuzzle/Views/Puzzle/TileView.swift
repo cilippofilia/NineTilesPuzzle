@@ -9,7 +9,7 @@ import SwiftUI
 
 struct TileView: View {
     let tile: TileModel
-    let image: CGImage
+    let image: CGImage?
     let tileSize: CGFloat
     let hapticsEnabled: Bool
     let debugOverlayEnabled: Bool
@@ -20,9 +20,7 @@ struct TileView: View {
     @State private var isDragging = false
 
     var body: some View {
-        Image(decorative: image, scale: 1.0)
-            .resizable()
-            .scaledToFill()
+        TileContentView(image: image, number: tile.id + 1)
             .frame(width: tileSize, height: tileSize)
             .clipShape(.rect)
             .offset(dragOffset)
@@ -65,6 +63,32 @@ struct TileView: View {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             dragOffset = .zero
             isDragging = false
+        }
+    }
+}
+
+/// Renders a tile's picture slice, or — in Numbers media mode, where `image` is `nil` —
+/// the number identifying which position the tile belongs at.
+private struct TileContentView: View {
+    let image: CGImage?
+    let number: Int
+
+    var body: some View {
+        if let image {
+            Image(decorative: image, scale: 1.0)
+                .resizable()
+                .scaledToFill()
+        } else {
+            ZStack {
+                Rectangle()
+                    .fill(.tint.opacity(0.15))
+                Text(number, format: .number)
+                    .font(.title.bold())
+                    .monospacedDigit()
+                    .foregroundStyle(.tint)
+                    .minimumScaleFactor(0.4)
+                    .padding(4)
+            }
         }
     }
 }

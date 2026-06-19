@@ -42,7 +42,8 @@ struct ImageSlicer {
         return tiles
     }
 
-    private func centerCrop(_ image: CGImage) -> CGImage {
+    /// Crops `image` to a centered square — the exact frame tiles are sliced from.
+    func centerCrop(_ image: CGImage) -> CGImage {
         let width = CGFloat(image.width)
         let height = CGFloat(image.height)
         let side = min(width, height)

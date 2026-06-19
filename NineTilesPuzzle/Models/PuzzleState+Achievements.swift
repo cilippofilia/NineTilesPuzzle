@@ -36,11 +36,11 @@ extension PuzzleState {
             case "firstSolve":        shouldUnlock = totalGames >= 1
             case "tenGames":          shouldUnlock = totalGames >= 10
             case "fiftyGames":        shouldUnlock = totalGames >= 50
-            case "solveFourByFour":   shouldUnlock = (gamesPlayed[4] ?? 0) >= 1
-            case "solveFiveByFive":   shouldUnlock = (gamesPlayed[5] ?? 0) >= 1
-            case "solveEightByEight": shouldUnlock = (gamesPlayed[8] ?? 0) >= 1
-            case "under20Moves3x3":   shouldUnlock = personalBestMoves[3].map { $0 <= 20 } ?? false
-            case "under60Moves4x4":   shouldUnlock = personalBestMoves[4].map { $0 <= 60 } ?? false
+            case "solveFourByFour":   shouldUnlock = gamesPlayedCount(forSize: 4) >= 1
+            case "solveFiveByFive":   shouldUnlock = gamesPlayedCount(forSize: 5) >= 1
+            case "solveEightByEight": shouldUnlock = gamesPlayedCount(forSize: 8) >= 1
+            case "under20Moves3x3":   shouldUnlock = personalBestMoves[StatsKey(gridSize: 3, gameMode: .classic)].map { $0 <= 20 } ?? false
+            case "under60Moves4x4":   shouldUnlock = personalBestMoves[StatsKey(gridSize: 4, gameMode: .classic)].map { $0 <= 60 } ?? false
             case "streak10":          shouldUnlock = allTimeHighStreak >= 10
             case "streak25":          shouldUnlock = allTimeHighStreak >= 25
             default:                  shouldUnlock = false

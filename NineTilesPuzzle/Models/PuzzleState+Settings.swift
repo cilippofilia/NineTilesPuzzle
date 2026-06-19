@@ -31,7 +31,15 @@ extension PuzzleState {
         streakCountdownDuration == 0 ? "Off" : streakCountdownDuration < 60 ? "\(Int(streakCountdownDuration))s" : "\(Int(streakCountdownDuration / 60))m"
     }
 
-    var personalBestForCurrentSize: Int? { personalBestMoves[gridSize] }
+    private var currentStatsKey: StatsKey { StatsKey(gridSize: gridSize, gameMode: selectedGameMode) }
+
+    var personalBestForCurrentSize: Int? { personalBestMoves[currentStatsKey] }
+    var personalBestTimeForCurrentSize: TimeInterval? { personalBestTime[currentStatsKey] }
+
+    /// Total games played at `size`, summed across every game mode.
+    func gamesPlayedCount(forSize size: Int) -> Int {
+        gamesPlayed.filter { $0.key.gridSize == size }.values.reduce(0, +)
+    }
 
     /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
     func setGridSize(_ size: Int) {
@@ -41,6 +49,7 @@ extension PuzzleState {
         tiles = []
         tileImages = [:]
         sourceImage = nil
+        croppedSourceImage = nil
         isSolved = false
         isNewRecord = false
         UserDefaults.standard.set(false, forKey: Keys.useRandomSize)
@@ -54,6 +63,7 @@ extension PuzzleState {
         tiles = []
         tileImages = [:]
         sourceImage = nil
+        croppedSourceImage = nil
         isSolved = false
         isNewRecord = false
         UserDefaults.standard.set(true, forKey: Keys.useRandomSize)
@@ -61,10 +71,11 @@ extension PuzzleState {
         UserDefaults.standard.removeObject(forKey: Keys.sourceImage)
     }
 
-    func setImageSourceType(_ type: ImageSourceType) {
-        guard type != imageSourceType else { return }
-        imageSourceType = type
-        UserDefaults.standard.set(type.rawValue, forKey: Keys.imageSourceType)
+    func setMediaSourceType(_ type: MediaSourceType) {
+        guard type != mediaSourceType else { return }
+        guard type != .numbers || selectedGameMode == .slide else { return }
+        mediaSourceType = type
+        UserDefaults.standard.set(type.rawValue, forKey: Keys.mediaSourceType)
     }
 
     func setPreviewDuration(_ duration: Double) {
@@ -87,6 +98,11 @@ extension PuzzleState {
         guard mode.isAvailable, mode != selectedGameMode else { return }
         selectedGameMode = mode
         UserDefaults.standard.set(mode.rawValue, forKey: Keys.gameMode)
+
+        // Numbers media mode is Slide-only for now; fall back if it's no longer valid.
+        if mediaSourceType == .numbers && mode != .slide {
+            setMediaSourceType(.random)
+        }
     }
 
     func setStreakCountdownDuration(_ duration: Double) {
@@ -104,19 +120,27 @@ extension PuzzleState {
         personalBestMoves = [:]
         isNewMovesRecord = false
         gamesPlayed = [:]
+        elapsedTime = 0
+        personalBestTime = [:]
+        isNewBestTime = false
         stopCountdown()
+        stopStopwatch()
         UserDefaults.standard.removeObject(forKey: Keys.currentStreak)
         UserDefaults.standard.removeObject(forKey: Keys.allTimeHighStreak)
         UserDefaults.standard.removeObject(forKey: Keys.currentMoveCount)
-        (3...8).forEach {
-            UserDefaults.standard.removeObject(forKey: Keys.personalBest(for: $0))
-            UserDefaults.standard.removeObject(forKey: Keys.gamesPlayed(for: $0))
+        UserDefaults.standard.removeObject(forKey: Keys.elapsedTime)
+        for mode in GameMode.allCases {
+            for size in 3...8 {
+                UserDefaults.standard.removeObject(forKey: Keys.personalBest(for: size, mode: mode))
+                UserDefaults.standard.removeObject(forKey: Keys.personalBestTime(for: size, mode: mode))
+                UserDefaults.standard.removeObject(forKey: Keys.gamesPlayed(for: size, mode: mode))
+            }
         }
     }
 
     func resetSettings() {
         setGridSize(3)
-        setImageSourceType(.random)
+        setMediaSourceType(.random)
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
         setHapticsEnabled(true)

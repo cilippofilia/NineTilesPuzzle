@@ -14,6 +14,7 @@ struct PuzzleView: View {
     @State private var showCompletion = false
     @State private var showNewRecord = false
     @State private var showNewMovesRecord = false
+    @State private var showNewBestTime = false
     @State private var showQuitAlert = false
     @State private var bannerOffset: CGSize = .zero
     @State private var isSolving = false
@@ -34,7 +35,7 @@ struct PuzzleView: View {
                         .transition(.opacity)
                 } else {
                     Spacer()
-                    PuzzleGridView()
+                    PuzzleGridView(showReveal: showCompletion)
                         .clipShape(.rect(cornerRadius: 12))
                         .padding(.horizontal)
                         .transition(.asymmetric(
@@ -51,13 +52,16 @@ struct PuzzleView: View {
             // they don't shift the grid's vertical center
             VStack {
                 PuzzleStatusBarView(
+                    gameMode: state.selectedGameMode,
                     debugOverlayEnabled: state.debugOverlayEnabled,
                     currentStreak: state.currentStreak,
                     bestStreak: state.allTimeHighStreak,
                     timerRemaining: state.timerRemaining,
                     isTimerRunning: state.isTimerRunning,
                     moveCount: state.currentMoveCount,
-                    personalBest: state.personalBestForCurrentSize
+                    personalBest: state.personalBestForCurrentSize,
+                    elapsedTime: state.elapsedTime,
+                    personalBestTime: state.personalBestTimeForCurrentSize
                 )
                 .frame(maxWidth: .infinity)
                 .padding(.top)
@@ -70,7 +74,7 @@ struct PuzzleView: View {
 
             // Layer 3: completion overlay
             VStack {
-                CompletionBannerView(streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, isNewMovesRecord: showNewMovesRecord, personalBest: state.personalBestForCurrentSize, isPracticeMode: state.debugOverlayEnabled)
+                CompletionBannerView(gameMode: state.selectedGameMode, streak: state.currentStreak, isNewRecord: showNewRecord, moveCount: state.currentMoveCount, isNewMovesRecord: showNewMovesRecord, personalBest: state.personalBestForCurrentSize, elapsedTime: state.elapsedTime, personalBestTime: state.personalBestTimeForCurrentSize, isNewBestTime: showNewBestTime, isPracticeMode: state.debugOverlayEnabled)
                     .padding(.top)
                     .padding(.horizontal)
                     .offset(x: bannerOffset.width, y: (showCompletion ? 0 : -300) + bannerOffset.height)
@@ -144,6 +148,11 @@ struct PuzzleView: View {
                 showNewMovesRecord = isRecord
             }
         }
+        .onChange(of: state.isNewBestTime) { _, isRecord in
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                showNewBestTime = isRecord
+            }
+        }
         .navigationTitle("Puzzle")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isGameActive)
@@ -186,7 +195,6 @@ struct PuzzleView: View {
             && state.selectedGameMode == .slide
             && !state.tiles.isEmpty
             && !state.isSolved
-        print("showSolveButton: \(result) (debugOverlayEnabled=\(state.debugOverlayEnabled), gameMode=\(state.selectedGameMode), tiles=\(state.tiles.count), isSolved=\(state.isSolved))")
         return result
     }
 
@@ -202,27 +210,22 @@ struct PuzzleView: View {
     /// Debug-only: walks the puzzle to its solved state, one slide at a time, so the slide
     /// mode's win condition and animations can be verified end to end.
     private func solvePuzzle() {
-        print("solvePuzzle: tapped, isSolving=\(isSolving)")
         guard !isSolving else { return }
         isSolving = true
 
         let moves = SlideSolver().solve(tiles: state.tiles, gridSize: state.gridSize)
-        print("solvePuzzle: computed \(moves.count) moves: \(moves)")
 
         Task {
             for move in moves {
                 guard !state.isSolved else {
-                    print("solvePuzzle: already solved, stopping early")
                     break
                 }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     let didMove = state.slideTile(from: move)
-                    print("solvePuzzle: slide from \(move) -> \(didMove)")
                 }
                 soundService.playTileClick()
                 try? await Task.sleep(for: .milliseconds(120))
             }
-            print("solvePuzzle: done, isSolved=\(state.isSolved)")
             isSolving = false
         }
     }

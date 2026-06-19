@@ -21,12 +21,6 @@ struct SettingsView: View {
             List {
                 Section("Game") {
                     NavigationLink {
-                        PhotoSourcePickerView()
-                    } label: {
-                        LabeledContent("Photo Source", value: state.imageSourceType.label)
-                    }
-
-                    NavigationLink {
                         PreviewTimePickerView()
                     } label: {
                         LabeledContent("Preview Time", value: state.previewDurationLabel)
@@ -51,8 +45,8 @@ struct SettingsView: View {
                     ))
                 }
 
-                Section("Super easy mode?") {
-                    Toggle("Show Tile Indices", isOn: Binding(
+                Section {
+                    Toggle("Show debug tools", isOn: Binding(
                         get: { state.debugOverlayEnabled },
                         set: { newValue in
                             if newValue {
@@ -62,6 +56,10 @@ struct SettingsView: View {
                             }
                         }
                     ))
+                } header: {
+                    Text("Dev Tools")
+                } footer: {
+                    Text("This feature is for development testing only and is not intended for production use.")
                 }
 
                 Section {
@@ -91,7 +89,7 @@ struct SettingsView: View {
                 Button("Reset", role: .destructive) { state.resetSettings() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Photo source, preview time, streak countdown, and difficulty will be restored to their default values.")
+                Text("Media source, preview time, streak countdown, and difficulty will be restored to their default values.")
             }
             .alert("Turn On Tile Indices?", isPresented: $showDebugOverlayAlert) {
                 Button("Turn On") { state.setDebugOverlayEnabled(true) }
@@ -100,7 +98,7 @@ struct SettingsView: View {
                 Text("While enabled, your streak, best moves, games played, and achievements won't be updated. Turn this off to resume tracking your progress.")
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 }
 

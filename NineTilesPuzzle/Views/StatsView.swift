@@ -25,22 +25,24 @@ struct StatsView: View {
                     }
                 }
 
-                Section("Personal Bests") {
-                    ForEach(3...8, id: \.self) { size in
-                        let best = state.personalBestMoves[size]
-                        LabeledContent(difficultyLabel(for: size)) {
-                            Text(best.map { "\($0) moves" } ?? "--")
-                                .foregroundStyle(best != nil ? .primary : .secondary)
+                ForEach(GameMode.allCases.filter(\.isAvailable)) { mode in
+                    Section("Personal Bests · \(mode.title)") {
+                        ForEach(3...8, id: \.self) { size in
+                            let best = state.personalBestMoves[PuzzleState.StatsKey(gridSize: size, gameMode: mode)]
+                            LabeledContent(difficultyLabel(for: size)) {
+                                Text(best.map { "\($0) moves" } ?? "--")
+                                    .foregroundStyle(best != nil ? .primary : .secondary)
+                            }
                         }
                     }
                 }
 
                 Section("Games Played") {
                     ForEach(3...8, id: \.self) { size in
-                        let count = state.gamesPlayed[size]
+                        let count = state.gamesPlayedCount(forSize: size)
                         LabeledContent(difficultyLabel(for: size)) {
-                            Text(count.map { "\($0)" } ?? "--")
-                                .foregroundStyle(count != nil ? .primary : .secondary)
+                            Text(count > 0 ? "\(count)" : "--")
+                                .foregroundStyle(count > 0 ? .primary : .secondary)
                         }
                     }
                 }

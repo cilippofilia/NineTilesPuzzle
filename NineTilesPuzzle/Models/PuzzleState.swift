@@ -10,20 +10,26 @@ import SwiftUI
 @MainActor
 @Observable
 final class PuzzleState {
+    /// Grid size and move-mechanic differ enough per mode (e.g. Slide needs far more moves
+    /// than Classic to solve the same grid) that per-size stats must also be split by mode.
+    struct StatsKey: Hashable {
+        let gridSize: Int
+        let gameMode: GameMode
+    }
+
     private let classicEngine = ClassicEngine()
     private let slideEngine = SlideEngine()
     private var previewSleepTask: Task<Void, Never>?
 
-    private var activeEngine: any GameEngine {
-        selectedGameMode == .slide ? slideEngine : classicEngine
-    }
-
     var gridSize: Int = 3
     var useRandomSize: Bool = false
-    var imageSourceType: ImageSourceType = .random
+    var mediaSourceType: MediaSourceType = .random
     var tiles: [TileModel] = []
     var tileImages: [Int: CGImage] = [:]
     var sourceImage: CGImage?
+    /// The center-cropped square `sourceImage` is sliced from — what tiles actually show,
+    /// used to reveal the complete picture on solve without a mismatched, uncropped edge.
+    var croppedSourceImage: CGImage?
     var isLoading = false
     var isPreviewing = false
     var isSolved = false
@@ -31,9 +37,12 @@ final class PuzzleState {
     var allTimeHighStreak: Int = 0
     var isNewRecord: Bool = false
     var currentMoveCount: Int = 0
-    var personalBestMoves: [Int: Int] = [:]
+    var personalBestMoves: [StatsKey: Int] = [:]
     var isNewMovesRecord: Bool = false
-    var gamesPlayed: [Int: Int] = [:]
+    var gamesPlayed: [StatsKey: Int] = [:]
+    var elapsedTime: TimeInterval = 0
+    var personalBestTime: [StatsKey: TimeInterval] = [:]
+    var isNewBestTime: Bool = false
     var achievements: [Achievement] = []
     var newlyUnlockedAchievement: Achievement? = nil
     var error: Error?
@@ -48,6 +57,16 @@ final class PuzzleState {
     private(set) var didBreakStreak = false
 
     private var countdownTask: Task<Void, Never>?
+    private var stopwatchTask: Task<Void, Never>?
+
+    private var activeEngine: any GameEngine {
+        switch selectedGameMode {
+        case .slide:
+            return slideEngine
+        default:
+            return classicEngine
+        }
+    }
 
     init() {
         restoreFromUserDefaults()
@@ -86,35 +105,68 @@ final class PuzzleState {
         isTimerRunning = false
     }
 
-    /// Fetches a fresh image, slices it, shuffles the tiles, and persists state.
+    /// Starts (or resumes) the elapsed-time stopwatch, anchored so a resumed game continues
+    /// from its persisted `elapsedTime` rather than restarting at zero.
+    func startStopwatch() {
+        stopwatchTask?.cancel()
+        let start = Date.now.addingTimeInterval(-elapsedTime)
+        stopwatchTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { break }
+                elapsedTime = Date.now.timeIntervalSince(start)
+            }
+        }
+    }
+
+    func stopStopwatch() {
+        stopwatchTask?.cancel()
+        stopwatchTask = nil
+    }
+
+    /// Fetches a fresh image, slices it, shuffles the tiles, and persists state. In `.numbers`
+    /// media mode there is no image to fetch or preview — tiles are shuffled immediately.
     func startNewGame() async {
         if useRandomSize { gridSize = Int.random(in: 3...8) }
         tiles = []
         tileImages = [:]
         sourceImage = nil
+        croppedSourceImage = nil
         isLoading = true
         isSolved = false
         isNewRecord = false
         currentMoveCount = 0
         isNewMovesRecord = false
+        elapsedTime = 0
+        isNewBestTime = false
         error = nil
 
+        let initial = (0..<gridSize * gridSize).map {
+            TileModel(id: $0, currentIndex: $0, isLocked: false)
+        }
+
+        guard mediaSourceType != .numbers else {
+            isLoading = false
+            tiles = activeEngine.shuffle(initial, gridSize: gridSize)
+            if currentStreak > 0 { startCountdown() }
+            saveToUserDefaults()
+            return
+        }
+
         do {
-            let source: any ImageSource = switch imageSourceType {
-            case .random: RemoteImageSource()
+            let source: any ImageSource = switch mediaSourceType {
             case .local: PhotoLibraryImageSource()
             case .mixed: Bool.random() ? RemoteImageSource() : PhotoLibraryImageSource()
+            default: RemoteImageSource() // covers .random; .numbers is handled above
             }
             let isRemote = source is RemoteImageSource
             let image = try await ImageService(primarySource: source).loadImage()
             sourceImage = image
 
-            let slices = ImageSlicer().slice(image, into: gridSize * gridSize)
+            let slicer = ImageSlicer()
+            croppedSourceImage = slicer.centerCrop(image)
+            let slices = slicer.slice(image, into: gridSize * gridSize)
             tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
-
-            let initial = (0..<gridSize * gridSize).map {
-                TileModel(id: $0, currentIndex: $0, isLocked: false)
-            }
 
             isLoading = false
 
@@ -168,20 +220,31 @@ final class PuzzleState {
 
     /// Shared bookkeeping after a move: move count, solved/streak/records, achievements, and persistence.
     private func registerMove(correctBefore: Int) {
+        // The stopwatch starts on the first move, not at game start, so memorizing the
+        // preview image or just thinking before moving doesn't count against solve time.
+        if currentMoveCount == 0 { startStopwatch() }
         currentMoveCount += 1
         isSolved = activeEngine.isSolved(tiles)
 
         if isSolved {
             stopCountdown()
+            stopStopwatch()
             if !debugOverlayEnabled {
-                let existing = personalBestMoves[gridSize]
+                let key = StatsKey(gridSize: gridSize, gameMode: selectedGameMode)
+                let existing = personalBestMoves[key]
                 if existing == nil || currentMoveCount < existing! {
-                    personalBestMoves[gridSize] = currentMoveCount
+                    personalBestMoves[key] = currentMoveCount
                     isNewMovesRecord = true
-                    UserDefaults.standard.set(currentMoveCount, forKey: Keys.personalBest(for: gridSize))
+                    UserDefaults.standard.set(currentMoveCount, forKey: Keys.personalBest(for: gridSize, mode: selectedGameMode))
                 }
-                gamesPlayed[gridSize, default: 0] += 1
-                UserDefaults.standard.set(gamesPlayed[gridSize]!, forKey: Keys.gamesPlayed(for: gridSize))
+                let existingTime = personalBestTime[key]
+                if existingTime == nil || elapsedTime < existingTime! {
+                    personalBestTime[key] = elapsedTime
+                    isNewBestTime = true
+                    UserDefaults.standard.set(elapsedTime, forKey: Keys.personalBestTime(for: gridSize, mode: selectedGameMode))
+                }
+                gamesPlayed[key, default: 0] += 1
+                UserDefaults.standard.set(gamesPlayed[key]!, forKey: Keys.gamesPlayed(for: gridSize, mode: selectedGameMode))
             }
         }
 
@@ -212,6 +275,7 @@ final class PuzzleState {
     /// Stops the countdown when the user quits mid-game; streak is preserved.
     func leaveGame() {
         stopCountdown()
+        stopStopwatch()
         saveToUserDefaults()
     }
 }
@@ -221,7 +285,7 @@ final class PuzzleState {
 extension PuzzleState {
     enum Keys {
         static let gridSize = "puzzle.gridSize"
-        static let imageSourceType = "puzzle.imageSourceType"
+        static let mediaSourceType = "puzzle.mediaSourceType"
         static let tiles = "puzzle.tiles"
         static let sourceImage = "puzzle.sourceImage"
         static let currentStreak = "puzzle.currentStreak"
@@ -229,13 +293,15 @@ extension PuzzleState {
         static let previewDuration = "puzzle.previewDuration"
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
         static let currentMoveCount = "puzzle.currentMoveCount"
+        static let elapsedTime = "puzzle.elapsedTime"
         static let useRandomSize = "puzzle.useRandomSize"
         static let hapticsEnabled = "puzzle.hapticsEnabled"
         static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
         static let gameMode = "puzzle.gameMode"
 
-        static func personalBest(for size: Int) -> String { "puzzle.personalBest.\(size)" }
-        static func gamesPlayed(for size: Int) -> String { "puzzle.gamesPlayed.\(size)" }
+        static func personalBest(for size: Int, mode: GameMode) -> String { "puzzle.personalBest.\(mode.rawValue).\(size)" }
+        static func personalBestTime(for size: Int, mode: GameMode) -> String { "puzzle.personalBestTime.\(mode.rawValue).\(size)" }
+        static func gamesPlayed(for size: Int, mode: GameMode) -> String { "puzzle.gamesPlayed.\(mode.rawValue).\(size)" }
         static func achievement(id: String) -> String { "puzzle.achievement.\(id)" }
     }
 }
@@ -251,7 +317,7 @@ private extension PuzzleState {
 
         UserDefaults.standard.set(gridSize, forKey: Keys.gridSize)
         UserDefaults.standard.set(useRandomSize, forKey: Keys.useRandomSize)
-        UserDefaults.standard.set(imageSourceType.rawValue, forKey: Keys.imageSourceType)
+        UserDefaults.standard.set(mediaSourceType.rawValue, forKey: Keys.mediaSourceType)
         UserDefaults.standard.set(previewDuration, forKey: Keys.previewDuration)
         UserDefaults.standard.set(streakCountdownDuration, forKey: Keys.streakCountdownDuration)
         UserDefaults.standard.set(hapticsEnabled, forKey: Keys.hapticsEnabled)
@@ -259,6 +325,7 @@ private extension PuzzleState {
         UserDefaults.standard.set(selectedGameMode.rawValue, forKey: Keys.gameMode)
         UserDefaults.standard.set(currentStreak, forKey: Keys.currentStreak)
         UserDefaults.standard.set(currentMoveCount, forKey: Keys.currentMoveCount)
+        UserDefaults.standard.set(elapsedTime, forKey: Keys.elapsedTime)
     }
 
     func restoreFromUserDefaults() {
@@ -283,36 +350,60 @@ private extension PuzzleState {
             selectedGameMode = savedGameMode
         }
 
-        if let rawSource = UserDefaults.standard.string(forKey: Keys.imageSourceType),
-           let savedSource = ImageSourceType(rawValue: rawSource) {
-            imageSourceType = savedSource
+        if let rawSource = UserDefaults.standard.string(forKey: Keys.mediaSourceType),
+           let savedSource = MediaSourceType(rawValue: rawSource) {
+            mediaSourceType = savedSource
+        }
+        // Numbers media mode is Slide-only for now.
+        if mediaSourceType == .numbers && selectedGameMode != .slide {
+            mediaSourceType = .random
         }
 
         guard
             let tilesData = UserDefaults.standard.data(forKey: Keys.tiles),
-            let restoredTiles = try? JSONDecoder().decode([TileModel].self, from: tilesData),
-            let imageData = UserDefaults.standard.data(forKey: Keys.sourceImage),
-            let restoredImage = cgImage(fromJPEG: imageData)
+            let restoredTiles = try? JSONDecoder().decode([TileModel].self, from: tilesData)
         else { return }
 
         guard restoredTiles.count == gridSize * gridSize else { return }
 
-        tiles = restoredTiles
-        sourceImage = restoredImage
-        let slices = ImageSlicer().slice(restoredImage, into: gridSize * gridSize)
-        tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
+        if mediaSourceType == .numbers {
+            tiles = restoredTiles
+        } else {
+            guard
+                let imageData = UserDefaults.standard.data(forKey: Keys.sourceImage),
+                let restoredImage = cgImage(fromJPEG: imageData)
+            else { return }
+
+            tiles = restoredTiles
+            sourceImage = restoredImage
+            let slicer = ImageSlicer()
+            croppedSourceImage = slicer.centerCrop(restoredImage)
+            let slices = slicer.slice(restoredImage, into: gridSize * gridSize)
+            tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
+        }
+
         isSolved = activeEngine.isSolved(tiles)
         currentStreak = UserDefaults.standard.integer(forKey: Keys.currentStreak)
         currentMoveCount = UserDefaults.standard.integer(forKey: Keys.currentMoveCount)
-        personalBestMoves = (3...8).reduce(into: [:]) { dict, size in
-            let value = UserDefaults.standard.integer(forKey: Keys.personalBest(for: size))
-            if value > 0 { dict[size] = value }
-        }
-        gamesPlayed = (3...8).reduce(into: [:]) { dict, size in
-            let value = UserDefaults.standard.integer(forKey: Keys.gamesPlayed(for: size))
-            if value > 0 { dict[size] = value }
+        elapsedTime = UserDefaults.standard.double(forKey: Keys.elapsedTime)
+        personalBestMoves = [:]
+        personalBestTime = [:]
+        gamesPlayed = [:]
+        for mode in GameMode.allCases {
+            for size in 3...8 {
+                let key = StatsKey(gridSize: size, gameMode: mode)
+                let moves = UserDefaults.standard.integer(forKey: Keys.personalBest(for: size, mode: mode))
+                if moves > 0 { personalBestMoves[key] = moves }
+                let time = UserDefaults.standard.double(forKey: Keys.personalBestTime(for: size, mode: mode))
+                if time > 0 { personalBestTime[key] = time }
+                let played = UserDefaults.standard.integer(forKey: Keys.gamesPlayed(for: size, mode: mode))
+                if played > 0 { gamesPlayed[key] = played }
+            }
         }
         if !isSolved && currentStreak > 0 { startCountdown() }
+        // Resume the stopwatch only if it had actually started (i.e. a move was already made);
+        // otherwise it should still wait for the first move, same as a fresh game.
+        if !isSolved && currentMoveCount > 0 { startStopwatch() }
     }
 
     func jpeg(from image: CGImage) -> Data? {

@@ -1,5 +1,5 @@
 //
-//  ImageSourceType.swift
+//  MediaSourceType.swift
 //  NineTilesPuzzle
 //
 //  Created by Filippo Cilia on 6/3/26.
@@ -7,16 +7,18 @@
 
 import Foundation
 
-enum ImageSourceType: String, Codable {
+enum MediaSourceType: String, Codable {
     case random
     case local
     case mixed
+    case numbers
 
     var label: String {
         switch self {
         case .random: "Internet"
         case .local: "From Photos"
-        case .mixed: "Mixed"
+        case .mixed: "Mixed Pics"
+        case .numbers: "Numbers"
         }
     }
 }
