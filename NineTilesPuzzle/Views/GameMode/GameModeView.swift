@@ -17,7 +17,7 @@ struct GameModeView: View {
 
     var body: some View {
         List {
-            Section("Game Type") {
+            Section {
                 ForEach(GameMode.allCases) { mode in
                     if mode.isAvailable {
                         Button {
@@ -30,6 +30,20 @@ struct GameModeView: View {
                         GameModeRowView(mode: mode, isSelected: false)
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                if session.selectedGameMode == .timeTrial {
+                    Toggle("Gauntlet Ladder", isOn: Binding(
+                        get: { session.isLadderMode },
+                        set: { session.setLadderMode($0) }
+                    ))
+                    .padding(.vertical, 4)
+                }
+            } header: {
+                Text("Game Type")
+            } footer: {
+                if session.selectedGameMode == .timeTrial && session.isLadderMode {
+                    Text("10 escalating stages with fixed grid sizes — Difficulty is set automatically while active.")
                 }
             }
 

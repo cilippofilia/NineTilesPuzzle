@@ -21,6 +21,8 @@ final class PuzzleCompletionViewModel {
     var showNewMovesRecord = false
     var showNewBestTime = false
     var showNewTimeTrialScoreRecord = false
+    var showNewLadderScoreRecord = false
+    var showNewLadderStageRecord = false
     var showTimeTrialFail = false
     var bannerOffset: CGSize = .zero
 
@@ -53,6 +55,14 @@ final class PuzzleCompletionViewModel {
         withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewTimeTrialScoreRecord = isRecord }
     }
 
+    func handleNewLadderScoreRecordChange(_ isRecord: Bool) {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewLadderScoreRecord = isRecord }
+    }
+
+    func handleNewLadderStageRecordChange(_ isRecord: Bool) {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewLadderStageRecord = isRecord }
+    }
+
     /// New-record badges fade out a few seconds after a solve, independent of how long the
     /// banner itself (and the "Continue" button) stays on screen.
     func clearRecordFlagsAfterDelay(isSolved: Bool) async {
@@ -63,6 +73,8 @@ final class PuzzleCompletionViewModel {
             showNewMovesRecord = false
             showNewBestTime = false
             showNewTimeTrialScoreRecord = false
+            showNewLadderScoreRecord = false
+            showNewLadderStageRecord = false
         }
     }
 
@@ -70,6 +82,8 @@ final class PuzzleCompletionViewModel {
         showNewMovesRecord
             || (selectedGameMode == .slide && showNewBestTime)
             || (selectedGameMode == .timeTrial && showNewTimeTrialScoreRecord)
+            || (selectedGameMode == .timeTrial && showNewLadderScoreRecord)
+            || (selectedGameMode == .timeTrial && showNewLadderStageRecord)
     }
 
     // MARK: - Time Trial fail overlay

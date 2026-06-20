@@ -118,7 +118,7 @@ struct PuzzleView: View {
             // (in PuzzleGridView) is the only feedback; the next puzzle starts on its own.
             if !session.isZenMode {
                 VStack {
-                    CompletionBannerView(gameMode: session.selectedGameMode, streak: session.currentStreakForCurrentSize, isNewRecord: completion.showNewRecord, moveCount: session.currentMoveCount, personalBest: session.personalBestForCurrentSize, elapsedTime: session.elapsedTime, personalBestTime: session.personalBestTimeForCurrentSize, isPracticeMode: settings.debugOverlayEnabled, timeTrialScore: session.timeTrialScore, personalBestScore: session.personalBestScoreForCurrentSize, isNewTimeTrialScoreRecord: completion.showNewTimeTrialScoreRecord)
+                    CompletionBannerView(gameMode: session.selectedGameMode, streak: session.currentStreakForCurrentSize, isNewRecord: completion.showNewRecord, moveCount: session.currentMoveCount, personalBest: session.personalBestForCurrentSize, elapsedTime: session.elapsedTime, personalBestTime: session.personalBestTimeForCurrentSize, isPracticeMode: settings.debugOverlayEnabled, timeTrialScore: session.timeTrialScore, personalBestScore: session.personalBestScoreForCurrentSize, isNewTimeTrialScoreRecord: completion.showNewTimeTrialScoreRecord, isLadderMode: session.isGauntletLadderMode, isLadderRunComplete: session.isLadderRunComplete, lastClearedLadderStage: session.lastClearedLadderStage, ladderCumulativeScore: session.ladderCumulativeScore, bestLadderScoreOverall: session.bestLadderScoreOverall, isNewLadderScoreRecord: completion.showNewLadderScoreRecord)
                         .padding(.top)
                         .padding(.horizontal)
                         .offset(x: completion.bannerOffset.width, y: (completion.showCompletion ? 0 : -300) + completion.bannerOffset.height)
@@ -139,7 +139,11 @@ struct PuzzleView: View {
                             elapsedTime: session.elapsedTime,
                             isNewBestTime: completion.showNewBestTime,
                             isNewTimeTrialScoreRecord: completion.showNewTimeTrialScoreRecord,
-                            timeTrialScore: session.timeTrialScore
+                            timeTrialScore: session.timeTrialScore,
+                            isNewLadderScoreRecord: completion.showNewLadderScoreRecord,
+                            ladderCumulativeScore: session.ladderCumulativeScore,
+                            isNewLadderStageRecord: completion.showNewLadderStageRecord,
+                            ladderStageReached: session.lastClearedLadderStage
                         )
                         .padding(.horizontal)
                         .offset(completion.bannerOffset)
@@ -148,7 +152,7 @@ struct PuzzleView: View {
 
                     Spacer()
 
-                    Button("Continue", action: startNewGame)
+                    Button(continueButtonLabel, action: startNewGame)
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                         .padding(.bottom)
@@ -162,7 +166,14 @@ struct PuzzleView: View {
             // banner above, shown instead when the countdown reaches zero unsolved.
             if session.isTimeTrialMode {
                 VStack {
-                    TimeTrialFailView(moveCount: session.currentMoveCount, personalBestScore: session.personalBestScoreForCurrentSize)
+                    TimeTrialFailView(
+                        moveCount: session.currentMoveCount,
+                        personalBestScore: session.personalBestScoreForCurrentSize,
+                        isLadderMode: session.isGauntletLadderMode,
+                        ladderStageReached: session.currentLadderStage,
+                        ladderCumulativeScore: session.ladderCumulativeScore,
+                        bestLadderStageReachedOverall: session.bestLadderStageReachedOverall
+                    )
                         .padding(.top)
                         .padding(.horizontal)
                         .offset(y: completion.showTimeTrialFail ? 0 : -300)
@@ -225,7 +236,11 @@ struct PuzzleView: View {
             session.isLoading = true
         }
         .task {
-            await session.startNewGame()
+            if session.isGauntletLadderMode {
+                await session.startNewLadderRun()
+            } else {
+                await session.startNewGame()
+            }
         }
         .sensoryFeedback(.success, trigger: session.isSolved) { _, newValue in
             newValue && settings.hapticsEnabled
@@ -250,6 +265,12 @@ struct PuzzleView: View {
         }
         .onChange(of: session.isNewTimeTrialScoreRecord) { _, isRecord in
             completion.handleNewTimeTrialScoreRecordChange(isRecord)
+        }
+        .onChange(of: session.isNewLadderScoreRecord) { _, isRecord in
+            completion.handleNewLadderScoreRecordChange(isRecord)
+        }
+        .onChange(of: session.isNewLadderStageRecord) { _, isRecord in
+            completion.handleNewLadderStageRecordChange(isRecord)
         }
         .onChange(of: session.isTimeTrialFailed) { _, failed in
             completion.handleTimeTrialFailedChange(failed)
@@ -310,9 +331,22 @@ struct PuzzleView: View {
         !completion.showCompletion && !completion.showTimeTrialFail && !session.isLoading && session.error == nil
     }
 
+    /// "Continue" still applies to every non-ladder mode; a ladder run instead names what
+    /// tapping it actually does next — advancing a stage, or starting a fresh run.
+    private var continueButtonLabel: String {
+        guard session.isGauntletLadderMode else { return "Continue" }
+        return session.isLadderRunComplete ? "New Run" : "Next Stage"
+    }
+
     private func startNewGame() {
         completion.prepareForNewGame()
-        Task { await session.startNewGame() }
+        Task {
+            if session.isGauntletLadderMode && (session.isLadderRunFailed || session.isLadderRunComplete) {
+                await session.startNewLadderRun()
+            } else {
+                await session.startNewGame()
+            }
+        }
     }
 
     /// Debug-only: walks the puzzle to its solved state, one slide at a time, so the slide

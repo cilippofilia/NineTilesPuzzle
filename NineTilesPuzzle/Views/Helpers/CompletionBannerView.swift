@@ -19,23 +19,39 @@ struct CompletionBannerView: View {
     let timeTrialScore: Int
     let personalBestScore: Int?
     let isNewTimeTrialScoreRecord: Bool
+    // Defaulted (unlike the rest of this view's params) so the existing PuzzleView call
+    // site keeps compiling until the go-live wiring step threads these through.
+    var isLadderMode: Bool = false
+    var isLadderRunComplete: Bool = false
+    var lastClearedLadderStage: Int = 0
+    var ladderCumulativeScore: Int = 0
+    var bestLadderScoreOverall: Int = 0
+    var isNewLadderScoreRecord: Bool = false
 
     private static let goldColor = Color(hue: 0.12, saturation: 0.9, brightness: 0.85)
 
     /// A streak of consecutive correct placements isn't meaningful in Slide or Time Trial
     /// (see `PuzzleStatusBarView`); the banner shows elapsed time/score there instead.
     private var showsStreak: Bool { gameMode != .slide && gameMode != .timeTrial }
-    private var showsScore: Bool { gameMode == .timeTrial }
+    private var showsScore: Bool { gameMode == .timeTrial && !isLadderMode }
+    private var showsLadderScore: Bool { gameMode == .timeTrial && isLadderMode }
+
+    /// "Completed!" for every non-ladder solve; a mid-run ladder clear instead names the
+    /// stage just cleared, and the final stage gets its own celebratory title.
+    private var titleText: String {
+        guard isLadderMode else { return "Completed!" }
+        return isLadderRunComplete ? "Gauntlet Complete!" : "Stage \(lastClearedLadderStage) Cleared!"
+    }
 
     var body: some View {
         VStack(spacing: 6) {
-            if (isNewRecord && showsStreak) || (isNewTimeTrialScoreRecord && showsScore) {
-                Label("New Record!", systemImage: "trophy.fill")
+            if (isNewRecord && showsStreak) || (isNewTimeTrialScoreRecord && showsScore) || (isNewLadderScoreRecord && showsLadderScore) {
+                Label(isLadderMode && isLadderRunComplete ? "New Best Run!" : "New Record!", systemImage: "trophy.fill")
                     .font(.subheadline)
                     .bold()
                     .foregroundStyle(Self.goldColor)
             }
-            Text("Completed!")
+            Text(titleText)
                 .font(.largeTitle)
                 .bold()
 
@@ -43,6 +59,10 @@ struct CompletionBannerView: View {
                 HStack(spacing: 20) {
                     if showsStreak {
                         Label("\(streak)", systemImage: "flame.fill")
+                            .foregroundStyle(.orange)
+                            .bold()
+                    } else if showsLadderScore {
+                        Label("\(ladderCumulativeScore)", systemImage: "bolt.fill")
                             .foregroundStyle(.orange)
                             .bold()
                     } else if showsScore {
@@ -60,6 +80,12 @@ struct CompletionBannerView: View {
                 if showsStreak {
                     if let best = personalBest, best != moveCount {
                         Text("Best: \(best)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                } else if showsLadderScore {
+                    if bestLadderScoreOverall > 0 && bestLadderScoreOverall != ladderCumulativeScore {
+                        Text("Best: \(bestLadderScoreOverall)")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
@@ -95,7 +121,13 @@ struct CompletionBannerView: View {
             isPracticeMode: false,
             timeTrialScore: 0,
             personalBestScore: nil,
-            isNewTimeTrialScoreRecord: false
+            isNewTimeTrialScoreRecord: false,
+            isLadderMode: false,
+            isLadderRunComplete: false,
+            lastClearedLadderStage: 0,
+            ladderCumulativeScore: 0,
+            bestLadderScoreOverall: 0,
+            isNewLadderScoreRecord: false
         )
         Spacer()
         CompletionBannerView(
@@ -109,7 +141,13 @@ struct CompletionBannerView: View {
             isPracticeMode: false,
             timeTrialScore: 0,
             personalBestScore: nil,
-            isNewTimeTrialScoreRecord: false
+            isNewTimeTrialScoreRecord: false,
+            isLadderMode: false,
+            isLadderRunComplete: false,
+            lastClearedLadderStage: 0,
+            ladderCumulativeScore: 0,
+            bestLadderScoreOverall: 0,
+            isNewLadderScoreRecord: false
         )
         Spacer()
         CompletionBannerView(
@@ -123,7 +161,53 @@ struct CompletionBannerView: View {
             isPracticeMode: false,
             timeTrialScore: 5300,
             personalBestScore: 5000,
-            isNewTimeTrialScoreRecord: true
+            isNewTimeTrialScoreRecord: true,
+            isLadderMode: false,
+            isLadderRunComplete: false,
+            lastClearedLadderStage: 0,
+            ladderCumulativeScore: 0,
+            bestLadderScoreOverall: 0,
+            isNewLadderScoreRecord: false
+        )
+        Spacer()
+        CompletionBannerView(
+            gameMode: .timeTrial,
+            streak: 0,
+            isNewRecord: false,
+            moveCount: 9,
+            personalBest: nil,
+            elapsedTime: 22,
+            personalBestTime: nil,
+            isPracticeMode: false,
+            timeTrialScore: 0,
+            personalBestScore: nil,
+            isNewTimeTrialScoreRecord: false,
+            isLadderMode: true,
+            isLadderRunComplete: false,
+            lastClearedLadderStage: 3,
+            ladderCumulativeScore: 8900,
+            bestLadderScoreOverall: 21000,
+            isNewLadderScoreRecord: false
+        )
+        Spacer()
+        CompletionBannerView(
+            gameMode: .timeTrial,
+            streak: 0,
+            isNewRecord: false,
+            moveCount: 12,
+            personalBest: nil,
+            elapsedTime: 30,
+            personalBestTime: nil,
+            isPracticeMode: false,
+            timeTrialScore: 0,
+            personalBestScore: nil,
+            isNewTimeTrialScoreRecord: false,
+            isLadderMode: true,
+            isLadderRunComplete: true,
+            lastClearedLadderStage: 10,
+            ladderCumulativeScore: 32000,
+            bestLadderScoreOverall: 21000,
+            isNewLadderScoreRecord: true
         )
         Spacer()
         CompletionBannerView(
@@ -137,7 +221,13 @@ struct CompletionBannerView: View {
             isPracticeMode: true,
             timeTrialScore: 0,
             personalBestScore: nil,
-            isNewTimeTrialScoreRecord: false
+            isNewTimeTrialScoreRecord: false,
+            isLadderMode: false,
+            isLadderRunComplete: false,
+            lastClearedLadderStage: 0,
+            ladderCumulativeScore: 0,
+            bestLadderScoreOverall: 0,
+            isNewLadderScoreRecord: false
         )
     }
 }

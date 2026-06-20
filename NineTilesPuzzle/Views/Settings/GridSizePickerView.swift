@@ -61,7 +61,7 @@ struct GridSizePickerView: View {
                 .foregroundStyle(.primary)
             }
         }
-        .navigationTitle("Difficulty")
+        .navigationTitle("Grid Size")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -103,6 +103,30 @@ struct PuzzleCompletionViewModelTests {
         #expect(!vm.showNewTimeTrialScoreRecord)
     }
 
+    @Test func hasNewBestBadgeForTimeTrialModeIncludesLadderRecords() {
+        let vm = PuzzleCompletionViewModel()
+        #expect(!vm.hasNewBestBadge(selectedGameMode: .timeTrial))
+
+        vm.handleNewLadderScoreRecordChange(true)
+        #expect(vm.hasNewBestBadge(selectedGameMode: .timeTrial))
+        #expect(!vm.hasNewBestBadge(selectedGameMode: .classic))
+
+        vm.handleNewLadderScoreRecordChange(false)
+        vm.handleNewLadderStageRecordChange(true)
+        #expect(vm.hasNewBestBadge(selectedGameMode: .timeTrial))
+    }
+
+    @Test func clearRecordFlagsAfterDelayAlsoClearsLadderRecords() async {
+        let vm = PuzzleCompletionViewModel()
+        vm.handleNewLadderScoreRecordChange(true)
+        vm.handleNewLadderStageRecordChange(true)
+
+        await vm.clearRecordFlagsAfterDelay(isSolved: true)
+
+        #expect(!vm.showNewLadderScoreRecord)
+        #expect(!vm.showNewLadderStageRecord)
+    }
+
     // MARK: - Time Trial fail overlay
 
     @Test func handleTimeTrialFailedChangeSetsShowTimeTrialFail() {
