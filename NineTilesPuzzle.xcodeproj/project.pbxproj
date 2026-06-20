@@ -6,11 +6,27 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		183EBA722FE67BF600E2851C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 18ADCF992FC4C364001C204F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 18ADCFA02FC4C364001C204F;
+			remoteInfo = NineTilesPuzzle;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		183EBA6E2FE67BF600E2851C /* NineTilesPuzzleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NineTilesPuzzleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		18ADCFA12FC4C364001C204F /* NineTilesPuzzle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NineTilesPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		183EBA6F2FE67BF600E2851C /* NineTilesPuzzleTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = NineTilesPuzzleTests;
+			sourceTree = "<group>";
+		};
 		18ADCFA32FC4C364001C204F /* NineTilesPuzzle */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = NineTilesPuzzle;
@@ -19,6 +35,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		183EBA6B2FE67BF600E2851C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		18ADCF9E2FC4C364001C204F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				18ADCFA32FC4C364001C204F /* NineTilesPuzzle */,
+				183EBA6F2FE67BF600E2851C /* NineTilesPuzzleTests */,
 				18ADCFA22FC4C364001C204F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				18ADCFA12FC4C364001C204F /* NineTilesPuzzle.app */,
+				183EBA6E2FE67BF600E2851C /* NineTilesPuzzleTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +73,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		183EBA6D2FE67BF600E2851C /* NineTilesPuzzleTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 183EBA742FE67BF600E2851C /* Build configuration list for PBXNativeTarget "NineTilesPuzzleTests" */;
+			buildPhases = (
+				183EBA6A2FE67BF600E2851C /* Sources */,
+				183EBA6B2FE67BF600E2851C /* Frameworks */,
+				183EBA6C2FE67BF600E2851C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				183EBA732FE67BF600E2851C /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				183EBA6F2FE67BF600E2851C /* NineTilesPuzzleTests */,
+			);
+			name = NineTilesPuzzleTests;
+			packageProductDependencies = (
+			);
+			productName = NineTilesPuzzleTests;
+			productReference = 183EBA6E2FE67BF600E2851C /* NineTilesPuzzleTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		18ADCFA02FC4C364001C204F /* NineTilesPuzzle */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 18ADCFAC2FC4C365001C204F /* Build configuration list for PBXNativeTarget "NineTilesPuzzle" */;
@@ -80,6 +128,10 @@
 				LastSwiftUpdateCheck = 2630;
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
+					183EBA6D2FE67BF600E2851C = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 18ADCFA02FC4C364001C204F;
+					};
 					18ADCFA02FC4C364001C204F = {
 						CreatedOnToolsVersion = 26.3;
 					};
@@ -100,11 +152,19 @@
 			projectRoot = "";
 			targets = (
 				18ADCFA02FC4C364001C204F /* NineTilesPuzzle */,
+				183EBA6D2FE67BF600E2851C /* NineTilesPuzzleTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		183EBA6C2FE67BF600E2851C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		18ADCF9F2FC4C364001C204F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +175,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		183EBA6A2FE67BF600E2851C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		18ADCF9D2FC4C364001C204F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +191,67 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		183EBA732FE67BF600E2851C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 18ADCFA02FC4C364001C204F /* NineTilesPuzzle */;
+			targetProxy = 183EBA722FE67BF600E2851C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		183EBA752FE67BF600E2851C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3K3GFX53DY;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cilia.filippo.NineTilesPuzzleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NineTilesPuzzle.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NineTilesPuzzle";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		183EBA762FE67BF600E2851C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3K3GFX53DY;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cilia.filippo.NineTilesPuzzleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NineTilesPuzzle.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NineTilesPuzzle";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
 		18ADCFAA2FC4C365001C204F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -313,6 +440,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		183EBA742FE67BF600E2851C /* Build configuration list for PBXNativeTarget "NineTilesPuzzleTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				183EBA752FE67BF600E2851C /* Debug */,
+				183EBA762FE67BF600E2851C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		18ADCF9C2FC4C364001C204F /* Build configuration list for PBXProject "NineTilesPuzzle" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
