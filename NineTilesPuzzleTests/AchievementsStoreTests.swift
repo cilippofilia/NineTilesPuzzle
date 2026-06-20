@@ -110,7 +110,7 @@ struct AchievementsStoreTests {
 
         store.checkAchievements(using: stats)
 
-        #expect(store.achievements.allSatisfy(\.isUnlocked))
+        #expect(store.achievements.allSatisfy { $0.isUnlocked })
         #expect(store.newlyUnlockedAchievement?.id == "firstSolve")
     }
 

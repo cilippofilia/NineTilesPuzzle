@@ -5,6 +5,7 @@
 //  Created by Filippo Cilia on 6/19/26.
 //
 
+import CoreGraphics
 import Testing
 @testable import NineTilesPuzzle
 

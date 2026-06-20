@@ -71,18 +71,18 @@ struct SlideEngineTests {
 
     @Test func slideNeverLocksTilesEvenWhenCorrectlyPlaced() {
         var tiles = (0..<9).map { TileModel(id: $0, currentIndex: $0, isLocked: false) }
-        // Place blank (id 8) at index 1, tile 1 at index 8; sliding tile 1 into the blank
-        // moves it to index 1, its correct position.
+        // Place blank (id 8) at index 1, tile 1 at index 4 (adjacent to index 1); sliding
+        // tile 1 into the blank moves it to index 1, its correct position.
         tiles[8].currentIndex = 1
-        tiles[1].currentIndex = 8
-        engine.slide(&tiles, from: 8, gridSize: 3)
+        tiles[1].currentIndex = 4
+        engine.slide(&tiles, from: 4, gridSize: 3)
 
         let movedTile = tiles.first { $0.id == 1 }!
         let blankTile = tiles.first { $0.id == 8 }!
         #expect(movedTile.currentIndex == 1)
         #expect(movedTile.isCorrect)
         #expect(!movedTile.isLocked)
-        #expect(blankTile.currentIndex == 8)
+        #expect(blankTile.currentIndex == 4)
         #expect(!blankTile.isLocked)
     }
 
