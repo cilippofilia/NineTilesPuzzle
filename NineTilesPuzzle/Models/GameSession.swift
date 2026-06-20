@@ -45,6 +45,21 @@ final class GameSession {
     var isNewTimeTrialScoreRecord: Bool = false
     var timeTrialScore: Int = 0
 
+    /// The "Single Puzzle vs Ladder" toggle for Time Trial — a sticky preference, like
+    /// `mediaSourceType` generally is, rather than something that resets when the player
+    /// switches away from Time Trial and back.
+    var isLadderMode: Bool = false
+    private(set) var currentLadderStage: Int = 1
+    /// Snapshot of `currentLadderStage` taken right before it advances, so completion UI can
+    /// say "Stage N Cleared!" for the stage just cleared rather than the upcoming one.
+    private(set) var lastClearedLadderStage: Int = 0
+    private(set) var ladderCumulativeScore: Int = 0
+    private(set) var ladderWinStreak: Int = 0
+    private(set) var isLadderRunComplete = false
+    private(set) var isLadderRunFailed = false
+    var isNewLadderScoreRecord: Bool = false
+    var isNewLadderStageRecord: Bool = false
+
     private(set) var timerRemaining: Double = 30
     private(set) var isTimerRunning = false
     private(set) var didBreakStreak = false
@@ -65,6 +80,7 @@ final class GameSession {
     /// bests, no achievements — just an uninterrupted, judgment-free puzzle loop.
     var isZenMode: Bool { selectedGameMode == .zen }
     var isTimeTrialMode: Bool { selectedGameMode == .timeTrial }
+    var isGauntletLadderMode: Bool { isTimeTrialMode && isLadderMode }
 
     var currentStatsKey: StatsKey { StatsKey(gridSize: gridSize, gameMode: selectedGameMode) }
 
@@ -133,7 +149,9 @@ final class GameSession {
         stopTimeTrialCountdown()
         isTimeTrialFailed = false
         lastTimeTrialDelta = nil
-        let limit = TimeTrialRules.baseTimeLimit(forGridSize: gridSize)
+        let limit = isGauntletLadderMode
+            ? GauntletLadderRules.stage(currentLadderStage).baseTimeLimit
+            : TimeTrialRules.baseTimeLimit(forGridSize: gridSize)
         timeTrialRemaining = limit
         isTimeTrialRunning = true
         timeTrialEndDate = Date.now.addingTimeInterval(limit)
@@ -145,6 +163,7 @@ final class GameSession {
                 if remaining <= 0 {
                     timeTrialRemaining = 0
                     isTimeTrialFailed = true
+                    if isGauntletLadderMode { isLadderRunFailed = true }
                     stopTimeTrialCountdown()
                     saveToUserDefaults()
                     return
@@ -185,7 +204,13 @@ final class GameSession {
     /// Fetches a fresh image, slices it, shuffles the tiles, and persists state. In `.numbers`
     /// media mode there is no image to fetch or preview — tiles are shuffled immediately.
     func startNewGame() async {
-        if useRandomSize { gridSize = Int.random(in: 3...8) }
+        // The Ladder dictates its own grid size per stage; this must win over `useRandomSize`
+        // in case a stale `true` is left over from before the player entered Ladder mode.
+        if isGauntletLadderMode {
+            gridSize = GauntletLadderRules.stage(currentLadderStage).gridSize
+        } else if useRandomSize {
+            gridSize = Int.random(in: 3...8)
+        }
         tiles = []
         tileImages = [:]
         sourceImage = nil
@@ -199,6 +224,9 @@ final class GameSession {
         isNewBestTime = false
         isNewTimeTrialScoreRecord = false
         timeTrialScore = 0
+        isLadderRunComplete = false
+        isNewLadderScoreRecord = false
+        isNewLadderStageRecord = false
         error = nil
         stopTimeTrialCountdown()
 
@@ -250,6 +278,21 @@ final class GameSession {
         }
     }
 
+    /// Resets ladder progress to Stage 1 and starts it. Distinct from `startNewGame()`,
+    /// which resets only the current puzzle/stage — `startNewGame()` is also what advances
+    /// from stage N to stage N+1 via the existing "Continue" button, so it must never zero
+    /// the run's cumulative score or streak.
+    func startNewLadderRun() async {
+        currentLadderStage = 1
+        lastClearedLadderStage = 0
+        ladderCumulativeScore = 0
+        ladderWinStreak = 0
+        isLadderRunFailed = false
+        isLadderRunComplete = false
+        gridSize = GauntletLadderRules.stage(1).gridSize
+        await startNewGame()
+    }
+
     /// Attempts to swap the tiles at `sourceIndex` and `targetIndex`; no-ops if either is locked or indices are equal.
     func swapTiles(from sourceIndex: Int, to targetIndex: Int) {
         guard !isTimeTrialFailed else { return }
@@ -299,10 +342,33 @@ final class GameSession {
             if isZenMode {
                 statsStore.recordGamePlayed(for: key)
             } else if !debugOverlayEnabled {
-                let result = statsStore.recordCompletion(for: key, moves: currentMoveCount, time: elapsedTime)
-                isNewMovesRecord = result.isNewMovesRecord
-                isNewBestTime = result.isNewBestTime
-                if isTimeTrialMode {
+                // Ladder stages span every grid size in the table, so a stage clear must
+                // NOT write into the per-size `StatsKey` Time Trial bests — that would
+                // silently pollute, e.g., the single-puzzle 4×4 Time Trial player's record
+                // with a Stage 3 ladder clear that happened to also be a 4×4.
+                if !isGauntletLadderMode {
+                    let result = statsStore.recordCompletion(for: key, moves: currentMoveCount, time: elapsedTime)
+                    isNewMovesRecord = result.isNewMovesRecord
+                    isNewBestTime = result.isNewBestTime
+                }
+                if isGauntletLadderMode {
+                    let stage = GauntletLadderRules.stage(currentLadderStage)
+                    let stageScore = GauntletLadderRules.stageScore(
+                        remainingSeconds: timeTrialRemaining,
+                        stage: stage,
+                        currentWinStreak: ladderWinStreak
+                    )
+                    ladderCumulativeScore += stageScore
+                    ladderWinStreak += 1
+                    lastClearedLadderStage = currentLadderStage
+                    isNewLadderStageRecord = statsStore.recordLadderStageReached(lastClearedLadderStage)
+                    if currentLadderStage == GauntletLadderRules.stageCount {
+                        isLadderRunComplete = true
+                        isNewLadderScoreRecord = statsStore.recordLadderRunScore(ladderCumulativeScore)
+                    } else {
+                        currentLadderStage += 1
+                    }
+                } else if isTimeTrialMode {
                     let score = TimeTrialRules.score(remainingSeconds: timeTrialRemaining, gridSize: gridSize)
                     timeTrialScore = score
                     isNewTimeTrialScoreRecord = statsStore.recordTimeTrialScore(for: key, score: score)
@@ -345,6 +411,7 @@ final class GameSession {
         timeTrialRemaining = max(0, remaining)
         if remaining <= 0 {
             isTimeTrialFailed = true
+            if isGauntletLadderMode { isLadderRunFailed = true }
             stopTimeTrialCountdown()
         }
     }
@@ -392,6 +459,9 @@ extension GameSession {
     var timeTrialScoreEstimate: Int {
         TimeTrialRules.score(remainingSeconds: timeTrialRemaining, gridSize: gridSize)
     }
+
+    var bestLadderScoreOverall: Int { statsStore.bestLadderScore }
+    var bestLadderStageReachedOverall: Int { statsStore.bestLadderStageReached }
 
     /// Streaks only make sense in Classic mode (see `PuzzleStatusBarView`), so the menu's
     /// streak card always shows Classic's stats regardless of the currently selected mode.
@@ -442,6 +512,19 @@ extension GameSession {
         defaults.set(type.rawValue, forKey: Keys.mediaSourceType)
     }
 
+    /// Toggles the Gauntlet Ladder sub-mode of Time Trial. Enabling it immediately snaps
+    /// `gridSize` to Stage 1's so any UI reading it before "Play" (e.g. the menu's
+    /// Difficulty row) is already correct.
+    func setLadderMode(_ enabled: Bool) {
+        guard enabled != isLadderMode, isTimeTrialMode else { return }
+        isLadderMode = enabled
+        defaults.set(enabled, forKey: Keys.isLadderMode)
+        if enabled {
+            currentLadderStage = 1
+            gridSize = GauntletLadderRules.stage(1).gridSize
+        }
+    }
+
     func setGameMode(_ mode: GameMode) {
         guard mode.isAvailable, mode != selectedGameMode else { return }
         selectedGameMode = mode
@@ -474,6 +557,10 @@ extension GameSession {
         static let useRandomSize = "puzzle.useRandomSize"
         static let gameMode = "puzzle.gameMode"
         static let timeTrialFailed = "puzzle.timeTrialFailed"
+        static let isLadderMode = "puzzle.isLadderMode"
+        static let currentLadderStage = "puzzle.currentLadderStage"
+        static let ladderCumulativeScore = "puzzle.ladderCumulativeScore"
+        static let ladderWinStreak = "puzzle.ladderWinStreak"
     }
 }
 
@@ -493,6 +580,10 @@ private extension GameSession {
         defaults.set(currentMoveCount, forKey: Keys.currentMoveCount)
         defaults.set(elapsedTime, forKey: Keys.elapsedTime)
         defaults.set(isTimeTrialFailed, forKey: Keys.timeTrialFailed)
+        defaults.set(isLadderMode, forKey: Keys.isLadderMode)
+        defaults.set(currentLadderStage, forKey: Keys.currentLadderStage)
+        defaults.set(ladderCumulativeScore, forKey: Keys.ladderCumulativeScore)
+        defaults.set(ladderWinStreak, forKey: Keys.ladderWinStreak)
     }
 
     func restoreFromUserDefaults() {
@@ -540,6 +631,11 @@ private extension GameSession {
         currentMoveCount = defaults.integer(forKey: Keys.currentMoveCount)
         elapsedTime = defaults.double(forKey: Keys.elapsedTime)
         isTimeTrialFailed = defaults.bool(forKey: Keys.timeTrialFailed)
+        isLadderMode = defaults.bool(forKey: Keys.isLadderMode)
+        currentLadderStage = defaults.integer(forKey: Keys.currentLadderStage)
+        if currentLadderStage < 1 || currentLadderStage > GauntletLadderRules.stageCount { currentLadderStage = 1 }
+        ladderCumulativeScore = defaults.integer(forKey: Keys.ladderCumulativeScore)
+        ladderWinStreak = defaults.integer(forKey: Keys.ladderWinStreak)
         if !isSolved && currentStreakForCurrentSize > 0 { startCountdown() }
         // Resuming restarts the Time Trial countdown at the full base duration rather than
         // the exact persisted remainder — background/foreground interruption handling is a

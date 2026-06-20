@@ -22,6 +22,12 @@ final class StatsStore {
     var currentStreak: [StatsKey: Int] = [:]
     var allTimeHighStreak: [StatsKey: Int] = [:]
 
+    /// All-time best cumulative score / furthest stage reached across every Gauntlet
+    /// Ladder run. Not scoped to a `StatsKey` — a ladder run spans every grid size in the
+    /// stage table, so there's no single (gridSize, gameMode) pair to key it by.
+    var bestLadderScore: Int = 0
+    var bestLadderStageReached: Int = 0
+
     init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
         restoreFromUserDefaults()
@@ -69,6 +75,26 @@ final class StatsStore {
         return true
     }
 
+    /// Records a completed Gauntlet Ladder run's cumulative score, updating the all-time
+    /// best if `score` beats it. Returns whether this was a new record.
+    @discardableResult
+    func recordLadderRunScore(_ score: Int) -> Bool {
+        guard score > bestLadderScore else { return false }
+        bestLadderScore = score
+        defaults.set(score, forKey: Keys.bestLadderScore)
+        return true
+    }
+
+    /// Records that `stage` was reached, updating the all-time best if it's further than
+    /// any previous run got. Call with the stage just cleared, not the upcoming one.
+    @discardableResult
+    func recordLadderStageReached(_ stage: Int) -> Bool {
+        guard stage > bestLadderStageReached else { return false }
+        bestLadderStageReached = stage
+        defaults.set(stage, forKey: Keys.bestLadderStageReached)
+        return true
+    }
+
     /// Bumps the games-played tally only — used by modes (e.g. Zen) that don't track
     /// personal bests but still count toward total-games achievements.
     func recordGamePlayed(for key: StatsKey) {
@@ -103,6 +129,8 @@ final class StatsStore {
         gamesPlayed = [:]
         currentStreak = [:]
         allTimeHighStreak = [:]
+        bestLadderScore = 0
+        bestLadderStageReached = 0
         for mode in GameMode.allCases {
             for size in 3...8 {
                 defaults.removeObject(forKey: Keys.personalBest(for: size, mode: mode))
@@ -113,6 +141,8 @@ final class StatsStore {
                 defaults.removeObject(forKey: Keys.allTimeHighStreak(for: size, mode: mode))
             }
         }
+        defaults.removeObject(forKey: Keys.bestLadderScore)
+        defaults.removeObject(forKey: Keys.bestLadderStageReached)
     }
 }
 
@@ -124,6 +154,8 @@ private extension StatsStore {
         static func gamesPlayed(for size: Int, mode: GameMode) -> String { "puzzle.gamesPlayed.\(mode.rawValue).\(size)" }
         static func currentStreak(for size: Int, mode: GameMode) -> String { "puzzle.currentStreak.\(mode.rawValue).\(size)" }
         static func allTimeHighStreak(for size: Int, mode: GameMode) -> String { "puzzle.allTimeHighStreak.\(mode.rawValue).\(size)" }
+        static let bestLadderScore = "puzzle.bestLadderScore"
+        static let bestLadderStageReached = "puzzle.bestLadderStageReached"
     }
 
     func restoreFromUserDefaults() {
@@ -144,5 +176,10 @@ private extension StatsStore {
                 if bestStreak > 0 { allTimeHighStreak[key] = bestStreak }
             }
         }
+
+        let ladderScore = defaults.integer(forKey: Keys.bestLadderScore)
+        if ladderScore > 0 { bestLadderScore = ladderScore }
+        let ladderStage = defaults.integer(forKey: Keys.bestLadderStageReached)
+        if ladderStage > 0 { bestLadderStageReached = ladderStage }
     }
 }

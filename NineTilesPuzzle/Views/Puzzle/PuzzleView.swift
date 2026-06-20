@@ -89,7 +89,11 @@ struct PuzzleView: View {
                         personalBestTime: session.personalBestTimeForCurrentSize,
                         timeTrialRemaining: session.timeTrialRemaining,
                         timeTrialScore: session.timeTrialScoreEstimate,
-                        personalBestScore: session.personalBestScoreForCurrentSize
+                        personalBestScore: session.personalBestScoreForCurrentSize,
+                        isLadderMode: session.isLadderMode,
+                        currentLadderStage: session.currentLadderStage,
+                        ladderCumulativeScore: session.ladderCumulativeScore,
+                        bestLadderScoreOverall: session.bestLadderScoreOverall
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.top)

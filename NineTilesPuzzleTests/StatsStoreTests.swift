@@ -97,6 +97,56 @@ struct StatsStoreTests {
         #expect(store.personalBestScore[classic3] == 500)
     }
 
+    // MARK: - recordLadderRunScore
+
+    @Test func firstLadderScoreIsAlwaysANewRecord() {
+        let store = makeStore()
+        let isNewRecord = store.recordLadderRunScore(5000)
+        #expect(isNewRecord)
+        #expect(store.bestLadderScore == 5000)
+    }
+
+    @Test func higherLadderScoreOverwritesTheBest() {
+        let store = makeStore()
+        store.recordLadderRunScore(5000)
+        let isNewRecord = store.recordLadderRunScore(8000)
+        #expect(isNewRecord)
+        #expect(store.bestLadderScore == 8000)
+    }
+
+    @Test func lowerOrEqualLadderScoreDoesNotOverwriteTheBest() {
+        let store = makeStore()
+        store.recordLadderRunScore(5000)
+        let isNewRecord = store.recordLadderRunScore(5000)
+        #expect(!isNewRecord)
+        #expect(store.bestLadderScore == 5000)
+    }
+
+    // MARK: - recordLadderStageReached
+
+    @Test func firstStageReachedIsAlwaysANewRecord() {
+        let store = makeStore()
+        let isNewRecord = store.recordLadderStageReached(3)
+        #expect(isNewRecord)
+        #expect(store.bestLadderStageReached == 3)
+    }
+
+    @Test func furtherStageReachedOverwritesTheBest() {
+        let store = makeStore()
+        store.recordLadderStageReached(3)
+        let isNewRecord = store.recordLadderStageReached(7)
+        #expect(isNewRecord)
+        #expect(store.bestLadderStageReached == 7)
+    }
+
+    @Test func sameOrEarlierStageReachedDoesNotOverwriteTheBest() {
+        let store = makeStore()
+        store.recordLadderStageReached(7)
+        let isNewRecord = store.recordLadderStageReached(3)
+        #expect(!isNewRecord)
+        #expect(store.bestLadderStageReached == 7)
+    }
+
     // MARK: - recordStreakIncrement
 
     @Test func streakIncrementsAndSetsAllTimeHighOnFirstMove() {
@@ -160,6 +210,8 @@ struct StatsStoreTests {
         store.recordCompletion(for: classic3, moves: 10, time: 20)
         store.recordStreakIncrement(for: slide3, trackRecord: true)
         store.recordTimeTrialScore(for: classic3, score: 500)
+        store.recordLadderRunScore(5000)
+        store.recordLadderStageReached(5)
 
         store.resetStats()
 
@@ -169,6 +221,8 @@ struct StatsStoreTests {
         #expect(store.gamesPlayed.isEmpty)
         #expect(store.currentStreak.isEmpty)
         #expect(store.allTimeHighStreak.isEmpty)
+        #expect(store.bestLadderScore == 0)
+        #expect(store.bestLadderStageReached == 0)
     }
 
     // MARK: - persistence round-trip
@@ -180,6 +234,8 @@ struct StatsStoreTests {
         first.recordCompletion(for: classic3, moves: 12, time: 18)
         first.recordStreakIncrement(for: classic3, trackRecord: true)
         first.recordTimeTrialScore(for: classic3, score: 500)
+        first.recordLadderRunScore(5000)
+        first.recordLadderStageReached(5)
 
         let second = StatsStore(defaults: defaults)
         #expect(second.personalBestMoves[classic3] == 12)
@@ -188,5 +244,7 @@ struct StatsStoreTests {
         #expect(second.currentStreak[classic3] == 1)
         #expect(second.allTimeHighStreak[classic3] == 1)
         #expect(second.personalBestScore[classic3] == 500)
+        #expect(second.bestLadderScore == 5000)
+        #expect(second.bestLadderStageReached == 5)
     }
 }
