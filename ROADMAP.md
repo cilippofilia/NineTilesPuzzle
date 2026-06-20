@@ -7,20 +7,22 @@ notes on how it hooks into the existing architecture.
 
 ## 1. New Game Modes
 
-All modes reuse the stateless `PuzzleEngine` and `PuzzleState`. The natural starting point is
-a `GameMode` enum threaded through `PuzzleState`, with mode selection routed via the existing
-`GameRoute` enum in `Views/MenuView.swift`.
+All modes reuse the stateless `GameEngine` conformers (`ClassicEngine`/`SlideEngine`) and
+route through `GameSession`. The natural starting point is the existing `GameMode` enum
+already threaded through `GameSession`, with mode selection routed via the existing
+`GameRoute` enum in `Views/MenuView.swift`. See `ARCHITECTURE.md` for how `GameSession`,
+`StatsStore`, `SettingsStore`, and `AchievementsStore` fit together today.
 
 [] ### Daily Challenge — **M**
 One puzzle per day, identical for every player: seed the shuffle deterministically from the
-date (`PuzzleEngine.shuffle` would accept a `RandomNumberGenerator`) and use a fixed image per
+date (`GameEngine.shuffle` would accept a `RandomNumberGenerator`) and use a fixed image per
 day (a bundled pack indexed by date, or a date-seeded picsum ID). Track a calendar streak of
 completed days, separate from the in-game move streak. This is the single highest-leverage
 feature for retention, and the natural companion to an online leaderboard (see §3).
 
 [] ### Time Attack — **S/M**
 Solve the whole puzzle before a countdown expires, with time budget scaled by grid size.
-The streak countdown timer in `PuzzleState` already provides the timer infrastructure —
+The streak countdown timer in `GameSession` already provides the timer infrastructure —
 this generalizes it from "time per correct move" to "time per puzzle".
 
 [] ### Limited Moves — **S**
@@ -48,9 +50,10 @@ existing lock state.
 ## 2. Power-ups & Twists
 
 Earned rather than bought (at least initially): award them at streak milestones, achievement
-unlocks, and daily-challenge completions. Inventory is a handful of counters persisted in
-UserDefaults alongside the existing `PuzzleState.Keys`. Each one is small because the
-mechanics it manipulates already exist:
+unlocks, and daily-challenge completions. Inventory is a handful of counters persisted
+alongside the existing per-store `Keys` enums (each store now sits behind the
+`PersistenceStore` protocol, so a power-up counter store is straightforward to keep
+testable too). Each one is small because the mechanics it manipulates already exist:
 
 | Power-up | Effort | How it works |
 |---|---|---|
@@ -58,7 +61,7 @@ mechanics it manipulates already exist:
 | **Hint** | S | Briefly highlight where one selected tile belongs. |
 | **Auto-place** | S | Lock one random unlocked tile into its correct cell via the existing swap/lock logic. |
 | **Streak Freeze** | S | Pause the streak countdown once per game. |
-| **Re-shuffle** | S | Reshuffle only the unlocked tiles (a constrained `PuzzleEngine.shuffle`) when stuck. |
+| **Re-shuffle** | S | Reshuffle only the unlocked tiles (a constrained `GameEngine.shuffle`) when stuck. |
 
 **Economy note:** milestone-based earning keeps the game fully offline-friendly and
 pressure-free. If monetization ever lands (§4), power-up bundles become an obvious IAP
@@ -73,7 +76,7 @@ backend. Prerequisite is Game Center configuration in App Store Connect (leaderb
 achievement IDs).
 
 ### Leaderboards — **M**
-The stats are already tracked in `PuzzleState`; submission is a thin `GameCenterService`:
+The stats are already tracked in `StatsStore`; submission is a thin `GameCenterService`:
 - Best moves per difficulty (six leaderboards, one per grid size)
 - All-time best streak
 - Daily challenge: recurring leaderboard for moves (and time, once Time Attack exists)
@@ -147,8 +150,8 @@ packs are designed to make it bolt-on.
 Take inspiration from Apple Fitness awards: badges grouped by category, tiered medals with
 progress shown toward the next tier, earned dates, and occasional limited-edition awards.
 Today the system is 10 flat achievements with a binary `isUnlocked` flag and a hardcoded
-`switch` in `PuzzleState+Achievements.swift` — most of this section starts with making
-definitions data-driven.
+`switch` in `AchievementsStore.checkAchievements(using:)` — most of this section starts
+with making definitions data-driven.
 
 ### Data-driven model with progress — **M** *(foundation for everything below)*
 Extend `Achievement` and `achievements.json` so each definition carries a `category`, a
@@ -219,76 +222,21 @@ unearned awards. One-shot achievements (e.g. "solve an 8×8") stay binary, no ba
 
 ---
 
-## 6. Current Game Mode Architecture (snapshot)
+## 6. Architecture Notes
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                          MenuView                                │
-│        (picks: game mode, difficulty, image source...)           │
-└───────────────────────────┬───────────────────────────────────────┘
-                             │ NavigationStack(.game)
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         PuzzleView                                │
-│   (renders grid/preview/loading/error, observes PuzzleState)     │
-└───────────────────────────┬───────────────────────────────────────┘
-                             │ reads/calls
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    PuzzleState (@Observable)                     │
-│  single source of truth: tiles, mode, streaks, moves, settings   │
-│                                                                   │
-│   selectedGameMode: GameMode  ───────►  activeEngine (computed)  │
-│                                                                   │
-└──────────┬───────────────────────────────────────┬────────────────┘
-           │ delegates shuffle/move/isSolved        │
-           ▼                                        ▼
-   ┌───────────────────┐                  ┌───────────────────┐
-   │   ClassicEngine    │                  │   SlideEngine      │
-   │  (swap any 2 tiles)│                  │ (slide into blank) │
-   └───────────────────┘                  └───────────────────┘
-           ▲                                        ▲
-           └────────────────┬───────────────────────┘
-                             │ both conform to
-                  ┌──────────────────────┐
-                  │  GameEngine protocol  │
-                  │  - shuffle(tiles:)     │
-                  │  - isSolved() (shared) │
-                  └──────────────────────┘
-```
+Current structure (directory layout, store boundaries, persistence, testing) is documented
+in `ARCHITECTURE.md`, not duplicated here — that file is the single source of truth so the
+two docs don't drift out of sync with each other again.
 
-**`GameMode`** (`Models/GameMode.swift`) — flat `enum` with 7 cases: `classic`, `slide`,
-`timeTrial`, `limitedMoves`, `zen`, `fog`, `chaos`. Each has `title`, `description`, `icon`,
-and an `isAvailable` flag. `.classic`, `.slide`, and `.zen` are available today — the rest
-show as "Coming soon…" in `GameModeView`. The enum is purely presentational metadata; it
-carries no gameplay logic itself.
-
-**`GameEngine`** (`Services/GameEngine.swift`) — the contract every mode implements:
-`shuffle(tiles:gridSize:) -> [TileModel]`, plus a shared default `isSolved()`. This is the
-extension point for new modes.
-
-**`ClassicEngine`** / **`SlideEngine`** — the only two concrete engines. Classic shuffles
-into a derangement and swaps any two unlocked tiles, locking ones that land correctly. Slide
-shuffles into a parity-checked solvable permutation and only slides into the adjacent blank
-cell. Each owns mode-specific methods beyond the protocol (`swap`, `slide`, `areAdjacent`)
-since move semantics differ per mode.
-
-**`PuzzleState`** — owns everything: tile array, both engine instances, a computed
-`activeEngine` that switches on `selectedGameMode` (currently binary: `slide` vs. "everything
-else → classic"), streak/move/achievement bookkeeping, persistence, and the image pipeline.
-`PuzzleView` branches on mode directly to decide which engine call to wire up to gestures.
-
-**`SlideSolver`** — standalone BFS/reduction solver, used only by a debug "Solve" button,
-mode-gated to `.slide`.
-
-**Architectural gap for the modes above:** none of Time Trial / Limited Moves / Fog / Chaos
-need a new `GameEngine` — they're modifiers on top of Classic/Slide's move rules, not new
-move rules. But today there's only one axis (which engine handles shuffle/move); there's no
-home yet for "is there a timer," "is there a move budget," "is failure possible." Zen shipped
-as exactly this kind of modifier — an `isZenMode` flag gating streak/record/achievement logic
-in `PuzzleState` and UI chrome in `PuzzleView` — and already shows the conditional creep this
-section warns about. Worth introducing a small composable `GameModeRules` (timer budget, move
-budget, fail condition) before the next mode adds another layer of
-`if selectedGameMode == .x` branches.
+**Open question carried over from the June 2026 architecture pass:** `GameMode` is 7 cases,
+but mode-specific behavior (`isZenMode`, `selectedGameMode == .slide`, debug-overlay gating)
+is still scattered conditionals inside `GameSession` and `PuzzleView`/`PuzzleGridView`
+rather than a single abstraction. None of Time Trial / Limited Moves / Fog / Chaos need a
+new `GameEngine` — they're modifiers on top of Classic/Slide's move rules (a timer budget, a
+move budget, a fail condition), not new move rules. A small composable `GameModeRules` was
+considered for this, but shelved deliberately: with only Zen as a real, shipped data point,
+every axis of variance collapses to a single `isZenMode` boolean, so any multi-axis struct
+would be guessed rather than derived. Revisit once Time Trial or Limited Moves actually
+exists — two real data points will show the right shape instead of a guessed one.
 
 ---
