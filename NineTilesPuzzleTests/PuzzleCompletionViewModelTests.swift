@@ -84,6 +84,43 @@ struct PuzzleCompletionViewModelTests {
         #expect(vm.hasNewBestBadge(selectedGameMode: .slide))
     }
 
+    @Test func hasNewBestBadgeForTimeTrialModeIncludesScoreRecord() {
+        let vm = PuzzleCompletionViewModel()
+        #expect(!vm.hasNewBestBadge(selectedGameMode: .timeTrial))
+
+        vm.handleNewTimeTrialScoreRecordChange(true)
+        #expect(vm.hasNewBestBadge(selectedGameMode: .timeTrial))
+        // A Time Trial score record shouldn't leak into other modes' badge visibility.
+        #expect(!vm.hasNewBestBadge(selectedGameMode: .classic))
+    }
+
+    @Test func clearRecordFlagsAfterDelayAlsoClearsTimeTrialScoreRecord() async {
+        let vm = PuzzleCompletionViewModel()
+        vm.handleNewTimeTrialScoreRecordChange(true)
+
+        await vm.clearRecordFlagsAfterDelay(isSolved: true)
+
+        #expect(!vm.showNewTimeTrialScoreRecord)
+    }
+
+    // MARK: - Time Trial fail overlay
+
+    @Test func handleTimeTrialFailedChangeSetsShowTimeTrialFail() {
+        let vm = PuzzleCompletionViewModel()
+        vm.handleTimeTrialFailedChange(true)
+        #expect(vm.showTimeTrialFail)
+
+        vm.handleTimeTrialFailedChange(false)
+        #expect(!vm.showTimeTrialFail)
+    }
+
+    @Test func prepareForNewGameClearsTimeTrialFail() {
+        let vm = PuzzleCompletionViewModel()
+        vm.handleTimeTrialFailedChange(true)
+        vm.prepareForNewGame()
+        #expect(!vm.showTimeTrialFail)
+    }
+
     // MARK: - Banner drag-to-dismiss
 
     @Test func updateBannerDragTracksTranslation() {

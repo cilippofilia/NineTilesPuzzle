@@ -15,6 +15,8 @@ struct NewBestBadgesView: View {
     let isNewMovesRecord: Bool
     let elapsedTime: TimeInterval
     let isNewBestTime: Bool
+    var isNewTimeTrialScoreRecord: Bool = false
+    var timeTrialScore: Int = 0
 
     private static let goldColor = Color(hue: 0.12, saturation: 0.9, brightness: 0.85)
 
@@ -40,6 +42,16 @@ struct NewBestBadgesView: View {
                     .clipShape(.capsule)
                     .glassEffect(.regular, in: .rect(cornerRadius: 24))
             }
+            if isNewTimeTrialScoreRecord {
+                Label("New Best Score! \(timeTrialScore)", systemImage: "medal.fill")
+                    .font(.subheadline)
+                    .bold()
+                    .foregroundStyle(Self.goldColor)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .clipShape(.capsule)
+                    .glassEffect(.regular, in: .rect(cornerRadius: 24))
+            }
         }
     }
 }
@@ -48,5 +60,6 @@ struct NewBestBadgesView: View {
     VStack(spacing: 20) {
         NewBestBadgesView(showsStreak: true, moveCount: 23, isNewMovesRecord: true, elapsedTime: 65, isNewBestTime: false)
         NewBestBadgesView(showsStreak: false, moveCount: 31, isNewMovesRecord: true, elapsedTime: 38, isNewBestTime: true)
+        NewBestBadgesView(showsStreak: true, moveCount: 14, isNewMovesRecord: false, elapsedTime: 38, isNewBestTime: false, isNewTimeTrialScoreRecord: true, timeTrialScore: 5300)
     }
 }

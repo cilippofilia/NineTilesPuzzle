@@ -16,6 +16,7 @@ struct PuzzleView: View {
     @State private var completion = PuzzleCompletionViewModel()
     @State private var showQuitAlert = false
     @State private var isSolving = false
+    @State private var showTimeTrialDelta = false
 
     var body: some View {
         ZStack {
@@ -85,7 +86,10 @@ struct PuzzleView: View {
                         moveCount: session.currentMoveCount,
                         personalBest: session.personalBestForCurrentSize,
                         elapsedTime: session.elapsedTime,
-                        personalBestTime: session.personalBestTimeForCurrentSize
+                        personalBestTime: session.personalBestTimeForCurrentSize,
+                        timeTrialRemaining: session.timeTrialRemaining,
+                        timeTrialScore: session.timeTrialScoreEstimate,
+                        personalBestScore: session.personalBestScoreForCurrentSize
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.top)
@@ -93,6 +97,15 @@ struct PuzzleView: View {
                     .animation(.easeInOut(duration: 0.35), value: session.isLoading)
                     .animation(.easeInOut(duration: 0.35), value: session.isPreviewing)
                     .animation(.spring(response: 0.5, dampingFraction: 0.75), value: completion.showCompletion)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.75), value: completion.showTimeTrialFail)
+
+                    if session.isTimeTrialMode, let delta = session.lastTimeTrialDelta {
+                        TimeTrialDeltaIndicatorView(delta: delta)
+                            .padding(.top, 8)
+                            .opacity(showTimeTrialDelta ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: showTimeTrialDelta)
+                    }
+
                     Spacer()
                 }
             }
@@ -101,7 +114,7 @@ struct PuzzleView: View {
             // (in PuzzleGridView) is the only feedback; the next puzzle starts on its own.
             if !session.isZenMode {
                 VStack {
-                    CompletionBannerView(gameMode: session.selectedGameMode, streak: session.currentStreakForCurrentSize, isNewRecord: completion.showNewRecord, moveCount: session.currentMoveCount, personalBest: session.personalBestForCurrentSize, elapsedTime: session.elapsedTime, personalBestTime: session.personalBestTimeForCurrentSize, isPracticeMode: settings.debugOverlayEnabled)
+                    CompletionBannerView(gameMode: session.selectedGameMode, streak: session.currentStreakForCurrentSize, isNewRecord: completion.showNewRecord, moveCount: session.currentMoveCount, personalBest: session.personalBestForCurrentSize, elapsedTime: session.elapsedTime, personalBestTime: session.personalBestTimeForCurrentSize, isPracticeMode: settings.debugOverlayEnabled, timeTrialScore: session.timeTrialScore, personalBestScore: session.personalBestScoreForCurrentSize, isNewTimeTrialScoreRecord: completion.showNewTimeTrialScoreRecord)
                         .padding(.top)
                         .padding(.horizontal)
                         .offset(x: completion.bannerOffset.width, y: (completion.showCompletion ? 0 : -300) + completion.bannerOffset.height)
@@ -120,7 +133,9 @@ struct PuzzleView: View {
                             moveCount: session.currentMoveCount,
                             isNewMovesRecord: completion.showNewMovesRecord,
                             elapsedTime: session.elapsedTime,
-                            isNewBestTime: completion.showNewBestTime
+                            isNewBestTime: completion.showNewBestTime,
+                            isNewTimeTrialScoreRecord: completion.showNewTimeTrialScoreRecord,
+                            timeTrialScore: session.timeTrialScore
                         )
                         .padding(.horizontal)
                         .offset(completion.bannerOffset)
@@ -137,6 +152,28 @@ struct PuzzleView: View {
                         .opacity(completion.showCompletion ? 1 : 0)
                 }
                 .allowsHitTesting(completion.showCompletion)
+            }
+
+            // Layer 3b: Time Trial fail overlay — mutually exclusive with the completion
+            // banner above, shown instead when the countdown reaches zero unsolved.
+            if session.isTimeTrialMode {
+                VStack {
+                    TimeTrialFailView(moveCount: session.currentMoveCount, personalBestScore: session.personalBestScoreForCurrentSize)
+                        .padding(.top)
+                        .padding(.horizontal)
+                        .offset(y: completion.showTimeTrialFail ? 0 : -300)
+                        .opacity(completion.showTimeTrialFail ? 1 : 0)
+
+                    Spacer()
+
+                    Button("Try Again", action: startNewGame)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .padding(.bottom)
+                        .offset(y: completion.showTimeTrialFail ? 0 : 300)
+                        .opacity(completion.showTimeTrialFail ? 1 : 0)
+                }
+                .allowsHitTesting(completion.showTimeTrialFail)
             }
 
             // Layer 4: achievement unlock toast — only shown mid-game to avoid overlapping the
@@ -167,6 +204,15 @@ struct PuzzleView: View {
                 onComplete: startNewGame
             )
         }
+        // Shows the "+1s"/"-2s" combo indicator for each Time Trial move, keyed by move
+        // count rather than the delta's value so repeated identical deltas (e.g. two
+        // misplays in a row) still restart the fade-out timer.
+        .task(id: session.currentMoveCount) {
+            guard session.isTimeTrialMode, session.lastTimeTrialDelta != nil else { return }
+            showTimeTrialDelta = true
+            try? await Task.sleep(for: .seconds(1))
+            showTimeTrialDelta = false
+        }
         // `.task` can be delayed in actually starting while the MainActor is busy (e.g. the
         // NavigationStack push transition), leaving the previous game's stale tiles briefly
         // visible and tappable. `.onAppear` runs synchronously, closing that window.
@@ -183,6 +229,9 @@ struct PuzzleView: View {
         .sensoryFeedback(.warning, trigger: session.didBreakStreak) { _, _ in
             settings.hapticsEnabled
         }
+        .sensoryFeedback(.error, trigger: session.isTimeTrialFailed) { _, newValue in
+            newValue && settings.hapticsEnabled
+        }
         .onChange(of: session.isSolved) { _, solved in
             completion.handleSolvedChange(solved, onSolved: soundService.playCompletion)
         }
@@ -194,6 +243,12 @@ struct PuzzleView: View {
         }
         .onChange(of: session.isNewBestTime) { _, isRecord in
             completion.handleNewBestTimeChange(isRecord)
+        }
+        .onChange(of: session.isNewTimeTrialScoreRecord) { _, isRecord in
+            completion.handleNewTimeTrialScoreRecordChange(isRecord)
+        }
+        .onChange(of: session.isTimeTrialFailed) { _, failed in
+            completion.handleTimeTrialFailedChange(failed)
         }
         .navigationTitle(session.isZenMode ? "" : "Puzzle")
         .navigationBarTitleDisplayMode(.inline)
@@ -236,7 +291,7 @@ struct PuzzleView: View {
     }
 
     private var isGameActive: Bool {
-        (!session.tiles.isEmpty || session.isPreviewing) && !session.isSolved
+        (!session.tiles.isEmpty || session.isPreviewing) && !session.isSolved && !session.isTimeTrialFailed
     }
 
     private var showSolveButton: Bool {
@@ -248,7 +303,7 @@ struct PuzzleView: View {
     }
 
     private var streakVisible: Bool {
-        !completion.showCompletion && !session.isLoading && session.error == nil
+        !completion.showCompletion && !completion.showTimeTrialFail && !session.isLoading && session.error == nil
     }
 
     private func startNewGame() {

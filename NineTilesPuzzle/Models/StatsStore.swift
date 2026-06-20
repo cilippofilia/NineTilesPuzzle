@@ -17,6 +17,7 @@ final class StatsStore {
 
     var personalBestMoves: [StatsKey: Int] = [:]
     var personalBestTime: [StatsKey: TimeInterval] = [:]
+    var personalBestScore: [StatsKey: Int] = [:]
     var gamesPlayed: [StatsKey: Int] = [:]
     var currentStreak: [StatsKey: Int] = [:]
     var allTimeHighStreak: [StatsKey: Int] = [:]
@@ -56,6 +57,18 @@ final class StatsStore {
         return (isNewMovesRecord, isNewBestTime)
     }
 
+    /// Records a Time Trial score against `key`, updating the personal best if `score`
+    /// beats it. Returns whether this was a new record.
+    @discardableResult
+    func recordTimeTrialScore(for key: StatsKey, score: Int) -> Bool {
+        let existingScore = personalBestScore[key]
+        guard existingScore == nil || score > existingScore! else { return false }
+
+        personalBestScore[key] = score
+        defaults.set(score, forKey: Keys.personalBestScore(for: key.gridSize, mode: key.gameMode))
+        return true
+    }
+
     /// Bumps the games-played tally only — used by modes (e.g. Zen) that don't track
     /// personal bests but still count toward total-games achievements.
     func recordGamePlayed(for key: StatsKey) {
@@ -86,6 +99,7 @@ final class StatsStore {
     func resetStats() {
         personalBestMoves = [:]
         personalBestTime = [:]
+        personalBestScore = [:]
         gamesPlayed = [:]
         currentStreak = [:]
         allTimeHighStreak = [:]
@@ -93,6 +107,7 @@ final class StatsStore {
             for size in 3...8 {
                 defaults.removeObject(forKey: Keys.personalBest(for: size, mode: mode))
                 defaults.removeObject(forKey: Keys.personalBestTime(for: size, mode: mode))
+                defaults.removeObject(forKey: Keys.personalBestScore(for: size, mode: mode))
                 defaults.removeObject(forKey: Keys.gamesPlayed(for: size, mode: mode))
                 defaults.removeObject(forKey: Keys.currentStreak(for: size, mode: mode))
                 defaults.removeObject(forKey: Keys.allTimeHighStreak(for: size, mode: mode))
@@ -105,6 +120,7 @@ private extension StatsStore {
     enum Keys {
         static func personalBest(for size: Int, mode: GameMode) -> String { "puzzle.personalBest.\(mode.rawValue).\(size)" }
         static func personalBestTime(for size: Int, mode: GameMode) -> String { "puzzle.personalBestTime.\(mode.rawValue).\(size)" }
+        static func personalBestScore(for size: Int, mode: GameMode) -> String { "puzzle.personalBestScore.\(mode.rawValue).\(size)" }
         static func gamesPlayed(for size: Int, mode: GameMode) -> String { "puzzle.gamesPlayed.\(mode.rawValue).\(size)" }
         static func currentStreak(for size: Int, mode: GameMode) -> String { "puzzle.currentStreak.\(mode.rawValue).\(size)" }
         static func allTimeHighStreak(for size: Int, mode: GameMode) -> String { "puzzle.allTimeHighStreak.\(mode.rawValue).\(size)" }
@@ -118,6 +134,8 @@ private extension StatsStore {
                 if moves > 0 { personalBestMoves[key] = moves }
                 let time = defaults.double(forKey: Keys.personalBestTime(for: size, mode: mode))
                 if time > 0 { personalBestTime[key] = time }
+                let score = defaults.integer(forKey: Keys.personalBestScore(for: size, mode: mode))
+                if score > 0 { personalBestScore[key] = score }
                 let played = defaults.integer(forKey: Keys.gamesPlayed(for: size, mode: mode))
                 if played > 0 { gamesPlayed[key] = played }
                 let streak = defaults.integer(forKey: Keys.currentStreak(for: size, mode: mode))

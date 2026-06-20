@@ -16,16 +16,20 @@ struct CompletionBannerView: View {
     let elapsedTime: TimeInterval
     let personalBestTime: TimeInterval?
     let isPracticeMode: Bool
+    let timeTrialScore: Int
+    let personalBestScore: Int?
+    let isNewTimeTrialScoreRecord: Bool
 
     private static let goldColor = Color(hue: 0.12, saturation: 0.9, brightness: 0.85)
 
-    /// A streak of consecutive correct placements isn't meaningful in Slide mode (see
-    /// `PuzzleStatusBarView`); the banner shows elapsed time there instead.
-    private var showsStreak: Bool { gameMode != .slide }
+    /// A streak of consecutive correct placements isn't meaningful in Slide or Time Trial
+    /// (see `PuzzleStatusBarView`); the banner shows elapsed time/score there instead.
+    private var showsStreak: Bool { gameMode != .slide && gameMode != .timeTrial }
+    private var showsScore: Bool { gameMode == .timeTrial }
 
     var body: some View {
         VStack(spacing: 6) {
-            if isNewRecord && showsStreak {
+            if (isNewRecord && showsStreak) || (isNewTimeTrialScoreRecord && showsScore) {
                 Label("New Record!", systemImage: "trophy.fill")
                     .font(.subheadline)
                     .bold()
@@ -41,6 +45,10 @@ struct CompletionBannerView: View {
                         Label("\(streak)", systemImage: "flame.fill")
                             .foregroundStyle(.orange)
                             .bold()
+                    } else if showsScore {
+                        Label("\(timeTrialScore)", systemImage: "bolt.fill")
+                            .foregroundStyle(.orange)
+                            .bold()
                     } else {
                         Label(elapsedTime.formattedMinutesSeconds, systemImage: "clock")
                             .bold()
@@ -51,6 +59,12 @@ struct CompletionBannerView: View {
 
                 if showsStreak {
                     if let best = personalBest, best != moveCount {
+                        Text("Best: \(best)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                } else if showsScore {
+                    if let best = personalBestScore, best != timeTrialScore {
                         Text("Best: \(best)")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
@@ -78,7 +92,10 @@ struct CompletionBannerView: View {
             personalBest: nil,
             elapsedTime: 65,
             personalBestTime: nil,
-            isPracticeMode: false
+            isPracticeMode: false,
+            timeTrialScore: 0,
+            personalBestScore: nil,
+            isNewTimeTrialScoreRecord: false
         )
         Spacer()
         CompletionBannerView(
@@ -89,7 +106,24 @@ struct CompletionBannerView: View {
             personalBest: 23,
             elapsedTime: 47,
             personalBestTime: 52,
-            isPracticeMode: false
+            isPracticeMode: false,
+            timeTrialScore: 0,
+            personalBestScore: nil,
+            isNewTimeTrialScoreRecord: false
+        )
+        Spacer()
+        CompletionBannerView(
+            gameMode: .timeTrial,
+            streak: 0,
+            isNewRecord: false,
+            moveCount: 14,
+            personalBest: nil,
+            elapsedTime: 38,
+            personalBestTime: nil,
+            isPracticeMode: false,
+            timeTrialScore: 5300,
+            personalBestScore: 5000,
+            isNewTimeTrialScoreRecord: true
         )
         Spacer()
         CompletionBannerView(
@@ -100,7 +134,10 @@ struct CompletionBannerView: View {
             personalBest: nil,
             elapsedTime: 30,
             personalBestTime: nil,
-            isPracticeMode: true
+            isPracticeMode: true,
+            timeTrialScore: 0,
+            personalBestScore: nil,
+            isNewTimeTrialScoreRecord: false
         )
     }
 }

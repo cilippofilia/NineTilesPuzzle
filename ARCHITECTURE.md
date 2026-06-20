@@ -29,6 +29,8 @@ NineTilesPuzzle/
 │   ├── PersistenceStore.swift      — protocol seam over UserDefaults (see below)
 │   ├── StatsKey.swift              — Hashable(gridSize, gameMode) used by GameSession/StatsStore
 │   ├── GameMode.swift              — enum: classic/slide/timeTrial/limitedMoves/zen/fog/chaos
+│   ├── TimeTrialRules.swift        — pure constants/formulas: base time limit per grid size,
+│   │                                  combo bonus/misplay penalty, score (see below)
 │   ├── TileModel.swift             — @Observable tile: id, currentIndex, isLocked
 │   ├── Achievement.swift           — Codable achievement definition + unlock flag
 │   ├── ZenSparkle.swift            — decorative particle model for Zen mode's solve animation
@@ -65,9 +67,12 @@ NineTilesPuzzle/
 │   │   ├── TileView.swift           — single draggable tile
 │   │   ├── ImagePreviewView.swift   — pre-shuffle reveal
 │   │   ├── PuzzleStatusBarView.swift, MoveCounterView.swift, TimeCounterView.swift
+│   │   ├── TimeTrialTimerView.swift, TimeTrialScoreView.swift — Time Trial's HUD
+│   │   ├── TimeTrialDeltaIndicatorView.swift — transient "+1s"/"-2s" combo indicator
 │   │   └── PuzzleErrorView.swift
 │   └── Helpers/                     — grab-bag of small reusable views (toast, banners,
-│                                       loading/splash, brand mark, badges, zen sparkle)
+│                                       loading/splash, brand mark, badges, zen sparkle,
+│                                       Time Trial's "Out of Time" overlay)
 ├── Resources/                       — achievements.json, sounds, asset catalog, app icon
 NineTilesPuzzleTests/                 — real, wired-up Unit Testing Bundle target (see below)
 ```
@@ -132,14 +137,41 @@ new-record badges stay visible, and Zen mode's breathe-and-fade transition into 
 puzzle. Takes no store dependencies — callers pass live values and closures per call — so
 it's constructible and testable with zero environment setup.
 
-**Game modes today**: `GameMode` is 7 cases, but `isAvailable` gates 3 of them
-(`.classic`, `.slide`, `.zen`); the other 4 are listed in the UI as "Coming soon…" with no
-behavior. Mode-specific behavior is still expressed as scattered conditionals (`isZenMode`,
-`selectedGameMode == .slide`, `settingsStore.debugOverlayEnabled`) inside `GameSession` and
-`PuzzleView`/`PuzzleGridView` — the store split and view model extraction didn't address
-this axis, since with only Zen as a real data point any `GameModeRules`-style abstraction
-would be guessing at shape (see `ROADMAP.md` §6). Worth revisiting once Time Trial or
-Limited Moves actually exists.
+**Game modes today**: `GameMode` is 7 cases; `isAvailable` now gates 4 of them (`.classic`,
+`.slide`, `.zen`, `.timeTrial`), with the remaining 3 listed in the UI as "Coming soon…"
+with no behavior. Mode-specific behavior is still expressed as scattered conditionals
+(`isZenMode`, `isTimeTrialMode`, `selectedGameMode == .slide`,
+`settingsStore.debugOverlayEnabled`) inside `GameSession` and `PuzzleView`/
+`PuzzleGridView` — see the §6 resolution below for why this stayed conditionals-based even
+with Time Trial as a second real mode.
+
+**Time Trial mode** (MVP scope — see `ROADMAP.md` §1 for what's deferred): one timed puzzle
+per grid size, always on `ClassicEngine` (its per-move `isLocked` signal is what makes
+"was this move correct?" detectable; `SlideEngine` never locks tiles, so Time Trial isn't
+offered there). `GameSession` owns a third timer alongside the streak countdown and
+stopwatch — `timeTrialRemaining`/`isTimeTrialRunning`/`isTimeTrialFailed` plus
+`startTimeTrialCountdown()`/`stopTimeTrialCountdown()`, the same wall-clock-anchored `Task`
+shape as `startCountdown()`/`stopCountdown()` — but with a *mutable* end date
+(`timeTrialEndDate`) so `applyTimeTrialMoveOutcome(correctBefore:)` can nudge it on every
+move: +1s on a move that locks a tile correctly, -2s otherwise, failing the puzzle if that
+empties the clock. `Models/TimeTrialRules.swift` holds the pure, table-driven constants
+(base time limit per grid size, the bonus/penalty amounts, the score formula) so they're
+unit-testable with no `GameSession` dependency. `StatsStore` gained a `personalBestScore`
+dictionary alongside `personalBestMoves`/`personalBestTime`, following the same
+per-`StatsKey` shape. `PuzzleCompletionViewModel` gained `showNewTimeTrialScoreRecord` and
+a `showTimeTrialFail` flag (driving a dedicated `TimeTrialFailView` "Out of Time" overlay,
+mutually exclusive with the regular completion banner) alongside the existing record-badge
+and Zen-sequence state.
+
+**§6 resolution**: with Time Trial now a second real mode beyond Zen, the question of
+whether mode-specific behavior deserves a generic `GameModeRules` abstraction was
+revisited — and conditionals still won. Zen *disables* tracking (streaks, countdown,
+records); Time Trial *adds* a structurally different timer-and-scoring system; neither is
+a parameterization of the same underlying axis (e.g. "a budget + a fail condition") that a
+shared struct could express without one mode's fields being meaningless for the other. The
+two real data points so far vary in *kind*, not just *parameters*. Revisit again once
+Limited Moves exists — a move-budget mode is much closer in shape to Time Trial's
+time-budget mode, and might finally be the pair that justifies a shared abstraction.
 
 **Image pipeline**: `ImageSource` protocol → `RemoteImageSource` (picsum.photos) /
 `PhotoLibraryImageSource` / `LocalImageSource` (bundled fallback) → `ImageService` (primary
@@ -154,10 +186,15 @@ are wanted).
 
 **Testing**: `NineTilesPuzzleTests` is a real Unit Testing Bundle target (added manually in
 Xcode in June 2026 — it existed as a folder of source files for a while before that without
-ever actually being wired up or compiled). 77 tests currently pass, covering: both engines
+ever actually being wired up or compiled). 91 tests currently pass, covering: both engines
 and `SlideSolver`, `ImageService`/`ImageSlicer`, all four stores (`StatsStore` and
-`AchievementsStore` via `InMemoryPersistenceStore`), and `PuzzleCompletionViewModel`. Getting
-the target wired up surfaced three real, previously-undetected bugs that had been sitting
-in untested code paths — two missing imports and one test with a geometrically-invalid
-fixture (asserted a slide between two non-adjacent grid cells) — all fixed once the target
-could finally compile and run them.
+`AchievementsStore` via `InMemoryPersistenceStore`), `PuzzleCompletionViewModel`,
+`TimeTrialRules`, and a `GameSessionTimeTrialTests` suite exercising the full Time Trial
+integration (countdown lifecycle, combo bonus/penalty, fail state, score recording) end to
+end against a real `GameSession` — using `.numbers` media mode (no network/image work) and
+hand-built tile layouts to engineer specific moves deterministically, since these tests
+never `await` a real sleep and so the countdown's background tick task never gets scheduled
+mid-test. Getting the target wired up surfaced three real, previously-undetected bugs that
+had been sitting in untested code paths — two missing imports and one test with a
+geometrically-invalid fixture (asserted a slide between two non-adjacent grid cells) — all
+fixed once the target could finally compile and run them.

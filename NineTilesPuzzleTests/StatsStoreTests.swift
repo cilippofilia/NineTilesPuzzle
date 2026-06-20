@@ -72,6 +72,31 @@ struct StatsStoreTests {
         #expect(store.gamesPlayedCount(forSize: 4) == 1)
     }
 
+    // MARK: - recordTimeTrialScore
+
+    @Test func firstScoreIsAlwaysANewRecord() {
+        let store = makeStore()
+        let isNewRecord = store.recordTimeTrialScore(for: classic3, score: 500)
+        #expect(isNewRecord)
+        #expect(store.personalBestScore[classic3] == 500)
+    }
+
+    @Test func higherScoreOverwritesThePersonalBest() {
+        let store = makeStore()
+        store.recordTimeTrialScore(for: classic3, score: 500)
+        let isNewRecord = store.recordTimeTrialScore(for: classic3, score: 800)
+        #expect(isNewRecord)
+        #expect(store.personalBestScore[classic3] == 800)
+    }
+
+    @Test func lowerOrEqualScoreDoesNotOverwriteThePersonalBest() {
+        let store = makeStore()
+        store.recordTimeTrialScore(for: classic3, score: 500)
+        let isNewRecord = store.recordTimeTrialScore(for: classic3, score: 500)
+        #expect(!isNewRecord)
+        #expect(store.personalBestScore[classic3] == 500)
+    }
+
     // MARK: - recordStreakIncrement
 
     @Test func streakIncrementsAndSetsAllTimeHighOnFirstMove() {
@@ -134,11 +159,13 @@ struct StatsStoreTests {
         let store = makeStore()
         store.recordCompletion(for: classic3, moves: 10, time: 20)
         store.recordStreakIncrement(for: slide3, trackRecord: true)
+        store.recordTimeTrialScore(for: classic3, score: 500)
 
         store.resetStats()
 
         #expect(store.personalBestMoves.isEmpty)
         #expect(store.personalBestTime.isEmpty)
+        #expect(store.personalBestScore.isEmpty)
         #expect(store.gamesPlayed.isEmpty)
         #expect(store.currentStreak.isEmpty)
         #expect(store.allTimeHighStreak.isEmpty)
@@ -152,6 +179,7 @@ struct StatsStoreTests {
         let first = StatsStore(defaults: defaults)
         first.recordCompletion(for: classic3, moves: 12, time: 18)
         first.recordStreakIncrement(for: classic3, trackRecord: true)
+        first.recordTimeTrialScore(for: classic3, score: 500)
 
         let second = StatsStore(defaults: defaults)
         #expect(second.personalBestMoves[classic3] == 12)
@@ -159,5 +187,6 @@ struct StatsStoreTests {
         #expect(second.gamesPlayed[classic3] == 1)
         #expect(second.currentStreak[classic3] == 1)
         #expect(second.allTimeHighStreak[classic3] == 1)
+        #expect(second.personalBestScore[classic3] == 500)
     }
 }

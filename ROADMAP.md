@@ -20,10 +20,20 @@ day (a bundled pack indexed by date, or a date-seeded picsum ID). Track a calend
 completed days, separate from the in-game move streak. This is the single highest-leverage
 feature for retention, and the natural companion to an online leaderboard (see §3).
 
-[] ### Time Attack — **S/M**
-Solve the whole puzzle before a countdown expires, with time budget scaled by grid size.
-The streak countdown timer in `GameSession` already provides the timer infrastructure —
-this generalizes it from "time per correct move" to "time per puzzle".
+[X] ### Time Attack — **S/M**
+Shipped as Time Trial mode (MVP scope, June 2026): one timed puzzle per grid size, with a
+flat combo bonus/misplay penalty per move and a simplified score formula. Reused the streak
+countdown timer's `Task`-based shape in `GameSession` almost exactly, generalized from "time
+per correct move" to "time per puzzle" — see `ARCHITECTURE.md` for the implementation.
+Deferred to follow-up work, from the original feature spec:
+- The full 10-stage Gauntlet Ladder progression (grid size + time limit escalation table).
+- The Endless "Ghost Mode" (stage 11+), racing the player's own personal best pace.
+- Time-banking: carrying over a percentage of leftover time between ladder stages.
+- The low-time vignette pulse and BPM-escalating audio sensory layer (the countdown
+  currently only recolors text, per the existing `StreakCounterView`-style pattern).
+- Restricting Time Trial to a curated, high-contrast image source for leaderboard fairness.
+- `scenePhase`-based countdown freeze + 3-2-1 resume overlay on backgrounding/interruption
+  (today the countdown has no background handling at all, same as the streak countdown).
 
 [] ### Limited Moves — **S**
 Solve within a move budget per difficulty. The move counter already exists; this only adds
@@ -228,15 +238,15 @@ Current structure (directory layout, store boundaries, persistence, testing) is 
 in `ARCHITECTURE.md`, not duplicated here — that file is the single source of truth so the
 two docs don't drift out of sync with each other again.
 
-**Open question carried over from the June 2026 architecture pass:** `GameMode` is 7 cases,
-but mode-specific behavior (`isZenMode`, `selectedGameMode == .slide`, debug-overlay gating)
-is still scattered conditionals inside `GameSession` and `PuzzleView`/`PuzzleGridView`
-rather than a single abstraction. None of Time Trial / Limited Moves / Fog / Chaos need a
-new `GameEngine` — they're modifiers on top of Classic/Slide's move rules (a timer budget, a
-move budget, a fail condition), not new move rules. A small composable `GameModeRules` was
-considered for this, but shelved deliberately: with only Zen as a real, shipped data point,
-every axis of variance collapses to a single `isZenMode` boolean, so any multi-axis struct
-would be guessed rather than derived. Revisit once Time Trial or Limited Moves actually
-exists — two real data points will show the right shape instead of a guessed one.
+**Open question, revisited with Time Trial shipped (June 2026):** `GameMode` is 7 cases,
+and mode-specific behavior (`isZenMode`, `isTimeTrialMode`, `selectedGameMode == .slide`,
+debug-overlay gating) is still scattered conditionals inside `GameSession` and
+`PuzzleView`/`PuzzleGridView` rather than a single abstraction. A small composable
+`GameModeRules` was considered again now that Time Trial is a second real, shipped data
+point beyond Zen — and shelved again: Zen *disables* tracking, Time Trial *adds* a
+structurally different timer-and-scoring system, so the two don't actually share an axis a
+struct could express (see `ARCHITECTURE.md`'s §6 resolution for the full reasoning). Revisit
+once Limited Moves exists — a move-budget mode is much closer in shape to Time Trial's
+time-budget mode, and may finally be the pair that justifies it.
 
 ---

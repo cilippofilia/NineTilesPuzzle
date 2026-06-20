@@ -20,6 +20,8 @@ final class PuzzleCompletionViewModel {
     var showNewRecord = false
     var showNewMovesRecord = false
     var showNewBestTime = false
+    var showNewTimeTrialScoreRecord = false
+    var showTimeTrialFail = false
     var bannerOffset: CGSize = .zero
 
     var zenBreathScale: CGFloat = 1
@@ -47,6 +49,10 @@ final class PuzzleCompletionViewModel {
         withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewBestTime = isRecord }
     }
 
+    func handleNewTimeTrialScoreRecordChange(_ isRecord: Bool) {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewTimeTrialScoreRecord = isRecord }
+    }
+
     /// New-record badges fade out a few seconds after a solve, independent of how long the
     /// banner itself (and the "Continue" button) stays on screen.
     func clearRecordFlagsAfterDelay(isSolved: Bool) async {
@@ -56,11 +62,22 @@ final class PuzzleCompletionViewModel {
             showNewRecord = false
             showNewMovesRecord = false
             showNewBestTime = false
+            showNewTimeTrialScoreRecord = false
         }
     }
 
     func hasNewBestBadge(selectedGameMode: GameMode) -> Bool {
-        showNewMovesRecord || (selectedGameMode == .slide && showNewBestTime)
+        showNewMovesRecord
+            || (selectedGameMode == .slide && showNewBestTime)
+            || (selectedGameMode == .timeTrial && showNewTimeTrialScoreRecord)
+    }
+
+    // MARK: - Time Trial fail overlay
+
+    /// Mirrors `handleSolvedChange`'s show/hide shape but for the "ran out the clock"
+    /// overlay, which is mutually exclusive with the completion banner.
+    func handleTimeTrialFailedChange(_ failed: Bool) {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showTimeTrialFail = failed }
     }
 
     // MARK: - Banner drag-to-dismiss
@@ -82,6 +99,7 @@ final class PuzzleCompletionViewModel {
     /// Resets banner positioning before the next puzzle starts.
     func prepareForNewGame() {
         bannerOffset = .zero
+        showTimeTrialFail = false
     }
 
     // MARK: - Zen mode completion sequence

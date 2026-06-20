@@ -22,6 +22,9 @@ struct PuzzleStatusBarView: View {
     let personalBest: Int?
     let elapsedTime: TimeInterval
     let personalBestTime: TimeInterval?
+    let timeTrialRemaining: Double
+    let timeTrialScore: Int
+    let personalBestScore: Int?
 
     var body: some View {
         if debugOverlayEnabled {
@@ -31,6 +34,14 @@ struct PuzzleStatusBarView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(.regularMaterial, in: .capsule)
+        } else if gameMode == .timeTrial {
+            HStack {
+                TimeTrialTimerView(remaining: timeTrialRemaining)
+                    .padding(.leading)
+                Spacer()
+                TimeTrialScoreView(score: timeTrialScore, personalBest: personalBestScore)
+                    .padding(.trailing)
+            }
         } else if gameMode == .slide {
             HStack {
                 TimeCounterView(elapsed: elapsedTime, personalBest: personalBestTime)
@@ -53,8 +64,9 @@ struct PuzzleStatusBarView: View {
 
 #Preview {
     VStack(spacing: 20) {
-        PuzzleStatusBarView(gameMode: .classic, debugOverlayEnabled: false, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38)
-        PuzzleStatusBarView(gameMode: .slide, debugOverlayEnabled: false, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38)
-        PuzzleStatusBarView(gameMode: .classic, debugOverlayEnabled: true, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38)
+        PuzzleStatusBarView(gameMode: .classic, debugOverlayEnabled: false, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil)
+        PuzzleStatusBarView(gameMode: .slide, debugOverlayEnabled: false, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil)
+        PuzzleStatusBarView(gameMode: .timeTrial, debugOverlayEnabled: false, currentStreak: 0, bestStreak: 0, timerRemaining: 0, isTimerRunning: false, moveCount: 8, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 18, timeTrialScore: 1900, personalBestScore: 2400)
+        PuzzleStatusBarView(gameMode: .classic, debugOverlayEnabled: true, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil)
     }
 }

@@ -42,17 +42,29 @@ final class GameSession {
     var isNewBestTime: Bool = false
     var error: Error?
     var selectedGameMode: GameMode = .classic
+    var isNewTimeTrialScoreRecord: Bool = false
+    var timeTrialScore: Int = 0
 
     private(set) var timerRemaining: Double = 30
     private(set) var isTimerRunning = false
     private(set) var didBreakStreak = false
 
+    private(set) var timeTrialRemaining: Double = 0
+    private(set) var isTimeTrialRunning = false
+    private(set) var isTimeTrialFailed = false
+    /// The bonus (positive) or penalty (negative) seconds applied by the most recent move,
+    /// for the HUD's transient "+1s"/"-2s" indicator. `nil` before any move has been made.
+    private(set) var lastTimeTrialDelta: TimeInterval?
+
     private var countdownTask: Task<Void, Never>?
     private var stopwatchTask: Task<Void, Never>?
+    private var timeTrialTask: Task<Void, Never>?
+    private var timeTrialEndDate: Date?
 
     /// Zen mode tracks nothing but the number of games played: no streaks, no personal
     /// bests, no achievements — just an uninterrupted, judgment-free puzzle loop.
     var isZenMode: Bool { selectedGameMode == .zen }
+    var isTimeTrialMode: Bool { selectedGameMode == .timeTrial }
 
     var currentStatsKey: StatsKey { StatsKey(gridSize: gridSize, gameMode: selectedGameMode) }
 
@@ -113,6 +125,44 @@ final class GameSession {
         isTimerRunning = false
     }
 
+    /// Starts a fresh Time Trial countdown at the base time limit for the current grid
+    /// size. Unlike `startCountdown()`, the end date is mutable instance state rather than
+    /// a value captured by the task — `applyTimeTrialMoveOutcome` nudges it on every move so
+    /// the running task picks up combo bonuses/misplay penalties on its very next tick.
+    func startTimeTrialCountdown() {
+        stopTimeTrialCountdown()
+        isTimeTrialFailed = false
+        lastTimeTrialDelta = nil
+        let limit = TimeTrialRules.baseTimeLimit(forGridSize: gridSize)
+        timeTrialRemaining = limit
+        isTimeTrialRunning = true
+        timeTrialEndDate = Date.now.addingTimeInterval(limit)
+        timeTrialTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled, let end = timeTrialEndDate else { break }
+                let remaining = end.timeIntervalSinceNow
+                if remaining <= 0 {
+                    timeTrialRemaining = 0
+                    isTimeTrialFailed = true
+                    stopTimeTrialCountdown()
+                    saveToUserDefaults()
+                    return
+                }
+                timeTrialRemaining = remaining
+            }
+        }
+    }
+
+    /// Cancels the running Time Trial countdown task. Deliberately doesn't reset
+    /// `timeTrialRemaining`/`isTimeTrialFailed` — callers that solve or fail the puzzle need
+    /// those values to still reflect the final state for scoring and the result overlay.
+    func stopTimeTrialCountdown() {
+        timeTrialTask?.cancel()
+        timeTrialTask = nil
+        isTimeTrialRunning = false
+    }
+
     /// Starts (or resumes) the elapsed-time stopwatch, anchored so a resumed game continues
     /// from its persisted `elapsedTime` rather than restarting at zero.
     func startStopwatch() {
@@ -147,7 +197,10 @@ final class GameSession {
         isNewMovesRecord = false
         elapsedTime = 0
         isNewBestTime = false
+        isNewTimeTrialScoreRecord = false
+        timeTrialScore = 0
         error = nil
+        stopTimeTrialCountdown()
 
         let initial = (0..<gridSize * gridSize).map {
             TileModel(id: $0, currentIndex: $0, isLocked: false)
@@ -157,6 +210,7 @@ final class GameSession {
             isLoading = false
             tiles = activeEngine.shuffle(initial, gridSize: gridSize)
             if currentStreakForCurrentSize > 0 { startCountdown() }
+            if isTimeTrialMode { startTimeTrialCountdown() }
             saveToUserDefaults()
             return
         }
@@ -188,6 +242,7 @@ final class GameSession {
 
             tiles = activeEngine.shuffle(initial, gridSize: gridSize)
             if currentStreakForCurrentSize > 0 { startCountdown() }
+            if isTimeTrialMode { startTimeTrialCountdown() }
             saveToUserDefaults()
         } catch {
             self.error = error
@@ -197,6 +252,7 @@ final class GameSession {
 
     /// Attempts to swap the tiles at `sourceIndex` and `targetIndex`; no-ops if either is locked or indices are equal.
     func swapTiles(from sourceIndex: Int, to targetIndex: Int) {
+        guard !isTimeTrialFailed else { return }
         guard sourceIndex != targetIndex else { return }
         guard
             let source = tiles.first(where: { $0.currentIndex == sourceIndex }),
@@ -238,7 +294,7 @@ final class GameSession {
         let debugOverlayEnabled = settingsStore.debugOverlayEnabled
 
         if isSolved {
-            stopCountdown()
+            if isTimeTrialMode { stopTimeTrialCountdown() } else { stopCountdown() }
             stopStopwatch()
             if isZenMode {
                 statsStore.recordGamePlayed(for: key)
@@ -246,10 +302,17 @@ final class GameSession {
                 let result = statsStore.recordCompletion(for: key, moves: currentMoveCount, time: elapsedTime)
                 isNewMovesRecord = result.isNewMovesRecord
                 isNewBestTime = result.isNewBestTime
+                if isTimeTrialMode {
+                    let score = TimeTrialRules.score(remainingSeconds: timeTrialRemaining, gridSize: gridSize)
+                    timeTrialScore = score
+                    isNewTimeTrialScoreRecord = statsStore.recordTimeTrialScore(for: key, score: score)
+                }
             }
         }
 
-        if !isZenMode {
+        if isTimeTrialMode {
+            applyTimeTrialMoveOutcome(correctBefore: correctBefore)
+        } else if !isZenMode {
             let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
             if newlyCorrect > 0 {
                 let result = statsStore.recordStreakIncrement(for: key, trackRecord: !debugOverlayEnabled)
@@ -260,10 +323,30 @@ final class GameSession {
                 isNewRecord = false
                 stopCountdown()
             }
-
-            if !debugOverlayEnabled { achievementsStore.checkAchievements(using: statsStore) }
         }
+
+        if !isZenMode && !debugOverlayEnabled { achievementsStore.checkAchievements(using: statsStore) }
         saveToUserDefaults()
+    }
+
+    /// Applies the flat combo bonus/misplay penalty to the running Time Trial countdown and
+    /// fails the puzzle if that empties the clock. No-ops once already solved — the puzzle's
+    /// final move shouldn't also be penalized/bonused after `stopTimeTrialCountdown()` above.
+    private func applyTimeTrialMoveOutcome(correctBefore: Int) {
+        guard !isSolved, let end = timeTrialEndDate else { return }
+
+        let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
+        let delta = newlyCorrect > 0 ? TimeTrialRules.comboBonusSeconds : -TimeTrialRules.misplayPenaltySeconds
+        let newEnd = end.addingTimeInterval(delta)
+        timeTrialEndDate = newEnd
+        lastTimeTrialDelta = delta
+
+        let remaining = newEnd.timeIntervalSinceNow
+        timeTrialRemaining = max(0, remaining)
+        if remaining <= 0 {
+            isTimeTrialFailed = true
+            stopTimeTrialCountdown()
+        }
     }
 
     func skipPreview() {
@@ -274,6 +357,7 @@ final class GameSession {
     /// Stops the countdown when the user quits mid-game; streak is preserved.
     func leaveGame() {
         stopCountdown()
+        stopTimeTrialCountdown()
         stopStopwatch()
         saveToUserDefaults()
     }
@@ -299,8 +383,15 @@ extension GameSession {
 
     var personalBestForCurrentSize: Int? { statsStore.personalBestMoves[currentStatsKey] }
     var personalBestTimeForCurrentSize: TimeInterval? { statsStore.personalBestTime[currentStatsKey] }
+    var personalBestScoreForCurrentSize: Int? { statsStore.personalBestScore[currentStatsKey] }
     var currentStreakForCurrentSize: Int { statsStore.currentStreak[currentStatsKey] ?? 0 }
     var allTimeHighStreakForCurrentSize: Int { statsStore.allTimeHighStreak[currentStatsKey] ?? 0 }
+
+    /// "If you solved right now" score, for the live HUD display during play — the final
+    /// score recorded on solve uses the same formula at the moment `isSolved` flips.
+    var timeTrialScoreEstimate: Int {
+        TimeTrialRules.score(remainingSeconds: timeTrialRemaining, gridSize: gridSize)
+    }
 
     /// Streaks only make sense in Classic mode (see `PuzzleStatusBarView`), so the menu's
     /// streak card always shows Classic's stats regardless of the currently selected mode.
@@ -382,6 +473,7 @@ extension GameSession {
         static let elapsedTime = "puzzle.elapsedTime"
         static let useRandomSize = "puzzle.useRandomSize"
         static let gameMode = "puzzle.gameMode"
+        static let timeTrialFailed = "puzzle.timeTrialFailed"
     }
 }
 
@@ -400,6 +492,7 @@ private extension GameSession {
         defaults.set(selectedGameMode.rawValue, forKey: Keys.gameMode)
         defaults.set(currentMoveCount, forKey: Keys.currentMoveCount)
         defaults.set(elapsedTime, forKey: Keys.elapsedTime)
+        defaults.set(isTimeTrialFailed, forKey: Keys.timeTrialFailed)
     }
 
     func restoreFromUserDefaults() {
@@ -446,7 +539,13 @@ private extension GameSession {
         isSolved = activeEngine.isSolved(tiles)
         currentMoveCount = defaults.integer(forKey: Keys.currentMoveCount)
         elapsedTime = defaults.double(forKey: Keys.elapsedTime)
+        isTimeTrialFailed = defaults.bool(forKey: Keys.timeTrialFailed)
         if !isSolved && currentStreakForCurrentSize > 0 { startCountdown() }
+        // Resuming restarts the Time Trial countdown at the full base duration rather than
+        // the exact persisted remainder — background/foreground interruption handling is a
+        // deliberately deferred follow-up, so this is an accepted MVP limitation. A puzzle
+        // that had already failed stays failed rather than getting a fresh clock.
+        if !isSolved && !isTimeTrialFailed && isTimeTrialMode { startTimeTrialCountdown() }
         // Resume the stopwatch only if it had actually started (i.e. a move was already made);
         // otherwise it should still wait for the first move, same as a fresh game.
         if !isSolved && currentMoveCount > 0 { startStopwatch() }
