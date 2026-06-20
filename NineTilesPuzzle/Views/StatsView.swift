@@ -29,10 +29,20 @@ struct StatsView: View {
                 ForEach(GameMode.allCases.filter { $0.isAvailable && $0 != .zen }) { mode in
                     Section("Personal Bests · \(mode.title)") {
                         ForEach(3...8, id: \.self) { size in
-                            let best = statsStore.personalBestMoves[StatsKey(gridSize: size, gameMode: mode)]
+                            let key = StatsKey(gridSize: size, gameMode: mode)
                             LabeledContent(difficultyLabel(for: size)) {
-                                Text(best.map { "\($0) moves" } ?? "--")
-                                    .foregroundStyle(best != nil ? .primary : .secondary)
+                                // Time Trial's headline personal best is score, not moves —
+                                // moves/time are still tracked (see ARCHITECTURE.md) but
+                                // aren't what a Time Trial player is chasing.
+                                if mode == .timeTrial {
+                                    let best = statsStore.personalBestScore[key]
+                                    Text(best.map { "\($0) pts" } ?? "--")
+                                        .foregroundStyle(best != nil ? .primary : .secondary)
+                                } else {
+                                    let best = statsStore.personalBestMoves[key]
+                                    Text(best.map { "\($0) moves" } ?? "--")
+                                        .foregroundStyle(best != nil ? .primary : .secondary)
+                                }
                             }
                         }
                     }
