@@ -21,7 +21,9 @@ struct GameModeView: View {
                 ForEach(GameMode.allCases) { mode in
                     if mode.isAvailable {
                         Button {
-                            session.setGameMode(mode)
+                            withAnimation {
+                                session.setGameMode(mode)
+                            }
                         } label: {
                             GameModeRowView(mode: mode, isSelected: session.selectedGameMode == mode)
                         }
@@ -30,21 +32,34 @@ struct GameModeView: View {
                         GameModeRowView(mode: mode, isSelected: false)
                             .foregroundStyle(.secondary)
                     }
-                }
 
-                if session.selectedGameMode == .timeTrial {
-                    Toggle("Gauntlet Ladder", isOn: Binding(
-                        get: { session.isLadderMode },
-                        set: { session.setLadderMode($0) }
-                    ))
-                    .padding(.vertical, 4)
+                    if mode == .timeTrial && session.selectedGameMode == .timeTrial {
+                        HStack {
+                            Label {
+                                VStack(alignment: .leading) {
+                                    Text("Gauntlet Ladder")
+                                    Text("10 escalating stages with fixed grid sizes.\nDifficulty is set automatically while active.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: "figure.stairs")
+                                    .foregroundStyle(.primary)
+                            }
+
+                            Spacer()
+
+                            Toggle("Gauntlet Ladder", isOn: Binding(
+                                get: { session.isLadderMode },
+                                set: { session.setLadderMode($0) }
+                            ))
+                            .labelsHidden()
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
             } header: {
                 Text("Game Type")
-            } footer: {
-                if session.selectedGameMode == .timeTrial && session.isLadderMode {
-                    Text("10 escalating stages with fixed grid sizes — Difficulty is set automatically while active.")
-                }
             }
 
             Section {
@@ -108,81 +123,6 @@ struct GameModeView: View {
     private func requestPhotoAccess() {
         Task {
             authStatus = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-        }
-    }
-}
-
-private struct GameModeRowView: View {
-    let mode: GameMode
-    let isSelected: Bool
-
-    var body: some View {
-        HStack {
-            Label {
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text(mode.title)
-                        if !mode.isAvailable {
-                            Text("(Coming soon…)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Text(mode.description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } icon: {
-                Image(systemName: mode.icon)
-            }
-
-            Spacer()
-
-            if isSelected {
-                Image(systemName: "checkmark")
-                    .foregroundStyle(.tint)
-            }
-        }
-    }
-}
-
-private struct MediaSourceRowView: View {
-    let title: String
-    let subtitle: String
-    let isSelected: Bool
-    var action: (() -> Void)?
-
-    var body: some View {
-        if let action {
-            Button(action: action) {
-                MediaSourceLabelView(title: title, subtitle: subtitle, isSelected: isSelected)
-            }
-            .foregroundStyle(.primary)
-        } else {
-            MediaSourceLabelView(title: title, subtitle: subtitle, isSelected: isSelected)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private struct MediaSourceLabelView: View {
-    let title: String
-    let subtitle: String
-    let isSelected: Bool
-
-    var body: some View {
-        LabeledContent {
-            if isSelected {
-                Image(systemName: "checkmark")
-                    .foregroundStyle(.tint)
-            }
-        } label: {
-            VStack(alignment: .leading) {
-                Text(title)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 }
