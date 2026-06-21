@@ -25,8 +25,10 @@ Shipped as Time Trial mode (MVP scope, June 2026): one timed puzzle per grid siz
 flat combo bonus/misplay penalty per move and a simplified score formula. Reused the streak
 countdown timer's `Task`-based shape in `GameSession` almost exactly, generalized from "time
 per correct move" to "time per puzzle" — see `ARCHITECTURE.md` for the implementation.
-Deferred to follow-up work, from the original feature spec:
-- The full 10-stage Gauntlet Ladder progression (grid size + time limit escalation table).
+
+The full 10-stage **Gauntlet Ladder** progression also shipped (June 2026), as a toggle
+inside Time Trial rather than a new mode — see `ARCHITECTURE.md` for the implementation.
+Still deferred to follow-up work, from the original feature spec:
 - The Endless "Ghost Mode" (stage 11+), racing the player's own personal best pace.
 - Time-banking: carrying over a percentage of leftover time between ladder stages.
 - The low-time vignette pulse and BPM-escalating audio sensory layer (the countdown
@@ -245,8 +247,10 @@ debug-overlay gating) is still scattered conditionals inside `GameSession` and
 `GameModeRules` was considered again now that Time Trial is a second real, shipped data
 point beyond Zen — and shelved again: Zen *disables* tracking, Time Trial *adds* a
 structurally different timer-and-scoring system, so the two don't actually share an axis a
-struct could express (see `ARCHITECTURE.md`'s §6 resolution for the full reasoning). Revisit
-once Limited Moves exists — a move-budget mode is much closer in shape to Time Trial's
-time-budget mode, and may finally be the pair that justifies it.
+struct could express (see `ARCHITECTURE.md`'s §6 resolution for the full reasoning). The
+Gauntlet Ladder doesn't add a third data point here either — it's deliberately modeled as a
+boolean flag on top of Time Trial (`isLadderMode`), not a new `GameMode`, precisely to avoid
+this question. Revisit once Limited Moves exists — a move-budget mode is much closer in
+shape to Time Trial's time-budget mode, and may finally be the pair that justifies it.
 
 ---

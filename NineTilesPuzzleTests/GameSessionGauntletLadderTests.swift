@@ -173,6 +173,36 @@ struct GameSessionGauntletLadderTests {
         #expect(session.gridSize == GauntletLadderRules.stage(1).gridSize)
     }
 
+    // MARK: - Persistence
+
+    /// Verifies `saveToUserDefaults()` writes the four new ladder keys with the right
+    /// values. A true write-then-reconstruct round-trip (as `StatsStoreTests` does) isn't
+    /// practical here: restoring a second `GameSession` re-runs the existing "Numbers media
+    /// is Slide-only" guard in `restoreFromUserDefaults()`, which resets `mediaSourceType`
+    /// away from `.numbers` for a `.timeTrial` session — correct production behavior (that
+    /// combination can never be reached via the real UI), but it trips the tile-restore
+    /// guard chain for a session deliberately using `.numbers` to stay synchronous in tests.
+    @Test func ladderProgressIsPersistedToUserDefaults() async {
+        let defaults = InMemoryPersistenceStore()
+        let session = GameSession(
+            statsStore: StatsStore(defaults: InMemoryPersistenceStore()),
+            achievementsStore: AchievementsStore(defaults: InMemoryPersistenceStore()),
+            settingsStore: SettingsStore(defaults: InMemoryPersistenceStore()),
+            defaults: defaults
+        )
+        session.selectedGameMode = .timeTrial
+        session.mediaSourceType = .numbers
+        session.isLadderMode = true
+        await session.startNewLadderRun()
+        setOneMoveFromSolved(session) // clears Stage 1, advances to Stage 2
+        session.swapTiles(from: 0, to: 1)
+
+        #expect(defaults.bool(forKey: GameSession.Keys.isLadderMode))
+        #expect(defaults.integer(forKey: GameSession.Keys.currentLadderStage) == 2)
+        #expect(defaults.integer(forKey: GameSession.Keys.ladderCumulativeScore) == session.ladderCumulativeScore)
+        #expect(defaults.integer(forKey: GameSession.Keys.ladderWinStreak) == 1)
+    }
+
     // MARK: - StatsKey isolation regression
 
     /// Protects the §2 "skip `recordCompletion`/`recordTimeTrialScore` in ladder mode"

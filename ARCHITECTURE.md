@@ -1,9 +1,9 @@
 # NineTilesPuzzle — Architecture Overview
 
 Snapshot of the current codebase structure, as of 2026-06-20. This is a descriptive
-document — see `ROADMAP.md` §6 for the one open architectural question still being tracked
-(how game-mode-specific behavior should be modeled once a second real mode beyond Zen
-exists).
+document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in sync with
+it) for how the "does mode-specific behavior need a shared abstraction" question was
+revisited once Time Trial existed, and what would justify revisiting it again.
 
 ## Tech stack
 
@@ -31,6 +31,8 @@ NineTilesPuzzle/
 │   ├── GameMode.swift              — enum: classic/slide/timeTrial/limitedMoves/zen/fog/chaos
 │   ├── TimeTrialRules.swift        — pure constants/formulas: base time limit per grid size,
 │   │                                  combo bonus/misplay penalty, score (see below)
+│   ├── GauntletLadderRules.swift   — pure 10-stage table + ladder scoring (see below);
+│   │                                  deliberately separate from TimeTrialRules.swift
 │   ├── TileModel.swift             — @Observable tile: id, currentIndex, isLocked
 │   ├── Achievement.swift           — Codable achievement definition + unlock flag
 │   ├── ZenSparkle.swift            — decorative particle model for Zen mode's solve animation
@@ -69,6 +71,7 @@ NineTilesPuzzle/
 │   │   ├── PuzzleStatusBarView.swift, MoveCounterView.swift, TimeCounterView.swift
 │   │   ├── TimeTrialTimerView.swift, TimeTrialScoreView.swift — Time Trial's HUD
 │   │   ├── TimeTrialDeltaIndicatorView.swift — transient "+1s"/"-2s" combo indicator
+│   │   ├── GauntletStageIndicatorView.swift — "Stage N of 10" HUD pill
 │   │   └── PuzzleErrorView.swift
 │   └── Helpers/                     — grab-bag of small reusable views (toast, banners,
 │                                       loading/splash, brand mark, badges, zen sparkle,
@@ -163,15 +166,39 @@ a `showTimeTrialFail` flag (driving a dedicated `TimeTrialFailView` "Out of Time
 mutually exclusive with the regular completion banner) alongside the existing record-badge
 and Zen-sequence state.
 
+**Gauntlet Ladder** (Time Trial sub-mode, shipped June 2026): a toggleable 10-stage
+progression inside Time Trial — `GameSession.isLadderMode`, surfaced as a `Toggle` in
+`GameModeView` only when `.timeTrial` is selected, not a separate `GameMode` case (it's the
+same countdown/combo loop, just chained across stages with an escalating grid
+size/time-limit/difficulty-multiplier table). `isGauntletLadderMode` (`isTimeTrialMode &&
+isLadderMode`) gates every ladder-specific branch, so non-ladder Time Trial is provably
+unaffected. `Models/GauntletLadderRules.swift` holds the 10-row stage table and a distinct
+`stageScore(remainingSeconds:stage:currentWinStreak:)` formula — separate from
+`TimeTrialRules.score(remainingSeconds:gridSize:)`, which stays untouched since it's
+already recorded in players' single-puzzle personal bests. `GameSession` tracks
+`currentLadderStage`, `ladderCumulativeScore`, `ladderWinStreak`, and the run-ending
+`isLadderRunFailed`/`isLadderRunComplete` flags; a stage clear explicitly skips
+`recordCompletion`/`recordTimeTrialScore` (a ladder run spans every grid size in the table,
+so crediting one stage's clear to that size's single-puzzle personal best would silently
+pollute it) and instead feeds two new flat, non-`StatsKey`-scoped `StatsStore` fields —
+`bestLadderScore`/`bestLadderStageReached` — since a ladder run isn't scoped to one grid
+size the way every other stat in this app is. `CompletionBannerView`/`TimeTrialFailView`
+absorb the ladder's "Stage N Cleared!"/"Gauntlet Complete!"/"Ladder Run Over" states as
+additive parameters and computed properties, the same pattern used when Time Trial's own
+score/fail states were added, rather than forking new views.
+
 **§6 resolution**: with Time Trial now a second real mode beyond Zen, the question of
 whether mode-specific behavior deserves a generic `GameModeRules` abstraction was
 revisited — and conditionals still won. Zen *disables* tracking (streaks, countdown,
 records); Time Trial *adds* a structurally different timer-and-scoring system; neither is
 a parameterization of the same underlying axis (e.g. "a budget + a fail condition") that a
 shared struct could express without one mode's fields being meaningless for the other. The
-two real data points so far vary in *kind*, not just *parameters*. Revisit again once
-Limited Moves exists — a move-budget mode is much closer in shape to Time Trial's
-time-budget mode, and might finally be the pair that justifies a shared abstraction.
+two real data points so far vary in *kind*, not just *parameters*. (The Gauntlet Ladder
+doesn't add a third data point here — it's explicitly a sub-mode of Time Trial, modeled as
+a boolean flag rather than a new `GameMode`, precisely to avoid that question.) Revisit
+again once Limited Moves exists — a move-budget mode is much closer in shape to Time
+Trial's time-budget mode, and might finally be the pair that justifies a shared
+abstraction.
 
 **Image pipeline**: `ImageSource` protocol → `RemoteImageSource` (picsum.photos) /
 `PhotoLibraryImageSource` / `LocalImageSource` (bundled fallback) → `ImageService` (primary
@@ -186,15 +213,24 @@ are wanted).
 
 **Testing**: `NineTilesPuzzleTests` is a real Unit Testing Bundle target (added manually in
 Xcode in June 2026 — it existed as a folder of source files for a while before that without
-ever actually being wired up or compiled). 91 tests currently pass, covering: both engines
+ever actually being wired up or compiled). 112 tests currently pass, covering: both engines
 and `SlideSolver`, `ImageService`/`ImageSlicer`, all four stores (`StatsStore` and
 `AchievementsStore` via `InMemoryPersistenceStore`), `PuzzleCompletionViewModel`,
-`TimeTrialRules`, and a `GameSessionTimeTrialTests` suite exercising the full Time Trial
-integration (countdown lifecycle, combo bonus/penalty, fail state, score recording) end to
-end against a real `GameSession` — using `.numbers` media mode (no network/image work) and
-hand-built tile layouts to engineer specific moves deterministically, since these tests
+`TimeTrialRules`, `GauntletLadderRules`, and `GameSessionTimeTrialTests`/
+`GameSessionGauntletLadderTests` suites exercising the full Time Trial and Gauntlet Ladder
+integrations (countdown lifecycle, combo bonus/penalty, fail state, score recording, stage
+progression, win-streak scoring, run completion/failure, and a regression test proving a
+ladder stage clear never pollutes the per-size single-puzzle Time Trial personal bests) end
+to end against a real `GameSession` — using `.numbers` media mode (no network/image work)
+and hand-built tile layouts to engineer specific moves deterministically, since these tests
 never `await` a real sleep and so the countdown's background tick task never gets scheduled
-mid-test. Getting the target wired up surfaced three real, previously-undetected bugs that
-had been sitting in untested code paths — two missing imports and one test with a
-geometrically-invalid fixture (asserted a slide between two non-adjacent grid cells) — all
-fixed once the target could finally compile and run them.
+mid-test. One thing this pattern doesn't cover: a true persistence round-trip (write, then
+reconstruct a second `GameSession` and read back) isn't practical for a session using
+`.numbers` media outside Slide mode, since `restoreFromUserDefaults()`'s existing "Numbers
+is Slide-only" guard resets `mediaSourceType` away from `.numbers` on restore — correct
+production behavior, but it trips the tile-restore guard chain for this test shape, so the
+Gauntlet Ladder's persistence test instead asserts directly against the in-memory
+`PersistenceStore` fake. Getting the target wired up surfaced three real,
+previously-undetected bugs that had been sitting in untested code paths — two missing
+imports and one test with a geometrically-invalid fixture (asserted a slide between two
+non-adjacent grid cells) — all fixed once the target could finally compile and run them.
