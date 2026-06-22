@@ -21,7 +21,9 @@ struct GameModeView: View {
                 ForEach(GameMode.allCases) { mode in
                     if mode.isAvailable {
                         Button {
-                            session.setGameMode(mode)
+                            withAnimation {
+                                session.setGameMode(mode)
+                            }
                         } label: {
                             GameModeRowView(mode: mode, isSelected: session.selectedGameMode == mode)
                         }

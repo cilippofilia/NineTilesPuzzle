@@ -33,13 +33,10 @@ struct GameModeRowView: View {
 
             Spacer()
 
-            // Rendered unconditionally (just hidden via opacity) rather than `if isSelected`,
-            // so the checkmark always reserves the same horizontal space — otherwise the
-            // label's available text width changes between selected/unselected, which can
-            // shift a description's line count and jump the whole list's layout.
             Image(systemName: "checkmark")
                 .foregroundStyle(.tint)
                 .opacity(isSelected ? 1 : 0)
+                .animation(nil, value: isSelected)
         }
     }
 }
