@@ -25,7 +25,9 @@ struct PuzzleView: View {
             VStack {
                 if session.isLoading {
                     LoadingView()
-                        .transition(.opacity)
+                        // Removal is instant rather than fading, so this never lingers
+                        // on screen crossfaded over the preview/grid that replaces it.
+                        .transition(.asymmetric(insertion: .opacity, removal: .identity))
                 } else if session.isPreviewing, let image = session.sourceImage {
                     ImagePreviewView(image: image, onSkip: session.skipPreview)
                         .transition(.asymmetric(insertion: .opacity, removal: .identity))

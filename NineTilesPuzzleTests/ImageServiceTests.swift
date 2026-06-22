@@ -19,16 +19,18 @@ struct ImageServiceTests {
             primarySource: FailingImageSource(error: URLError(.notConnectedToInternet)),
             fallbackSource: SucceedingImageSource(image: makeTestImage())
         )
-        let image = try await service.loadImage()
-        #expect(image.width > 0)
+        let result = try await service.loadImage()
+        #expect(result.image.width > 0)
+        #expect(result.usedFallback)
     }
 
     @Test func successfulRemoteFetchReturnsImage() async throws {
         let expected = makeTestImage()
         let service = ImageService(primarySource: SucceedingImageSource(image: expected))
-        let image = try await service.loadImage()
-        #expect(image.width == expected.width)
-        #expect(image.height == expected.height)
+        let result = try await service.loadImage()
+        #expect(result.image.width == expected.width)
+        #expect(result.image.height == expected.height)
+        #expect(!result.usedFallback)
     }
 
     private func makeTestImage() -> CGImage {

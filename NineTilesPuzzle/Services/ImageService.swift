@@ -7,6 +7,14 @@
 
 import SwiftUI
 
+struct ImageFetchResult {
+    let image: CGImage
+    /// True when `primarySource` threw a `URLError` and `fallbackSource` had to be used
+    /// instead — callers use this to skip behavior that only makes sense for a freshly
+    /// fetched remote photo (e.g. the "memorize the image" preview).
+    let usedFallback: Bool
+}
+
 @MainActor
 final class ImageService {
     private let primarySource: any ImageSource
@@ -20,11 +28,11 @@ final class ImageService {
         self.fallbackSource = fallbackSource ?? LocalImageSource()
     }
 
-    func loadImage() async throws -> CGImage {
+    func loadImage() async throws -> ImageFetchResult {
         do {
-            return try await primarySource.fetchImage()
+            return ImageFetchResult(image: try await primarySource.fetchImage(), usedFallback: false)
         } catch is URLError {
-            return try await fallbackSource.fetchImage()
+            return ImageFetchResult(image: try await fallbackSource.fetchImage(), usedFallback: true)
         }
     }
 }
