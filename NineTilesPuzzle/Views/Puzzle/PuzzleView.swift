@@ -13,10 +13,12 @@ struct PuzzleView: View {
     @Environment(AchievementsStore.self) private var achievementsStore
     @Environment(SoundService.self) private var soundService
     @Environment(\.dismiss) private var dismiss
+
     @State private var completion = PuzzleCompletionViewModel()
     @State private var showQuitAlert = false
     @State private var isSolving = false
     @State private var showTimeTrialDelta = false
+    @State private var newGameTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -28,7 +30,7 @@ struct PuzzleView: View {
                         // Removal is instant rather than fading, so this never lingers
                         // on screen crossfaded over the preview/grid that replaces it.
                         .transition(.asymmetric(insertion: .opacity, removal: .identity))
-                } else if session.isPreviewing, let image = session.sourceImage {
+                } else if session.isPreviewing, let image = session.croppedSourceImage {
                     ImagePreviewView(image: image, onSkip: session.skipPreview)
                         .transition(.asymmetric(insertion: .opacity, removal: .identity))
                 } else if let error = session.error {
@@ -364,7 +366,8 @@ struct PuzzleView: View {
     }
 
     private var streakVisible: Bool {
-        !completion.showCompletion && !completion.showTimeTrialFail && !completion.showLimitedMovesFail && !session.isLoading && session.error == nil
+        !completion.showCompletion && !completion.showTimeTrialFail && !completion.showLimitedMovesFail
+            && !session.isLoading && !session.isPreviewing && session.error == nil
     }
 
     /// "Continue" still applies to every non-ladder mode; a ladder run instead names what
@@ -375,8 +378,15 @@ struct PuzzleView: View {
     }
 
     private func startNewGame() {
+        newGameTask?.cancel()
+
         completion.prepareForNewGame()
-        Task {
+        // Same reasoning as the `.onAppear` sync clear below: a `Task` body doesn't start
+        // executing the instant it's scheduled, leaving the previous round's image and
+        // capsules briefly visible until `session.startNewGame()` itself flips `isLoading`.
+        session.tiles = []
+        session.isLoading = true
+        newGameTask = Task {
             if session.isGauntletLadderMode && (session.isLadderRunFailed || session.isLadderRunComplete) {
                 await session.startNewLadderRun()
             } else {
