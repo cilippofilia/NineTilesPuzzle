@@ -30,18 +30,6 @@ struct MenuView: View {
                     .padding()
 
                 VStack(spacing: 12) {
-                    Text("\(session.selectedGameMode.title) Stats")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    StreakStatsView(
-                        currentStreak: session.currentStreakForCurrentSize,
-                        allTimeHigh: session.allTimeHighStreakForCurrentSize,
-                        personalBestMoves: session.personalBestForCurrentSize
-                    )
-                    .frame(height: 88)
-
                     Button {
                         path.append(.gameModes)
                     } label: {

@@ -25,7 +25,7 @@ final class GameSession {
 
     var gridSize: Int = 3
     var useRandomSize: Bool = false
-    var mediaSourceType: MediaSourceType = .random
+    var mediaSourceType: MediaSourceType = .numbers
     var tiles: [TileModel] = []
     var tileImages: [Int: CGImage] = [:]
     var sourceImage: CGImage?
@@ -41,7 +41,7 @@ final class GameSession {
     var elapsedTime: TimeInterval = 0
     var isNewBestTime: Bool = false
     var error: Error?
-    var selectedGameMode: GameMode = .swap
+    var selectedGameMode: GameMode = .slide
     var isNewTimeTrialScoreRecord: Bool = false
     var timeTrialScore: Int = 0
 

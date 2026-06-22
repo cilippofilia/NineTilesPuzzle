@@ -159,6 +159,16 @@ packs are designed to make it bolt-on.
 - Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
   select-then-place via accessibility actions).
 
+### Menu stats card — **S** *(removed June 2026, needs a mode-aware rebuild)*
+The streak/best-moves card on `MenuView` was removed because it only had real data for
+Swap and Slide — `GameSession.currentStreakForCurrentSize`/`allTimeHighStreakForCurrentSize`
+are never incremented for Zen, Time Trial, or Limited Moves (they track games-played or
+score instead, see `registerMove` in `GameSession.swift`), so the card showed dead zeros for
+those modes. Re-add only with per-mode-appropriate content: streak + best moves for
+Swap/Slide, best score for Time Trial, best moves for Limited Moves, and likely nothing (or
+games-played) for Zen — gated behind a small `GameMode` capability check rather than always
+rendering the same `StreakStatsView`.
+
 ---
 
 ## 5. Achievements Overhaul
