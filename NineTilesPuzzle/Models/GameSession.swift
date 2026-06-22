@@ -243,6 +243,8 @@ final class GameSession {
         isTimeTrialFailed = false
         error = nil
         stopTimeTrialCountdown()
+        stopStopwatch()
+        stopCountdown()
 
         let initial = (0..<gridSize * gridSize).map {
             TileModel(id: $0, currentIndex: $0, isLocked: false)
