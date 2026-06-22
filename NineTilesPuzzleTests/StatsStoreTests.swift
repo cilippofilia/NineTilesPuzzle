@@ -17,57 +17,57 @@ struct StatsStoreTests {
         StatsStore(defaults: InMemoryPersistenceStore())
     }
 
-    private let classic3 = StatsKey(gridSize: 3, gameMode: .classic)
-    private let classic4 = StatsKey(gridSize: 4, gameMode: .classic)
+    private let swap3 = StatsKey(gridSize: 3, gameMode: .swap)
+    private let swap4 = StatsKey(gridSize: 4, gameMode: .swap)
     private let slide3 = StatsKey(gridSize: 3, gameMode: .slide)
 
     // MARK: - recordCompletion
 
     @Test func firstCompletionSetsBothPersonalBests() {
         let store = makeStore()
-        let result = store.recordCompletion(for: classic3, moves: 20, time: 30)
+        let result = store.recordCompletion(for: swap3, moves: 20, time: 30)
         #expect(result.isNewMovesRecord)
         #expect(result.isNewBestTime)
-        #expect(store.personalBestMoves[classic3] == 20)
-        #expect(store.personalBestTime[classic3] == 30)
-        #expect(store.gamesPlayed[classic3] == 1)
+        #expect(store.personalBestMoves[swap3] == 20)
+        #expect(store.personalBestTime[swap3] == 30)
+        #expect(store.gamesPlayed[swap3] == 1)
     }
 
     @Test func worseCompletionDoesNotOverwriteBestsButStillCountsGame() {
         let store = makeStore()
-        store.recordCompletion(for: classic3, moves: 20, time: 30)
-        let result = store.recordCompletion(for: classic3, moves: 25, time: 40)
+        store.recordCompletion(for: swap3, moves: 20, time: 30)
+        let result = store.recordCompletion(for: swap3, moves: 25, time: 40)
         #expect(!result.isNewMovesRecord)
         #expect(!result.isNewBestTime)
-        #expect(store.personalBestMoves[classic3] == 20)
-        #expect(store.personalBestTime[classic3] == 30)
-        #expect(store.gamesPlayed[classic3] == 2)
+        #expect(store.personalBestMoves[swap3] == 20)
+        #expect(store.personalBestTime[swap3] == 30)
+        #expect(store.gamesPlayed[swap3] == 2)
     }
 
     @Test func mixedCompletionUpdatesOnlyTheImprovedRecord() {
         let store = makeStore()
-        store.recordCompletion(for: classic3, moves: 20, time: 30)
-        let result = store.recordCompletion(for: classic3, moves: 15, time: 45)
+        store.recordCompletion(for: swap3, moves: 20, time: 30)
+        let result = store.recordCompletion(for: swap3, moves: 15, time: 45)
         #expect(result.isNewMovesRecord)
         #expect(!result.isNewBestTime)
-        #expect(store.personalBestMoves[classic3] == 15)
-        #expect(store.personalBestTime[classic3] == 30)
+        #expect(store.personalBestMoves[swap3] == 15)
+        #expect(store.personalBestTime[swap3] == 30)
     }
 
     @Test func recordGamePlayedNeverTouchesPersonalBests() {
         let store = makeStore()
-        store.recordGamePlayed(for: classic3)
-        store.recordGamePlayed(for: classic3)
-        #expect(store.gamesPlayed[classic3] == 2)
-        #expect(store.personalBestMoves[classic3] == nil)
-        #expect(store.personalBestTime[classic3] == nil)
+        store.recordGamePlayed(for: swap3)
+        store.recordGamePlayed(for: swap3)
+        #expect(store.gamesPlayed[swap3] == 2)
+        #expect(store.personalBestMoves[swap3] == nil)
+        #expect(store.personalBestTime[swap3] == nil)
     }
 
     @Test func gamesPlayedCountSumsAcrossModesForASize() {
         let store = makeStore()
-        store.recordGamePlayed(for: classic3)
+        store.recordGamePlayed(for: swap3)
         store.recordGamePlayed(for: slide3)
-        store.recordGamePlayed(for: classic4)
+        store.recordGamePlayed(for: swap4)
         #expect(store.gamesPlayedCount(forSize: 3) == 2)
         #expect(store.gamesPlayedCount(forSize: 4) == 1)
     }
@@ -76,25 +76,25 @@ struct StatsStoreTests {
 
     @Test func firstScoreIsAlwaysANewRecord() {
         let store = makeStore()
-        let isNewRecord = store.recordTimeTrialScore(for: classic3, score: 500)
+        let isNewRecord = store.recordTimeTrialScore(for: swap3, score: 500)
         #expect(isNewRecord)
-        #expect(store.personalBestScore[classic3] == 500)
+        #expect(store.personalBestScore[swap3] == 500)
     }
 
     @Test func higherScoreOverwritesThePersonalBest() {
         let store = makeStore()
-        store.recordTimeTrialScore(for: classic3, score: 500)
-        let isNewRecord = store.recordTimeTrialScore(for: classic3, score: 800)
+        store.recordTimeTrialScore(for: swap3, score: 500)
+        let isNewRecord = store.recordTimeTrialScore(for: swap3, score: 800)
         #expect(isNewRecord)
-        #expect(store.personalBestScore[classic3] == 800)
+        #expect(store.personalBestScore[swap3] == 800)
     }
 
     @Test func lowerOrEqualScoreDoesNotOverwriteThePersonalBest() {
         let store = makeStore()
-        store.recordTimeTrialScore(for: classic3, score: 500)
-        let isNewRecord = store.recordTimeTrialScore(for: classic3, score: 500)
+        store.recordTimeTrialScore(for: swap3, score: 500)
+        let isNewRecord = store.recordTimeTrialScore(for: swap3, score: 500)
         #expect(!isNewRecord)
-        #expect(store.personalBestScore[classic3] == 500)
+        #expect(store.personalBestScore[swap3] == 500)
     }
 
     // MARK: - recordLadderRunScore
@@ -151,39 +151,39 @@ struct StatsStoreTests {
 
     @Test func streakIncrementsAndSetsAllTimeHighOnFirstMove() {
         let store = makeStore()
-        let result = store.recordStreakIncrement(for: classic3, trackRecord: true)
+        let result = store.recordStreakIncrement(for: swap3, trackRecord: true)
         #expect(result.streak == 1)
         #expect(result.isNewRecord)
-        #expect(store.currentStreak[classic3] == 1)
-        #expect(store.allTimeHighStreak[classic3] == 1)
+        #expect(store.currentStreak[swap3] == 1)
+        #expect(store.allTimeHighStreak[swap3] == 1)
     }
 
     @Test func streakBelowAllTimeHighIsNotANewRecord() {
         let store = makeStore()
-        store.recordStreakIncrement(for: classic3, trackRecord: true)
-        store.recordStreakIncrement(for: classic3, trackRecord: true)
-        store.resetStreak(for: classic3)
-        let result = store.recordStreakIncrement(for: classic3, trackRecord: true)
+        store.recordStreakIncrement(for: swap3, trackRecord: true)
+        store.recordStreakIncrement(for: swap3, trackRecord: true)
+        store.resetStreak(for: swap3)
+        let result = store.recordStreakIncrement(for: swap3, trackRecord: true)
         #expect(result.streak == 1)
         #expect(!result.isNewRecord)
-        #expect(store.allTimeHighStreak[classic3] == 2)
+        #expect(store.allTimeHighStreak[swap3] == 2)
     }
 
     @Test func untrackedStreakStillAdvancesButNeverUpdatesAllTimeHigh() {
         let store = makeStore()
-        let result = store.recordStreakIncrement(for: classic3, trackRecord: false)
+        let result = store.recordStreakIncrement(for: swap3, trackRecord: false)
         #expect(result.streak == 1)
         #expect(!result.isNewRecord)
-        #expect(store.currentStreak[classic3] == 1)
-        #expect(store.allTimeHighStreak[classic3] == nil)
+        #expect(store.currentStreak[swap3] == 1)
+        #expect(store.allTimeHighStreak[swap3] == nil)
     }
 
     @Test func resetStreakZeroesOnlyTheGivenKey() {
         let store = makeStore()
-        store.recordStreakIncrement(for: classic3, trackRecord: true)
+        store.recordStreakIncrement(for: swap3, trackRecord: true)
         store.recordStreakIncrement(for: slide3, trackRecord: true)
-        store.resetStreak(for: classic3)
-        #expect(store.currentStreak[classic3] == 0)
+        store.resetStreak(for: swap3)
+        #expect(store.currentStreak[swap3] == 0)
         #expect(store.currentStreak[slide3] == 1)
     }
 
@@ -193,12 +193,12 @@ struct StatsStoreTests {
     /// every grid size and game mode instead of being scoped per `StatsKey`.
     @Test func statsAtDifferentKeysNeverBleedIntoEachOther() {
         let store = makeStore()
-        store.recordCompletion(for: classic3, moves: 10, time: 20)
-        store.recordStreakIncrement(for: classic3, trackRecord: true)
+        store.recordCompletion(for: swap3, moves: 10, time: 20)
+        store.recordStreakIncrement(for: swap3, trackRecord: true)
 
-        #expect(store.personalBestMoves[classic4] == nil)
+        #expect(store.personalBestMoves[swap4] == nil)
         #expect(store.personalBestMoves[slide3] == nil)
-        #expect(store.currentStreak[classic4] == nil)
+        #expect(store.currentStreak[swap4] == nil)
         #expect(store.currentStreak[slide3] == nil)
         #expect(store.gamesPlayedCount(forSize: 4) == 0)
     }
@@ -207,9 +207,9 @@ struct StatsStoreTests {
 
     @Test func resetStatsClearsEverything() {
         let store = makeStore()
-        store.recordCompletion(for: classic3, moves: 10, time: 20)
+        store.recordCompletion(for: swap3, moves: 10, time: 20)
         store.recordStreakIncrement(for: slide3, trackRecord: true)
-        store.recordTimeTrialScore(for: classic3, score: 500)
+        store.recordTimeTrialScore(for: swap3, score: 500)
         store.recordLadderRunScore(5000)
         store.recordLadderStageReached(5)
 
@@ -231,19 +231,19 @@ struct StatsStoreTests {
         let defaults = InMemoryPersistenceStore()
 
         let first = StatsStore(defaults: defaults)
-        first.recordCompletion(for: classic3, moves: 12, time: 18)
-        first.recordStreakIncrement(for: classic3, trackRecord: true)
-        first.recordTimeTrialScore(for: classic3, score: 500)
+        first.recordCompletion(for: swap3, moves: 12, time: 18)
+        first.recordStreakIncrement(for: swap3, trackRecord: true)
+        first.recordTimeTrialScore(for: swap3, score: 500)
         first.recordLadderRunScore(5000)
         first.recordLadderStageReached(5)
 
         let second = StatsStore(defaults: defaults)
-        #expect(second.personalBestMoves[classic3] == 12)
-        #expect(second.personalBestTime[classic3] == 18)
-        #expect(second.gamesPlayed[classic3] == 1)
-        #expect(second.currentStreak[classic3] == 1)
-        #expect(second.allTimeHighStreak[classic3] == 1)
-        #expect(second.personalBestScore[classic3] == 500)
+        #expect(second.personalBestMoves[swap3] == 12)
+        #expect(second.personalBestTime[swap3] == 18)
+        #expect(second.gamesPlayed[swap3] == 1)
+        #expect(second.currentStreak[swap3] == 1)
+        #expect(second.allTimeHighStreak[swap3] == 1)
+        #expect(second.personalBestScore[swap3] == 500)
         #expect(second.bestLadderScore == 5000)
         #expect(second.bestLadderStageReached == 5)
     }

@@ -72,10 +72,10 @@ struct PuzzleCompletionViewModelTests {
     @Test func hasNewBestBadgeForNonSlideModesIgnoresTime() {
         let vm = PuzzleCompletionViewModel()
         vm.handleNewBestTimeChange(true)
-        #expect(!vm.hasNewBestBadge(selectedGameMode: .classic))
+        #expect(!vm.hasNewBestBadge(selectedGameMode: .swap))
 
         vm.handleNewMovesRecordChange(true)
-        #expect(vm.hasNewBestBadge(selectedGameMode: .classic))
+        #expect(vm.hasNewBestBadge(selectedGameMode: .swap))
     }
 
     @Test func hasNewBestBadgeForSlideModeIncludesTime() {
@@ -91,7 +91,7 @@ struct PuzzleCompletionViewModelTests {
         vm.handleNewTimeTrialScoreRecordChange(true)
         #expect(vm.hasNewBestBadge(selectedGameMode: .timeTrial))
         // A Time Trial score record shouldn't leak into other modes' badge visibility.
-        #expect(!vm.hasNewBestBadge(selectedGameMode: .classic))
+        #expect(!vm.hasNewBestBadge(selectedGameMode: .swap))
     }
 
     @Test func clearRecordFlagsAfterDelayAlsoClearsTimeTrialScoreRecord() async {
@@ -109,7 +109,7 @@ struct PuzzleCompletionViewModelTests {
 
         vm.handleNewLadderScoreRecordChange(true)
         #expect(vm.hasNewBestBadge(selectedGameMode: .timeTrial))
-        #expect(!vm.hasNewBestBadge(selectedGameMode: .classic))
+        #expect(!vm.hasNewBestBadge(selectedGameMode: .swap))
 
         vm.handleNewLadderScoreRecordChange(false)
         vm.handleNewLadderStageRecordChange(true)

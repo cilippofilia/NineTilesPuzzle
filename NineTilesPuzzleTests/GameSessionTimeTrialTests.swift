@@ -13,7 +13,7 @@ import Testing
 ///
 /// Uses `.numbers` media mode so `startNewGame()` completes synchronously with no network
 /// or image work, and replaces the shuffled board with hand-built layouts (mirroring
-/// `ClassicEngineTests`) so moves can be engineered deterministically rather than depending
+/// `SwapEngineTests`) so moves can be engineered deterministically rather than depending
 /// on the shuffle's randomness. Because these tests never `await` a real sleep, the
 /// countdown's background tick task never gets scheduled mid-test — only the synchronous
 /// `applyTimeTrialMoveOutcome` logic under test ever touches the timer state.

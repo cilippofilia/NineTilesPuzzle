@@ -1,5 +1,5 @@
 //
-//  ClassicEngineTests.swift
+//  SwapEngineTests.swift
 //  NineTilesPuzzleTests
 //
 //  Created by Filippo Cilia on 6/12/26.
@@ -8,10 +8,10 @@
 import Testing
 @testable import NineTilesPuzzle
 
-@Suite("ClassicEngine")
+@Suite("SwapEngine")
 @MainActor
-struct ClassicEngineTests {
-    private let engine = ClassicEngine()
+struct SwapEngineTests {
+    private let engine = SwapEngine()
 
     private func solvedTiles() -> [TileModel] {
         (0..<9).map { TileModel(id: $0, currentIndex: $0, isLocked: false) }

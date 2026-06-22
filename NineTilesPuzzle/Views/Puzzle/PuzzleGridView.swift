@@ -40,6 +40,7 @@ struct PuzzleGridView: View {
                                     tile: tile,
                                     image: cgImage,
                                     tileSize: calculatedTileSize,
+                                    gridSize: session.gridSize,
                                     hapticsEnabled: settings.hapticsEnabled,
                                     debugOverlayEnabled: settings.debugOverlayEnabled,
                                     onDragStarted: { draggingTileID = tile.id },

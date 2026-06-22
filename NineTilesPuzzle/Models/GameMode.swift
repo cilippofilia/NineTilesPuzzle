@@ -8,8 +8,8 @@
 import Foundation
 
 enum GameMode: String, CaseIterable, Identifiable, Codable {
-    case classic
     case slide
+    case swap
     case timeTrial
     case limitedMoves
     case zen
@@ -20,8 +20,8 @@ enum GameMode: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .classic: "Classic"
         case .slide: "Slide"
+        case .swap: "Swap"
         case .timeTrial: "Time Trial"
         case .limitedMoves: "Limited Moves"
         case .zen: "Zen Mode"
@@ -32,8 +32,8 @@ enum GameMode: String, CaseIterable, Identifiable, Codable {
 
     var description: String {
         switch self {
-        case .classic: "Solve the puzzle at your own pace"
         case .slide: "Solve the puzzle by sliding the pieces around"
+        case .swap: "Swap any two tiles to solve the puzzle"
         case .timeTrial: "Race against the clock to finish the puzzle"
         case .limitedMoves: "Solve the puzzle within a fixed number of moves"
         case .zen: "A relaxing, untimed experience with no streaks to break"
@@ -44,8 +44,8 @@ enum GameMode: String, CaseIterable, Identifiable, Codable {
 
     var icon: String {
         switch self {
-        case .classic: "square.grid.3x3.fill"
         case .slide: "hand.draw"
+        case .swap: "rectangle.2.swap"
         case .timeTrial: "timer"
         case .limitedMoves: "figure.walk"
         case .zen: "leaf.fill"
@@ -55,6 +55,6 @@ enum GameMode: String, CaseIterable, Identifiable, Codable {
     }
 
     var isAvailable: Bool {
-        self == .classic || self == .slide || self == .zen || self == .timeTrial || self == .limitedMoves
+        self == .swap || self == .slide || self == .zen || self == .timeTrial || self == .limitedMoves
     }
 }

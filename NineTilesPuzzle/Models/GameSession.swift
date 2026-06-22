@@ -19,7 +19,7 @@ final class GameSession {
     private let settingsStore: SettingsStore
     private let defaults: PersistenceStore
 
-    private let classicEngine = ClassicEngine()
+    private let swapEngine = SwapEngine()
     private let slideEngine = SlideEngine()
     private var previewSleepTask: Task<Void, Never>?
 
@@ -41,7 +41,7 @@ final class GameSession {
     var elapsedTime: TimeInterval = 0
     var isNewBestTime: Bool = false
     var error: Error?
-    var selectedGameMode: GameMode = .classic
+    var selectedGameMode: GameMode = .swap
     var isNewTimeTrialScoreRecord: Bool = false
     var timeTrialScore: Int = 0
 
@@ -97,7 +97,7 @@ final class GameSession {
         case .slide:
             return slideEngine
         default:
-            return classicEngine
+            return swapEngine
         }
     }
 
@@ -338,7 +338,7 @@ final class GameSession {
         else { return }
 
         let correctBefore = tiles.filter { $0.isCorrect }.count
-        classicEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
+        swapEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
         registerMove(correctBefore: correctBefore)
     }
 
@@ -505,18 +505,6 @@ extension GameSession {
 
     var bestLadderScoreOverall: Int { statsStore.bestLadderScore }
     var bestLadderStageReachedOverall: Int { statsStore.bestLadderStageReached }
-
-    /// Streaks only make sense in Classic mode (see `PuzzleStatusBarView`), so the menu's
-    /// streak card always shows Classic's stats regardless of the currently selected mode.
-    var classicBestMovesForCurrentSize: Int? {
-        statsStore.personalBestMoves[StatsKey(gridSize: gridSize, gameMode: .classic)]
-    }
-    var classicStreakForCurrentSize: Int {
-        statsStore.currentStreak[StatsKey(gridSize: gridSize, gameMode: .classic)] ?? 0
-    }
-    var classicBestStreakForCurrentSize: Int {
-        statsStore.allTimeHighStreak[StatsKey(gridSize: gridSize, gameMode: .classic)] ?? 0
-    }
 
     /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
     func setGridSize(_ size: Int) {

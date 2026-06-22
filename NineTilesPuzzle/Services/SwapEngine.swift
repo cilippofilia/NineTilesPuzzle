@@ -1,5 +1,5 @@
 //
-//  ClassicEngine.swift
+//  SwapEngine.swift
 //  NineTilesPuzzle
 //
 //  Created by Filippo Cilia on 6/12/26.
@@ -7,10 +7,10 @@
 
 import Foundation
 
-/// Classic mode: every tile is swappable; a tile that lands on its correct position
+/// Swap mode: every tile is swappable; a tile that lands on its correct position
 /// locks in place and can no longer be moved.
 @MainActor
-struct ClassicEngine: GameEngine {
+struct SwapEngine: GameEngine {
     /// Shuffles tiles into a derangement — no tile lands on its correct position.
     func shuffle(_ tiles: [TileModel], gridSize: Int) -> [TileModel] {
         guard tiles.count > 1 else { return tiles }

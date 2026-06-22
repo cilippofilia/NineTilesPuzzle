@@ -37,9 +37,13 @@ Still deferred to follow-up work, from the original feature spec:
 - `scenePhase`-based countdown freeze + 3-2-1 resume overlay on backgrounding/interruption
   (today the countdown has no background handling at all, same as the streak countdown).
 
-[] ### Limited Moves — **S**
-Solve within a move budget per difficulty. The move counter already exists; this only adds
-a budget check and a fail state. Pairs naturally with the power-up economy (§2).
+[X] ### Limited Moves — **S**
+Shipped June 2026: a flat per-grid-size move budget (`Models/LimitedMovesRules.swift`,
+3×3 → 12 moves up to 115 for 8×8+), reusing the existing move counter and adding a budget
+check + fail state (`LimitedMovesFailView`'s "Out of Moves" overlay) — see
+`ARCHITECTURE.md` for the implementation. Still pairs naturally with the power-up economy
+(§2), and the move-budget table could use difficulty-based tuning passes later if playtesting
+shows the flat numbers are too generous/strict.
 
 [X] ### Zen Mode — **S**
 No timers, no streak pressure, no fail states — just the picture. Cheapest mode to build
@@ -240,17 +244,21 @@ Current structure (directory layout, store boundaries, persistence, testing) is 
 in `ARCHITECTURE.md`, not duplicated here — that file is the single source of truth so the
 two docs don't drift out of sync with each other again.
 
-**Open question, revisited with Time Trial shipped (June 2026):** `GameMode` is 7 cases,
-and mode-specific behavior (`isZenMode`, `isTimeTrialMode`, `selectedGameMode == .slide`,
-debug-overlay gating) is still scattered conditionals inside `GameSession` and
-`PuzzleView`/`PuzzleGridView` rather than a single abstraction. A small composable
-`GameModeRules` was considered again now that Time Trial is a second real, shipped data
-point beyond Zen — and shelved again: Zen *disables* tracking, Time Trial *adds* a
-structurally different timer-and-scoring system, so the two don't actually share an axis a
-struct could express (see `ARCHITECTURE.md`'s §6 resolution for the full reasoning). The
-Gauntlet Ladder doesn't add a third data point here either — it's deliberately modeled as a
-boolean flag on top of Time Trial (`isLadderMode`), not a new `GameMode`, precisely to avoid
-this question. Revisit once Limited Moves exists — a move-budget mode is much closer in
-shape to Time Trial's time-budget mode, and may finally be the pair that justifies it.
+**Open question, revisited with Time Trial and Limited Moves both shipped (June 2026):**
+`GameMode` is 7 cases, and mode-specific behavior (`isZenMode`, `isTimeTrialMode`,
+`isLimitedMovesMode`, `selectedGameMode == .slide`, debug-overlay gating) is still scattered
+conditionals inside `GameSession` and `PuzzleView`/`PuzzleGridView` rather than a single
+abstraction. A small composable `GameModeRules` was considered a third time now that Limited
+Moves exists — the predicted pairing happened (Time Trial and Limited Moves do share a real
+"budget + fail condition, checked after the solved branch" axis, unlike Zen, which only
+disables tracking) — but conditionals won again, more narrowly: the two budgets differ
+enough in kind (mutable wall-clock time with a combo score vs. a flat decrementing move
+count with no score) that a shared struct would carry fields meaningless to one conformer or
+the other, for a payoff of collapsing two small `if`/`else if` branches. See
+`ARCHITECTURE.md`'s §6 resolution for the full reasoning. The Gauntlet Ladder still doesn't
+add a data point here — it's deliberately modeled as a boolean flag on top of Time Trial
+(`isLadderMode`), not a new `GameMode`. Revisit again if a third budget-based mode arrives;
+neither Fog/Reveal nor Chaos (this section's remaining unshipped modes) is budget-shaped, so
+that third data point doesn't exist yet.
 
 ---

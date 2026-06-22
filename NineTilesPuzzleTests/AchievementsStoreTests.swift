@@ -41,7 +41,7 @@ struct AchievementsStoreTests {
 
     @Test func unlocksFirstSolveOnceAGameHasBeenPlayed() {
         let store = makeStore(achievements: [achievement("firstSolve")])
-        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .classic): 1])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
 
         store.checkAchievements(using: stats)
 
@@ -51,7 +51,7 @@ struct AchievementsStoreTests {
 
     @Test func doesNotUnlockBeforeThresholdIsReached() {
         let store = makeStore(achievements: [achievement("tenGames")])
-        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .classic): 1])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
 
         store.checkAchievements(using: stats)
 
@@ -61,7 +61,7 @@ struct AchievementsStoreTests {
 
     @Test func solveFourByFourDependsOnSizeNotTotalGames() {
         let store = makeStore(achievements: [achievement("solveFourByFour")])
-        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .classic): 5])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 5])
 
         store.checkAchievements(using: stats)
         #expect(!store.achievements[0].isUnlocked)
@@ -71,13 +71,13 @@ struct AchievementsStoreTests {
         #expect(store.achievements[0].isUnlocked)
     }
 
-    @Test func under20Moves3x3RequiresClassicPersonalBest() {
+    @Test func under20Moves3x3RequiresSwapPersonalBest() {
         let store = makeStore(achievements: [achievement("under20Moves3x3")])
-        let tooSlow = makeStats(personalBestMoves: [StatsKey(gridSize: 3, gameMode: .classic): 25])
+        let tooSlow = makeStats(personalBestMoves: [StatsKey(gridSize: 3, gameMode: .swap): 25])
         store.checkAchievements(using: tooSlow)
         #expect(!store.achievements[0].isUnlocked)
 
-        let fastEnough = makeStats(personalBestMoves: [StatsKey(gridSize: 3, gameMode: .classic): 20])
+        let fastEnough = makeStats(personalBestMoves: [StatsKey(gridSize: 3, gameMode: .swap): 20])
         store.checkAchievements(using: fastEnough)
         #expect(store.achievements[0].isUnlocked)
     }
@@ -85,7 +85,7 @@ struct AchievementsStoreTests {
     @Test func streakAchievementsLookAtTheMaxAcrossAllKeys() {
         let store = makeStore(achievements: [achievement("streak10")])
         let stats = makeStats(allTimeHighStreak: [
-            StatsKey(gridSize: 3, gameMode: .classic): 4,
+            StatsKey(gridSize: 3, gameMode: .swap): 4,
             StatsKey(gridSize: 5, gameMode: .slide): 10
         ])
 
@@ -106,7 +106,7 @@ struct AchievementsStoreTests {
 
     @Test func onlyTheFirstNewUnlockInAPassBecomesTheNotification() {
         let store = makeStore(achievements: [achievement("firstSolve"), achievement("tenGames")])
-        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .classic): 10])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 10])
 
         store.checkAchievements(using: stats)
 
@@ -116,7 +116,7 @@ struct AchievementsStoreTests {
 
     @Test func unknownIdNeverUnlocks() {
         let store = makeStore(achievements: [achievement("madeUpId")])
-        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .classic): 100])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 100])
 
         store.checkAchievements(using: stats)
 
@@ -125,7 +125,7 @@ struct AchievementsStoreTests {
 
     @Test func dismissAchievementNotificationClearsIt() async {
         let store = makeStore(achievements: [achievement("firstSolve")])
-        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .classic): 1])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
         store.checkAchievements(using: stats)
         #expect(store.newlyUnlockedAchievement != nil)
 

@@ -11,6 +11,7 @@ struct TileView: View {
     let tile: TileModel
     let image: CGImage?
     let tileSize: CGFloat
+    let gridSize: Int
     let hapticsEnabled: Bool
     let debugOverlayEnabled: Bool
     let onDragStarted: () -> Void
@@ -20,7 +21,7 @@ struct TileView: View {
     @State private var isDragging = false
 
     var body: some View {
-        TileContentView(image: image, number: tile.id + 1)
+        TileContentView(image: image, number: tile.id + 1, gridSize: gridSize)
             .frame(width: tileSize, height: tileSize)
             .clipShape(.rect)
             .offset(dragOffset)
@@ -68,10 +69,21 @@ struct TileView: View {
 }
 
 /// Renders a tile's picture slice, or — in Numbers media mode, where `image` is `nil` —
-/// the number identifying which position the tile belongs at.
+/// the number identifying which position the tile belongs at, styled after classic
+/// physical sliding-tile puzzles: alternating red/cream tiles with embossed gold numerals.
 private struct TileContentView: View {
     let image: CGImage?
     let number: Int
+    let gridSize: Int
+
+    /// Checkerboard alternation keyed off the tile's home position (`number - 1`), not its
+    /// current grid slot — on a physical tile puzzle the color is painted on the tile itself.
+    private var isAlternateTile: Bool {
+        let homeIndex = number - 1
+        let row = homeIndex / gridSize
+        let col = homeIndex % gridSize
+        return (row + col).isMultiple(of: 2)
+    }
 
     var body: some View {
         if let image {
@@ -81,14 +93,30 @@ private struct TileContentView: View {
         } else {
             ZStack {
                 Rectangle()
-                    .fill(.tint.opacity(0.15))
+                    .fill(isAlternateTile ? Color.numberedTileRed : Color.numberedTileCream)
+                Rectangle()
+                    .strokeBorder(.black.opacity(0.25), lineWidth: 1)
                 Text(number, format: .number)
-                    .font(.title.bold())
+                    .font(.system(.title, design: .serif).bold())
                     .monospacedDigit()
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.numberedTileGoldLight, .numberedTileGoldDark],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .shadow(color: .black.opacity(0.55), radius: 0, x: 1, y: 1)
                     .minimumScaleFactor(0.4)
                     .padding(4)
             }
         }
     }
+}
+
+private extension Color {
+    static let numberedTileRed = Color(red: 0.70, green: 0.15, blue: 0.16)
+    static let numberedTileCream = Color(red: 0.94, green: 0.90, blue: 0.78)
+    static let numberedTileGoldLight = Color(red: 0.97, green: 0.84, blue: 0.45)
+    static let numberedTileGoldDark = Color(red: 0.72, green: 0.55, blue: 0.12)
 }

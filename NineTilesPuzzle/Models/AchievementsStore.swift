@@ -41,8 +41,8 @@ final class AchievementsStore {
             case "solveFourByFour":   shouldUnlock = stats.gamesPlayedCount(forSize: 4) >= 1
             case "solveFiveByFive":   shouldUnlock = stats.gamesPlayedCount(forSize: 5) >= 1
             case "solveEightByEight": shouldUnlock = stats.gamesPlayedCount(forSize: 8) >= 1
-            case "under20Moves3x3":   shouldUnlock = stats.personalBestMoves[StatsKey(gridSize: 3, gameMode: .classic)].map { $0 <= 20 } ?? false
-            case "under60Moves4x4":   shouldUnlock = stats.personalBestMoves[StatsKey(gridSize: 4, gameMode: .classic)].map { $0 <= 60 } ?? false
+            case "under20Moves3x3":   shouldUnlock = stats.personalBestMoves[StatsKey(gridSize: 3, gameMode: .swap)].map { $0 <= 20 } ?? false
+            case "under60Moves4x4":   shouldUnlock = stats.personalBestMoves[StatsKey(gridSize: 4, gameMode: .swap)].map { $0 <= 60 } ?? false
             case "streak10":          shouldUnlock = (stats.allTimeHighStreak.values.max() ?? 0) >= 10
             case "streak25":          shouldUnlock = (stats.allTimeHighStreak.values.max() ?? 0) >= 25
             default:                  shouldUnlock = false

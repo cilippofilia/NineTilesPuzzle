@@ -116,7 +116,7 @@ struct CompletionBannerView: View {
 #Preview {
     VStack(spacing: 20) {
         CompletionBannerView(
-            gameMode: .classic,
+            gameMode: .swap,
             streak: 7,
             isNewRecord: true,
             moveCount: 23,
@@ -216,7 +216,7 @@ struct CompletionBannerView: View {
         )
         Spacer()
         CompletionBannerView(
-            gameMode: .classic,
+            gameMode: .swap,
             streak: 0,
             isNewRecord: false,
             moveCount: 18,

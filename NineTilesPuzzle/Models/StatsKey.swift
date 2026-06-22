@@ -8,7 +8,7 @@
 import Foundation
 
 /// Grid size and move-mechanic differ enough per mode (e.g. Slide needs far more moves
-/// than Classic to solve the same grid) that per-size stats must also be split by mode.
+/// than Swap to solve the same grid) that per-size stats must also be split by mode.
 struct StatsKey: Hashable {
     let gridSize: Int
     let gameMode: GameMode
