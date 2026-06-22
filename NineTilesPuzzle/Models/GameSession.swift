@@ -249,8 +249,9 @@ final class GameSession {
             case .mixed: Bool.random() ? RemoteImageSource() : PhotoLibraryImageSource()
             default: RemoteImageSource() // covers .random; .numbers is handled above
             }
-            let isRemote = source is RemoteImageSource
-            let image = try await ImageService(primarySource: source).loadImage()
+            let result = try await ImageService(primarySource: source).loadImage()
+            let isRemote = source is RemoteImageSource && !result.usedFallback
+            let image = result.image
             sourceImage = image
 
             let slicer = ImageSlicer()
