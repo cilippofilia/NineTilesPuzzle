@@ -31,7 +31,11 @@ final class ImageService {
     func loadImage() async throws -> ImageFetchResult {
         do {
             return ImageFetchResult(image: try await primarySource.fetchImage(), usedFallback: false)
-        } catch is URLError {
+        } catch {
+            // A flaky/slow connection doesn't always surface as `URLError` — it can also
+            // return truncated data that downloads "successfully" but fails to decode into
+            // a `CGImage` (`ImageSourceError.invalidImageData`). Any primary-source failure
+            // should fall back, not just network-level ones.
             return ImageFetchResult(image: try await fallbackSource.fetchImage(), usedFallback: true)
         }
     }

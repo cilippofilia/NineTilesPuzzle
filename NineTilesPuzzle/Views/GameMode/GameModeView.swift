@@ -21,9 +21,7 @@ struct GameModeView: View {
                 ForEach(GameMode.allCases) { mode in
                     if mode.isAvailable {
                         Button {
-                            withAnimation {
-                                session.setGameMode(mode)
-                            }
+                            session.setGameMode(mode)
                         } label: {
                             GameModeRowView(mode: mode, isSelected: session.selectedGameMode == mode)
                         }
@@ -38,7 +36,7 @@ struct GameModeView: View {
                             Label {
                                 VStack(alignment: .leading) {
                                     Text("Gauntlet Ladder")
-                                    Text("10 escalating stages with fixed grid sizes.\nDifficulty is set automatically while active.")
+                                    Text("10 escalating stages with fixed grid sizes. Difficulty is set automatically while active.")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

@@ -30,9 +30,10 @@ struct CompletionBannerView: View {
 
     private static let goldColor = Color(hue: 0.12, saturation: 0.9, brightness: 0.85)
 
-    /// A streak of consecutive correct placements isn't meaningful in Slide or Time Trial
-    /// (see `PuzzleStatusBarView`); the banner shows elapsed time/score there instead.
-    private var showsStreak: Bool { gameMode != .slide && gameMode != .timeTrial }
+    /// A streak of consecutive correct placements isn't meaningful in Slide, Time Trial, or
+    /// Limited Moves (see `PuzzleStatusBarView`); the banner shows elapsed time/score there
+    /// instead.
+    private var showsStreak: Bool { gameMode != .slide && gameMode != .timeTrial && gameMode != .limitedMoves }
     private var showsScore: Bool { gameMode == .timeTrial && !isLadderMode }
     private var showsLadderScore: Bool { gameMode == .timeTrial && isLadderMode }
 
@@ -95,6 +96,10 @@ struct CompletionBannerView: View {
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
+                } else if gameMode == .limitedMoves, let best = personalBest, best != moveCount {
+                    Text("Best: \(best) moves")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 } else if let best = personalBestTime, best != elapsedTime {
                     Text("Best: \(best.formattedMinutesSeconds)")
                         .font(.caption)

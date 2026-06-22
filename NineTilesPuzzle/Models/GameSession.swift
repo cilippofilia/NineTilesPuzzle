@@ -67,6 +67,7 @@ final class GameSession {
     private(set) var timeTrialRemaining: Double = 0
     private(set) var isTimeTrialRunning = false
     private(set) var isTimeTrialFailed = false
+    private(set) var isLimitedMovesFailed = false
     /// The bonus (positive) or penalty (negative) seconds applied by the most recent move,
     /// for the HUD's transient "+1s"/"-2s" indicator. `nil` before any move has been made.
     private(set) var lastTimeTrialDelta: TimeInterval?
@@ -81,6 +82,13 @@ final class GameSession {
     var isZenMode: Bool { selectedGameMode == .zen }
     var isTimeTrialMode: Bool { selectedGameMode == .timeTrial }
     var isGauntletLadderMode: Bool { isTimeTrialMode && isLadderMode }
+    var isLimitedMovesMode: Bool { selectedGameMode == .limitedMoves }
+
+    /// Total moves allowed this game; Limited Moves' flat budget per grid size.
+    var movesBudgetForCurrentSize: Int { LimitedMovesRules.moveBudget(forGridSize: gridSize) }
+    /// Moves left before `isLimitedMovesFailed` trips — every move costs 1, regardless of
+    /// whether it locks a tile correctly.
+    var limitedMovesRemaining: Int { max(0, movesBudgetForCurrentSize - currentMoveCount) }
 
     var currentStatsKey: StatsKey { StatsKey(gridSize: gridSize, gameMode: selectedGameMode) }
 
@@ -227,6 +235,12 @@ final class GameSession {
         isLadderRunComplete = false
         isNewLadderScoreRecord = false
         isNewLadderStageRecord = false
+        isLimitedMovesFailed = false
+        // Otherwise this stays stuck from a previous Time Trial run that ended in failure —
+        // `startTimeTrialCountdown()` only resets it when re-entering Time Trial itself, so
+        // every other mode's `swapTiles` (which guards on this flag regardless of mode)
+        // would silently block every move forever afterward.
+        isTimeTrialFailed = false
         error = nil
         stopTimeTrialCountdown()
 
@@ -296,7 +310,7 @@ final class GameSession {
 
     /// Attempts to swap the tiles at `sourceIndex` and `targetIndex`; no-ops if either is locked or indices are equal.
     func swapTiles(from sourceIndex: Int, to targetIndex: Int) {
-        guard !isTimeTrialFailed else { return }
+        guard !isTimeTrialFailed, !isLimitedMovesFailed else { return }
         guard sourceIndex != targetIndex else { return }
         guard
             let source = tiles.first(where: { $0.currentIndex == sourceIndex }),
@@ -379,6 +393,8 @@ final class GameSession {
 
         if isTimeTrialMode {
             applyTimeTrialMoveOutcome(correctBefore: correctBefore)
+        } else if isLimitedMovesMode {
+            applyLimitedMovesBudgetCheck()
         } else if !isZenMode {
             let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
             if newlyCorrect > 0 {
@@ -415,6 +431,14 @@ final class GameSession {
             if isGauntletLadderMode { isLadderRunFailed = true }
             stopTimeTrialCountdown()
         }
+    }
+
+    /// Fails the puzzle once the move budget is exhausted without solving. Checked after the
+    /// solved branch above, so a move that both uses the last budgeted move and solves the
+    /// puzzle counts as a win, not a simultaneous fail.
+    private func applyLimitedMovesBudgetCheck() {
+        guard !isSolved, currentMoveCount >= movesBudgetForCurrentSize else { return }
+        isLimitedMovesFailed = true
     }
 
     func skipPreview() {
@@ -558,6 +582,7 @@ extension GameSession {
         static let useRandomSize = "puzzle.useRandomSize"
         static let gameMode = "puzzle.gameMode"
         static let timeTrialFailed = "puzzle.timeTrialFailed"
+        static let limitedMovesFailed = "puzzle.limitedMovesFailed"
         static let isLadderMode = "puzzle.isLadderMode"
         static let currentLadderStage = "puzzle.currentLadderStage"
         static let ladderCumulativeScore = "puzzle.ladderCumulativeScore"
@@ -581,6 +606,7 @@ private extension GameSession {
         defaults.set(currentMoveCount, forKey: Keys.currentMoveCount)
         defaults.set(elapsedTime, forKey: Keys.elapsedTime)
         defaults.set(isTimeTrialFailed, forKey: Keys.timeTrialFailed)
+        defaults.set(isLimitedMovesFailed, forKey: Keys.limitedMovesFailed)
         defaults.set(isLadderMode, forKey: Keys.isLadderMode)
         defaults.set(currentLadderStage, forKey: Keys.currentLadderStage)
         defaults.set(ladderCumulativeScore, forKey: Keys.ladderCumulativeScore)
@@ -632,6 +658,7 @@ private extension GameSession {
         currentMoveCount = defaults.integer(forKey: Keys.currentMoveCount)
         elapsedTime = defaults.double(forKey: Keys.elapsedTime)
         isTimeTrialFailed = defaults.bool(forKey: Keys.timeTrialFailed)
+        isLimitedMovesFailed = defaults.bool(forKey: Keys.limitedMovesFailed)
         isLadderMode = defaults.bool(forKey: Keys.isLadderMode)
         currentLadderStage = defaults.integer(forKey: Keys.currentLadderStage)
         if currentLadderStage < 1 || currentLadderStage > GauntletLadderRules.stageCount { currentLadderStage = 1 }

@@ -24,6 +24,19 @@ struct ImageServiceTests {
         #expect(result.usedFallback)
     }
 
+    @Test func fallsBackToLocalOnNonNetworkDecodeFailure() async throws {
+        // A slow/flaky connection can return truncated data that "succeeds" at the network
+        // layer but fails to decode into a `CGImage` — a different error type than
+        // `URLError`, which must still fall back rather than surfacing a raw decode error.
+        let service = ImageService(
+            primarySource: FailingImageSource(error: ImageSourceError.invalidImageData),
+            fallbackSource: SucceedingImageSource(image: makeTestImage())
+        )
+        let result = try await service.loadImage()
+        #expect(result.image.width > 0)
+        #expect(result.usedFallback)
+    }
+
     @Test func successfulRemoteFetchReturnsImage() async throws {
         let expected = makeTestImage()
         let service = ImageService(primarySource: SucceedingImageSource(image: expected))

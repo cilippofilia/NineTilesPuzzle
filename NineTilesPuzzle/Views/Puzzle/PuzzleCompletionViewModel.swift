@@ -24,6 +24,7 @@ final class PuzzleCompletionViewModel {
     var showNewLadderScoreRecord = false
     var showNewLadderStageRecord = false
     var showTimeTrialFail = false
+    var showLimitedMovesFail = false
     var bannerOffset: CGSize = .zero
 
     var zenBreathScale: CGFloat = 1
@@ -94,6 +95,12 @@ final class PuzzleCompletionViewModel {
         withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showTimeTrialFail = failed }
     }
 
+    /// Mirrors `handleTimeTrialFailedChange`'s shape for Limited Moves' "ran out the
+    /// budget" overlay, also mutually exclusive with the completion banner.
+    func handleLimitedMovesFailedChange(_ failed: Bool) {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showLimitedMovesFail = failed }
+    }
+
     // MARK: - Banner drag-to-dismiss
 
     func updateBannerDrag(_ translation: CGSize) {
@@ -114,6 +121,7 @@ final class PuzzleCompletionViewModel {
     func prepareForNewGame() {
         bannerOffset = .zero
         showTimeTrialFail = false
+        showLimitedMovesFail = false
     }
 
     // MARK: - Zen mode completion sequence

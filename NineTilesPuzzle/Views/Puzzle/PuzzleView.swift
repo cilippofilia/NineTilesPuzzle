@@ -95,7 +95,9 @@ struct PuzzleView: View {
                         isLadderMode: session.isLadderMode,
                         currentLadderStage: session.currentLadderStage,
                         ladderCumulativeScore: session.ladderCumulativeScore,
-                        bestLadderScoreOverall: session.bestLadderScoreOverall
+                        bestLadderScoreOverall: session.bestLadderScoreOverall,
+                        movesRemaining: session.limitedMovesRemaining,
+                        movesBudget: session.movesBudgetForCurrentSize
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.top)
@@ -104,6 +106,7 @@ struct PuzzleView: View {
                     .animation(.easeInOut(duration: 0.35), value: session.isPreviewing)
                     .animation(.spring(response: 0.5, dampingFraction: 0.75), value: completion.showCompletion)
                     .animation(.spring(response: 0.5, dampingFraction: 0.75), value: completion.showTimeTrialFail)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.75), value: completion.showLimitedMovesFail)
 
                     if session.isTimeTrialMode, let delta = session.lastTimeTrialDelta {
                         TimeTrialDeltaIndicatorView(delta: delta)
@@ -135,7 +138,7 @@ struct PuzzleView: View {
                     // banner's card — and slides down out from behind it on appear.
                     if completion.showCompletion && completion.hasNewBestBadge(selectedGameMode: session.selectedGameMode) {
                         NewBestBadgesView(
-                            showsStreak: session.selectedGameMode != .slide,
+                            showsStreak: session.selectedGameMode != .slide && session.selectedGameMode != .limitedMoves,
                             moveCount: session.currentMoveCount,
                             isNewMovesRecord: completion.showNewMovesRecord,
                             elapsedTime: session.elapsedTime,
@@ -191,6 +194,31 @@ struct PuzzleView: View {
                         .opacity(completion.showTimeTrialFail ? 1 : 0)
                 }
                 .allowsHitTesting(completion.showTimeTrialFail)
+            }
+
+            // Layer 3c: Limited Moves fail overlay — mirrors Layer 3b's Time Trial fail
+            // overlay, mutually exclusive with the completion banner above.
+            if session.isLimitedMovesMode {
+                VStack {
+                    LimitedMovesFailView(
+                        moveCount: session.currentMoveCount,
+                        personalBestMoves: session.personalBestForCurrentSize
+                    )
+                        .padding(.top)
+                        .padding(.horizontal)
+                        .offset(y: completion.showLimitedMovesFail ? 0 : -300)
+                        .opacity(completion.showLimitedMovesFail ? 1 : 0)
+
+                    Spacer()
+
+                    Button("Try Again", action: startNewGame)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .padding(.bottom)
+                        .offset(y: completion.showLimitedMovesFail ? 0 : 300)
+                        .opacity(completion.showLimitedMovesFail ? 1 : 0)
+                }
+                .allowsHitTesting(completion.showLimitedMovesFail)
             }
 
             // Layer 4: achievement unlock toast — only shown mid-game to avoid overlapping the
@@ -253,6 +281,9 @@ struct PuzzleView: View {
         .sensoryFeedback(.error, trigger: session.isTimeTrialFailed) { _, newValue in
             newValue && settings.hapticsEnabled
         }
+        .sensoryFeedback(.error, trigger: session.isLimitedMovesFailed) { _, newValue in
+            newValue && settings.hapticsEnabled
+        }
         .onChange(of: session.isSolved) { _, solved in
             completion.handleSolvedChange(solved, onSolved: soundService.playCompletion)
         }
@@ -276,6 +307,9 @@ struct PuzzleView: View {
         }
         .onChange(of: session.isTimeTrialFailed) { _, failed in
             completion.handleTimeTrialFailedChange(failed)
+        }
+        .onChange(of: session.isLimitedMovesFailed) { _, failed in
+            completion.handleLimitedMovesFailedChange(failed)
         }
         .navigationTitle(session.isZenMode ? "" : "Puzzle")
         .navigationBarTitleDisplayMode(.inline)
@@ -318,7 +352,7 @@ struct PuzzleView: View {
     }
 
     private var isGameActive: Bool {
-        (!session.tiles.isEmpty || session.isPreviewing) && !session.isSolved && !session.isTimeTrialFailed
+        (!session.tiles.isEmpty || session.isPreviewing) && !session.isSolved && !session.isTimeTrialFailed && !session.isLimitedMovesFailed
     }
 
     private var showSolveButton: Bool {
@@ -330,7 +364,7 @@ struct PuzzleView: View {
     }
 
     private var streakVisible: Bool {
-        !completion.showCompletion && !completion.showTimeTrialFail && !session.isLoading && session.error == nil
+        !completion.showCompletion && !completion.showTimeTrialFail && !completion.showLimitedMovesFail && !session.isLoading && session.error == nil
     }
 
     /// "Continue" still applies to every non-ladder mode; a ladder run instead names what
