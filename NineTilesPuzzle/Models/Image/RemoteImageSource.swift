@@ -19,6 +19,9 @@ struct RemoteImageSource: ImageSource {
 
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        // Default URLRequest timeout is 60s — far too long to block on when a bundled
+        // fallback image is always available; fail fast and let `ImageService` fall back.
+        request.timeoutInterval = 8
         let (data, _) = try await URLSession.shared.data(for: request)
         
         guard
