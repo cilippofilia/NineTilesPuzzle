@@ -258,14 +258,32 @@ final class GameSession {
         }
 
         do {
-            let source: any ImageSource = switch mediaSourceType {
-            case .local: PhotoLibraryImageSource()
-            case .mixed: Bool.random() ? RemoteImageSource() : PhotoLibraryImageSource()
-            default: RemoteImageSource() // covers .random; .numbers is handled above
+            let image: CGImage
+            switch mediaSourceType {
+            case .local:
+                image = try await ImageService(primarySource: PhotoLibraryImageSource()).loadImage().image
+            case .mixed:
+                // Mixed already accepts photo-library images as a valid outcome, so a failed
+                // remote fetch falls back to a real library photo rather than the bundled
+                // placeholder — unlike `.random`, where the player explicitly chose Internet.
+                image = if Bool.random() {
+                    try await ImageService(
+                        primarySource: RemoteImageSource(),
+                        fallbackSource: PhotoLibraryImageSource()
+                    ).loadImage().image
+                } else {
+                    try await ImageService(primarySource: PhotoLibraryImageSource()).loadImage().image
+                }
+            default: // .random; .numbers is handled above
+                // No bundled-image fallback here: a player who chose Internet-only shouldn't
+                // keep silently playing the same static placeholder every game when the
+                // provider is down — surface it so they can switch media source instead.
+                do {
+                    image = try await RemoteImageSource().fetchImage()
+                } catch {
+                    throw ImageSourceError.providerUnavailable
+                }
             }
-            let result = try await ImageService(primarySource: source).loadImage()
-            let isRemote = source is RemoteImageSource && !result.usedFallback
-            let image = result.image
             sourceImage = image
 
             let slicer = ImageSlicer()
@@ -275,7 +293,7 @@ final class GameSession {
 
             isLoading = false
 
-            if isRemote && settingsStore.previewDuration > 0 {
+            if settingsStore.previewDuration > 0 {
                 isPreviewing = true
                 previewSleepTask = Task { try? await Task.sleep(for: .seconds(settingsStore.previewDuration)) }
                 await previewSleepTask?.value

@@ -32,7 +32,7 @@ struct PuzzleView: View {
                     ImagePreviewView(image: image, onSkip: session.skipPreview)
                         .transition(.asymmetric(insertion: .opacity, removal: .identity))
                 } else if let error = session.error {
-                    PuzzleErrorView(error: error, onRetry: startNewGame)
+                    PuzzleErrorView(error: error, onRetry: startNewGame, onSwitchToPhotos: switchToPhotosAndRetry)
                         .transition(.opacity)
                 } else {
                     Spacer()
@@ -383,6 +383,11 @@ struct PuzzleView: View {
                 await session.startNewGame()
             }
         }
+    }
+
+    private func switchToPhotosAndRetry() {
+        session.setMediaSourceType(.local)
+        startNewGame()
     }
 
     /// Debug-only: walks the puzzle to its solved state, one slide at a time, so the slide

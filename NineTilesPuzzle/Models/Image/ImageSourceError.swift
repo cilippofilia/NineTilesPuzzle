@@ -13,6 +13,7 @@ enum ImageSourceError: Error, LocalizedError {
     case invalidURL
     case notAuthorized
     case noPhotosAvailable
+    case providerUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +27,8 @@ enum ImageSourceError: Error, LocalizedError {
             return "Access to the photo library was denied. Please allow access in Settings."
         case .noPhotosAvailable:
             return "No photos were found in your library."
+        case .providerUnavailable:
+            return "Seems the image provider is out of service. Switch to photos to continue playing."
         }
     }
 }
