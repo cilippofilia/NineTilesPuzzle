@@ -113,6 +113,8 @@ struct MenuView: View {
                 .padding(.horizontal)
 
                 Button {
+                    session.tiles = []
+                    session.isLoading = true
                     path.append(.game)
                 } label: {
                     Label("Play", systemImage: "play.fill")
