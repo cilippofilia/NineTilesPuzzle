@@ -21,7 +21,7 @@ struct TileView: View {
     @State private var isDragging = false
 
     var body: some View {
-        TileContentView(image: image, number: tile.id + 1, gridSize: gridSize)
+        TileContentView(image: image, number: tile.id + 1, gridSize: gridSize, tileSize: tileSize)
             .frame(width: tileSize, height: tileSize)
             .clipShape(.rect)
             .offset(dragOffset)
@@ -75,6 +75,7 @@ private struct TileContentView: View {
     let image: CGImage?
     let number: Int
     let gridSize: Int
+    let tileSize: CGFloat
 
     /// Checkerboard alternation keyed off the tile's home position (`number - 1`), not its
     /// current grid slot — on a physical tile puzzle the color is painted on the tile itself.
@@ -97,7 +98,8 @@ private struct TileContentView: View {
                 Rectangle()
                     .strokeBorder(.black.opacity(0.25), lineWidth: 1)
                 Text(number, format: .number)
-                    .font(.system(.title, design: .serif).bold())
+                    .font(.system(size: tileSize * 0.4, design: .serif))
+                    .bold()
                     .monospacedDigit()
                     .foregroundStyle(
                         LinearGradient(
@@ -119,4 +121,15 @@ private extension Color {
     static let numberedTileCream = Color(red: 0.94, green: 0.90, blue: 0.78)
     static let numberedTileGoldLight = Color(red: 0.97, green: 0.84, blue: 0.45)
     static let numberedTileGoldDark = Color(red: 0.72, green: 0.55, blue: 0.12)
+}
+
+#Preview("Numbered Tiles") {
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
+        ForEach(1...9, id: \.self) { number in
+            TileContentView(image: nil, number: number, gridSize: 3, tileSize: 90)
+                .frame(width: 90, height: 90)
+                .clipShape(.rect(cornerRadius: 6))
+        }
+    }
+    .padding()
 }
