@@ -61,6 +61,19 @@ Tiles start desaturated or hidden and reveal in full color only when locked, wit
 preview. A visual-twist mode built almost entirely in `TileView` rendering, on top of the
 existing lock state.
 
+[] ### Chaos Mode — **S**
+Tiles are randomly mirrored, flipped, and/or desaturated at shuffle time, so part of the
+challenge is figuring out which transforms are in play before a slice can be matched to its
+home cell — the puzzle's correctness is still purely about grid position, the transforms are
+visual noise only. Built on the same pattern as Fog/Reveal: `TileModel` gains a couple of
+Codable transform flags, `TileView` gets conditional `.rotationEffect()` /
+`.scaleEffect(x: -1)` / `.saturation(0)` added to its existing per-tile modifier chain, and
+`GameSession.startNewGame()` assigns the flags randomly right after shuffle — the same hook
+`isTimeTrialMode`'s post-shuffle branch already uses. No new `GameEngine`, no new fail state.
+Already scaffolded in code today: `GameMode.chaos` has its title/description/icon, just
+gated off by `isAvailable`, so shipping this is "build the transform plumbing, then flip the
+gate."
+
 ---
 
 ## 2. Power-ups & Twists
