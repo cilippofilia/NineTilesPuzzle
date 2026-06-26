@@ -61,18 +61,19 @@ Tiles start desaturated or hidden and reveal in full color only when locked, wit
 preview. A visual-twist mode built almost entirely in `TileView` rendering, on top of the
 existing lock state.
 
-[] ### Chaos Mode — **S**
-Tiles are randomly mirrored, flipped, and/or desaturated at shuffle time, so part of the
-challenge is figuring out which transforms are in play before a slice can be matched to its
-home cell — the puzzle's correctness is still purely about grid position, the transforms are
-visual noise only. Built on the same pattern as Fog/Reveal: `TileModel` gains a couple of
-Codable transform flags, `TileView` gets conditional `.rotationEffect()` /
-`.scaleEffect(x: -1)` / `.saturation(0)` added to its existing per-tile modifier chain, and
-`GameSession.startNewGame()` assigns the flags randomly right after shuffle — the same hook
-`isTimeTrialMode`'s post-shuffle branch already uses. No new `GameEngine`, no new fail state.
-Already scaffolded in code today: `GameMode.chaos` has its title/description/icon, just
-gated off by `isAvailable`, so shipping this is "build the transform plumbing, then flip the
-gate."
+[X] ### Chaos Mode — **S**
+Shipped June 2026, as a whole-image transform rather than the originally-sketched per-tile
+flags: a random `ChaosTransform` (one orientation pick — mirror/flip/rotate90/180/270 — plus
+one tone pick — desaturate/invert/hue-shift/sepia — plus independent posterize and pixelate
+coin flips) is baked into the source image once at shuffle time, before `ImageSlicer` ever
+sees it, so every tile inherits the same transform and the solved puzzle still reads as one
+coherent (if mirrored/inverted/pixelated) photo. The puzzle's correctness stays purely about
+grid position — see `ARCHITECTURE.md` for why this needed a dedicated `previewImage` so the
+pre-shuffle "memorize the image" step still shows the real photo, not the chaos version. No
+new `GameEngine`, no new fail state, no stats/streak exemption (it plays exactly like Swap
+underneath). Same pattern still available for a future Fog/Reveal: this shipped as a
+whole-image bake rather than per-tile `TileModel` flags, so Fog/Reveal would need its own
+approach if it wants tile-level reveal timing rather than a single baked-in effect.
 
 ---
 
@@ -280,8 +281,10 @@ count with no score) that a shared struct would carry fields meaningless to one 
 the other, for a payoff of collapsing two small `if`/`else if` branches. See
 `ARCHITECTURE.md`'s §6 resolution for the full reasoning. The Gauntlet Ladder still doesn't
 add a data point here — it's deliberately modeled as a boolean flag on top of Time Trial
-(`isLadderMode`), not a new `GameMode`. Revisit again if a third budget-based mode arrives;
-neither Fog/Reveal nor Chaos (this section's remaining unshipped modes) is budget-shaped, so
-that third data point doesn't exist yet.
+(`isLadderMode`), not a new `GameMode`. Chaos Mode shipped since (June 2026) but doesn't add
+a data point either — it's a visual-only whole-image transform with no budget or fail state,
+playing like Swap underneath. Revisit the `GameModeRules` question again if a third
+budget-based mode arrives; Fog/Reveal (this section's one remaining unshipped mode) is also
+visual-twist, not budget-shaped, so that third data point still doesn't exist yet.
 
 ---

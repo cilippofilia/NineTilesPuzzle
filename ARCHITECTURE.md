@@ -1,6 +1,6 @@
 # NineTilesPuzzle — Architecture Overview
 
-Snapshot of the current codebase structure, as of 2026-06-22. This is a descriptive
+Snapshot of the current codebase structure, as of 2026-06-26. This is a descriptive
 document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in sync with
 it) for how the "does mode-specific behavior need a shared abstraction" question was
 revisited once Time Trial and Limited Moves both existed, and what would justify
@@ -35,6 +35,8 @@ NineTilesPuzzle/
 │   ├── GauntletLadderRules.swift   — pure 10-stage table + ladder scoring (see below);
 │   │                                  deliberately separate from TimeTrialRules.swift
 │   ├── LimitedMovesRules.swift     — pure per-grid-size move budget table (see below)
+│   ├── ChaosTransform.swift        — pure whole-image orientation/tone/posterize/pixelate
+│   │                                  transform for Chaos Mode (see below)
 │   ├── TileModel.swift             — @Observable tile: id, currentIndex, isLocked
 │   ├── Achievement.swift           — Codable achievement definition + unlock flag
 │   ├── ZenSparkle.swift            — decorative particle model for Zen mode's solve animation
@@ -145,14 +147,14 @@ new-record badges stay visible, and Zen mode's breathe-and-fade transition into 
 puzzle. Takes no store dependencies — callers pass live values and closures per call — so
 it's constructible and testable with zero environment setup.
 
-**Game modes today**: `GameMode` is 7 cases; `isAvailable` now gates 5 of them (`.classic`,
-`.slide`, `.zen`, `.timeTrial`, `.limitedMoves`), with the remaining 2 listed in the UI as
-"Coming soon…" with no behavior. Mode-specific behavior is still expressed as scattered
-conditionals (`isZenMode`, `isTimeTrialMode`, `isLimitedMovesMode`,
-`selectedGameMode == .slide`, `settingsStore.debugOverlayEnabled`) inside `GameSession` and
-`PuzzleView`/`PuzzleGridView` — see the §6 resolution below for why this stayed
-conditionals-based even with Time Trial and Limited Moves as two structurally similar real
-modes.
+**Game modes today**: `GameMode` is 7 cases; `isAvailable` now gates 6 of them (`.classic`,
+`.slide`, `.zen`, `.timeTrial`, `.limitedMoves`, `.chaos`), with the remaining one
+(Fog/Reveal) listed in the UI as "Coming soon…" with no behavior. Mode-specific behavior is
+still expressed as scattered conditionals (`isZenMode`, `isTimeTrialMode`,
+`isLimitedMovesMode`, `selectedGameMode == .slide`, `settingsStore.debugOverlayEnabled`)
+inside `GameSession` and `PuzzleView`/`PuzzleGridView` — see the §6 resolution below for why
+this stayed conditionals-based even with Time Trial and Limited Moves as two structurally
+similar real modes.
 
 **Time Trial mode** (MVP scope — see `ROADMAP.md` §1 for what's deferred): one timed puzzle
 per grid size, always on `ClassicEngine` (its per-move `isLocked` signal is what makes
@@ -213,6 +215,29 @@ regular completion banner, the same pattern as `TimeTrialFailView`), and
 `LimitedMovesCounterView` is its HUD pill ("N left", color-coded by fraction of budget
 remaining).
 
+**Chaos Mode** (shipped June 2026): a whole-image visual twist, not a per-tile one. A random
+`Models/ChaosTransform.swift` value — one `Orientation` pick (mirror/flip/rotate90/180/270),
+one `Tone` pick (desaturate/invert/hue-shift/sepia), plus independent `posterize` and
+`pixelate` coin flips (pixelate weighted lower at 25%, since its block size reads as a much
+stronger effect than the others) — is baked into the source `CGImage` via Core Image filters
+once, in `GameSession.startNewGame()`/`startNewRandomGame()`, *before* `ImageSlicer` ever
+slices it. Baking the transform into the image rather than tracking it as separate state
+means every tile inherits the same look (the solved puzzle still reads as one coherent
+photo, not a mosaic of independently-warped pieces) and the transformed image rides along
+for free through the existing `sourceImage`/restore-from-`UserDefaults` path, with no new
+persistence key and no risk of re-rolling a different transform on restore than the one the
+tiles were actually shuffled against. `GameSession` gained a dedicated `previewImage`
+field — always the untouched, untransformed center-crop — because the existing
+`croppedSourceImage` field became "post-transform" the moment Chaos started writing to it,
+and `ImagePreviewView`'s pre-shuffle "memorize the image" step needs to show the real photo,
+not the mirrored/inverted/pixelated one the tiles are about to show. Pixelate's block grid is
+centered on the image, so `ChaosTransform.zoomedToHideEdgeBand` crops the partial-block
+margin at each edge and zooms the clean interior back to fill the frame — otherwise that
+ring lined up exactly with the puzzle's border tiles and was a free tell for which pieces sit
+on the edge. Chaos has no new `GameEngine`, no fail state, and no stats/streak exemption: it
+runs on `ClassicEngine` like Swap and feeds the same completion/streak/personal-best path,
+since the transform is purely visual noise on top of an otherwise-ordinary Swap game.
+
 **§6 resolution**: with both Time Trial and Limited Moves now shipped, the question of
 whether mode-specific behavior deserves a generic `GameModeRules` abstraction was
 revisited a second time — and conditionals still won, though more narrowly than before.
@@ -245,11 +270,14 @@ are wanted).
 
 **Testing**: `NineTilesPuzzleTests` is a real Unit Testing Bundle target (added manually in
 Xcode in June 2026 — it existed as a folder of source files for a while before that without
-ever actually being wired up or compiled). 117 tests currently pass, covering: both engines
+ever actually being wired up or compiled). 123 tests currently pass, covering: both engines
 and `SlideSolver`, `ImageService`/`ImageSlicer` (including a fallback test for non-network
 decode failures), all four stores (`StatsStore` and `AchievementsStore` via
 `InMemoryPersistenceStore`), `PuzzleCompletionViewModel`, `TimeTrialRules`,
-`GauntletLadderRules`, `LimitedMovesRules`, and `GameSessionTimeTrialTests`/
+`GauntletLadderRules`, `LimitedMovesRules`, `ChaosTransformTests` (dimension-preservation
+across every orientation/tone, posterize/pixelate individually and stacked, and a
+random-combination fuzz pass asserting `ChaosTransform.random()` never produces a crashing
+combination), and `GameSessionTimeTrialTests`/
 `GameSessionGauntletLadderTests`/`GameSessionLimitedMovesTests` suites exercising the full
 Time Trial, Gauntlet Ladder, and Limited Moves integrations (countdown lifecycle, combo
 bonus/penalty, fail state, score recording, stage progression, win-streak scoring, run
