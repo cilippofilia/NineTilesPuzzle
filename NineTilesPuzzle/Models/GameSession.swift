@@ -94,6 +94,8 @@ final class GameSession {
     var isTimeTrialMode: Bool { selectedGameMode == .timeTrial }
     var isGauntletLadderMode: Bool { isTimeTrialMode && isLadderMode }
     var isLimitedMovesMode: Bool { selectedGameMode == .limitedMoves }
+    var isFogMode: Bool { selectedGameMode == .fog }
+    var currentPreviewDuration: Double { settingsStore.previewDuration }
 
     /// Total moves allowed this game; Limited Moves' flat budget per grid size.
     var movesBudgetForCurrentSize: Int { LimitedMovesRules.moveBudget(forGridSize: gridSize) }
@@ -321,9 +323,10 @@ final class GameSession {
 
             isLoading = false
 
-            if settingsStore.previewDuration > 0 {
+            let previewDuration = settingsStore.previewDuration
+            if previewDuration > 0 {
                 isPreviewing = true
-                previewSleepTask = Task { try? await Task.sleep(for: .seconds(settingsStore.previewDuration)) }
+                previewSleepTask = Task { try? await Task.sleep(for: .seconds(previewDuration)) }
                 await previewSleepTask?.value
                 previewSleepTask = nil
                 isPreviewing = false
@@ -367,6 +370,12 @@ final class GameSession {
 
         let correctBefore = tiles.filter { $0.isCorrect }.count
         swapEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
+        if isFogMode {
+            withAnimation(.easeInOut(duration: 0.45)) {
+                source.hasBeenMoved = true
+                target.hasBeenMoved = true
+            }
+        }
         registerMove(correctBefore: correctBefore)
     }
 

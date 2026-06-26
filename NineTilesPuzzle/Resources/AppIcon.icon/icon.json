@@ -35,6 +35,7 @@
           "fill" : {
             "solid" : "extended-gray:1.00000,0.09831"
           },
+          "hidden" : false,
           "image-name" : "icon.png",
           "name" : "icon",
           "opacity" : 0.01,

@@ -12,6 +12,7 @@ struct TileView: View {
     let image: CGImage?
     let tileSize: CGFloat
     let gridSize: Int
+    let isFogMode: Bool
     let hapticsEnabled: Bool
     let debugOverlayEnabled: Bool
     let onDragStarted: () -> Void
@@ -20,44 +21,61 @@ struct TileView: View {
     @State private var dragOffset: CGSize = .zero
     @State private var isDragging = false
 
+    /// Sparkle fog: tile is unrevealed and not being touched.
+    private var showFog: Bool { isFogMode && !tile.isLocked && !isDragging }
+    /// Frosted glass: tile is being actively dragged (can't see what you're placing).
+    private var showFrostedGlass: Bool { isFogMode && !tile.isLocked && isDragging }
+
     var body: some View {
-        TileContentView(image: image, number: tile.id + 1, gridSize: gridSize, tileSize: tileSize)
-            .frame(width: tileSize, height: tileSize)
-            .clipShape(.rect)
-            .offset(dragOffset)
-            .scaleEffect(isDragging ? 1.08 : (tile.isCorrect ? 1.0 : 0.98))
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: tile.isCorrect)
-            .shadow(radius: isDragging ? 8 : 0)
-            .sensoryFeedback(.impact(flexibility: .rigid, intensity: 0.7), trigger: tile.isCorrect) { _, newValue in
-                newValue && hapticsEnabled
+        ZStack {
+            TileContentView(image: image, number: tile.id + 1, gridSize: gridSize, tileSize: tileSize)
+                .blur(radius: showFog ? 18 : showFrostedGlass ? 3 : 0)
+                .animation(.easeInOut(duration: 0.2), value: isDragging)
+                .animation(.easeInOut(duration: 1.2), value: tile.isLocked)
+
+            if showFog {
+                Color.black.opacity(0.45)
+                FogTileOverlay(seed: Float(tile.id))
             }
-            .overlay(alignment: .topLeading) {
-                if debugOverlayEnabled {
-                    Text("\(tile.id + 1)")
-                        .font(.caption2.bold())
-                        .monospacedDigit()
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 2)
-                        .background(.black.opacity(0.55), in: .rect(cornerRadius: 4))
-                        .padding(4)
+        }
+        .animation(.easeInOut(duration: 0.2), value: isDragging)
+        .animation(.easeInOut(duration: 1.2), value: tile.isLocked)
+        .frame(width: tileSize, height: tileSize)
+        .clipShape(.rect)
+        .offset(dragOffset)
+        .scaleEffect(isDragging ? 1.08 : (tile.isCorrect ? 1.0 : 0.98))
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: tile.isCorrect)
+        .shadow(radius: isDragging ? 8 : 0)
+        .sensoryFeedback(.impact(flexibility: .rigid, intensity: 0.7), trigger: tile.isCorrect) { _, newValue in
+            newValue && hapticsEnabled
+        }
+        .overlay(alignment: .topLeading) {
+            if debugOverlayEnabled {
+                Text("\(tile.id + 1)")
+                    .font(.caption2.bold())
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 2)
+                    .background(.black.opacity(0.55), in: .rect(cornerRadius: 4))
+                    .padding(4)
+            }
+        }
+        .allowsHitTesting(!tile.isLocked)
+        .gesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .named("puzzleGrid"))
+                .onChanged { value in
+                    dragOffset = value.translation
+                    if !isDragging {
+                        isDragging = true
+                        onDragStarted()
+                    }
                 }
-            }
-            .allowsHitTesting(!tile.isLocked)
-            .gesture(
-                DragGesture(minimumDistance: 0, coordinateSpace: .named("puzzleGrid"))
-                    .onChanged { value in
-                        dragOffset = value.translation
-                        if !isDragging {
-                            isDragging = true
-                            onDragStarted()
-                        }
-                    }
-                    .onEnded { value in
-                        onDragEnded(value.location)
-                        resetDragState()
-                    }
-            )
+                .onEnded { value in
+                    onDragEnded(value.location)
+                    resetDragState()
+                }
+        )
     }
 
     private func resetDragState() {
