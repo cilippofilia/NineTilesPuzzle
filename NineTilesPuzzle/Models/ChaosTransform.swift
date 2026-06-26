@@ -80,6 +80,7 @@ struct ChaosTransform {
                 "inputScale": scale,
                 "inputCenter": CIVector(x: ciImage.extent.midX, y: ciImage.extent.midY)
             ])
+            ciImage = zoomedToHideEdgeBand(ciImage, blockSize: scale)
         }
 
         guard let result = Self.context.createCGImage(ciImage, from: ciImage.extent) else { return image }
@@ -94,6 +95,25 @@ struct ChaosTransform {
         case .rotate180: image.oriented(.down)
         case .rotate270: image.oriented(.left)
         }
+    }
+
+    /// CIPixellate's block grid is centered on the image, so the outermost ring of blocks at
+    /// each edge is partial — and since that ring lines up exactly with the puzzle's border
+    /// tiles, it was an easy tell for which pieces sit on the edge. Cropping that partial-block
+    /// margin away and scaling the clean interior back up to fill the frame keeps every tile's
+    /// pixelation looking uniform.
+    private func zoomedToHideEdgeBand(_ image: CIImage, blockSize: CGFloat) -> CIImage {
+        let extent = image.extent
+        let inset = extent.insetBy(dx: blockSize, dy: blockSize)
+        guard inset.width > 0, inset.height > 0 else { return image }
+
+        let zoomX = extent.width / inset.width
+        let zoomY = extent.height / inset.height
+        return image
+            .cropped(to: inset)
+            .transformed(by: CGAffineTransform(translationX: -inset.minX, y: -inset.minY))
+            .transformed(by: CGAffineTransform(scaleX: zoomX, y: zoomY))
+            .cropped(to: extent)
     }
 
     private func toned(_ image: CIImage) -> CIImage {
