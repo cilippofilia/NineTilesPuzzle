@@ -25,16 +25,16 @@ enum GauntletLadderRules {
 
     /// 1-indexed table from the spec; `stages[0]` is Stage 1.
     static let stages: [Stage] = [
-        Stage(number: 1, gridSize: 3, baseTimeLimit: 45, difficultyMultiplier: 1.0),
-        Stage(number: 2, gridSize: 3, baseTimeLimit: 40, difficultyMultiplier: 1.1),
-        Stage(number: 3, gridSize: 4, baseTimeLimit: 45, difficultyMultiplier: 1.3),
-        Stage(number: 4, gridSize: 4, baseTimeLimit: 40, difficultyMultiplier: 1.5),
-        Stage(number: 5, gridSize: 5, baseTimeLimit: 75, difficultyMultiplier: 2.0),
-        Stage(number: 6, gridSize: 5, baseTimeLimit: 70, difficultyMultiplier: 2.2),
-        Stage(number: 7, gridSize: 6, baseTimeLimit: 110, difficultyMultiplier: 2.8),
-        Stage(number: 8, gridSize: 7, baseTimeLimit: 140, difficultyMultiplier: 3.5),
-        Stage(number: 9, gridSize: 8, baseTimeLimit: 180, difficultyMultiplier: 4.2),
-        Stage(number: 10, gridSize: 8, baseTimeLimit: 165, difficultyMultiplier: 5.0),
+        Stage(number: 1, gridSize: 3, baseTimeLimit: 60, difficultyMultiplier: 1.0),
+        Stage(number: 2, gridSize: 3, baseTimeLimit: 50, difficultyMultiplier: 1.1),
+        Stage(number: 3, gridSize: 4, baseTimeLimit: 60, difficultyMultiplier: 1.3),
+        Stage(number: 4, gridSize: 4, baseTimeLimit: 55, difficultyMultiplier: 1.5),
+        Stage(number: 5, gridSize: 5, baseTimeLimit: 100, difficultyMultiplier: 2.0),
+        Stage(number: 6, gridSize: 5, baseTimeLimit: 90, difficultyMultiplier: 2.2),
+        Stage(number: 7, gridSize: 6, baseTimeLimit: 140, difficultyMultiplier: 2.8),
+        Stage(number: 8, gridSize: 7, baseTimeLimit: 180, difficultyMultiplier: 3.5),
+        Stage(number: 9, gridSize: 8, baseTimeLimit: 240, difficultyMultiplier: 4.2),
+        Stage(number: 10, gridSize: 8, baseTimeLimit: 210, difficultyMultiplier: 5.0),
     ]
 
     /// `stages[stageNumber - 1]`; traps on out-of-range like `Array` subscript would —
