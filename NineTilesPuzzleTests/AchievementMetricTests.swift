@@ -1,0 +1,122 @@
+//
+//  AchievementMetricTests.swift
+//  NineTilesPuzzleTests
+//
+//  Created by Filippo Cilia on 6/26/26.
+//
+
+import Foundation
+import Testing
+@testable import NineTilesPuzzle
+
+@Suite("AchievementMetric")
+@MainActor
+struct AchievementMetricTests {
+    private func makeStats() -> StatsStore {
+        StatsStore(defaults: InMemoryPersistenceStore())
+    }
+
+    private func decode(_ raw: String) throws -> AchievementMetric {
+        let json = "\"\(raw)\"".data(using: .utf8)!
+        return try JSONDecoder().decode(AchievementMetric.self, from: json)
+    }
+
+    private func encode(_ metric: AchievementMetric) throws -> String {
+        let data = try JSONEncoder().encode(metric)
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    // MARK: - Codable round-trip
+
+    @Test func roundTripsEveryDottedStringCase() throws {
+        let cases: [(String, AchievementMetric)] = [
+            ("totalGamesPlayed", .totalGamesPlayed),
+            ("gamesPlayedForSize.4", .gamesPlayedForSize(4)),
+            ("gamesPlayedForMode.zen", .gamesPlayedForMode(.zen)),
+            ("personalBestMoves.3.swap", .personalBestMoves(size: 3, mode: .swap)),
+            ("timeTrialScore.3.timeTrial", .timeTrialScore(size: 3, mode: .timeTrial)),
+            ("bestStreakOverall", .bestStreakOverall),
+            ("distinctGridSizesCleared", .distinctGridSizesCleared),
+            ("distinctGameModesPlayed", .distinctGameModesPlayed),
+            ("zeroWasteSolve", .zeroWasteSolve),
+            ("photoLibrarySolve", .photoLibrarySolve),
+            ("comebackAfterBreak", .comebackAfterBreak),
+            ("maxGamesInOneDay", .maxGamesInOneDay),
+            ("bestLadderStageReached", .bestLadderStageReached),
+            ("bestLadderScore", .bestLadderScore),
+            ("soloedInHourRange.0.5", .soloedInHourRange(start: 0, end: 5)),
+            ("completionist", .completionist)
+        ]
+
+        for (raw, expected) in cases {
+            #expect(try decode(raw) == expected)
+            #expect(try encode(expected) == "\"\(raw)\"")
+        }
+    }
+
+    @Test func decodingAnUnrecognizedOrMalformedStringThrows() {
+        #expect(throws: DecodingError.self) { try decode("notARealMetric") }
+        #expect(throws: DecodingError.self) { try decode("gamesPlayedForSize.notANumber") }
+        #expect(throws: DecodingError.self) { try decode("personalBestMoves.3") }
+    }
+
+    // MARK: - value(in:justSolved:now:)
+
+    @Test func totalGamesPlayedSumsAcrossEveryKey() {
+        let stats = makeStats()
+        stats.recordGamePlayed(for: StatsKey(gridSize: 3, gameMode: .swap))
+        stats.recordGamePlayed(for: StatsKey(gridSize: 4, gameMode: .slide))
+        #expect(AchievementMetric.totalGamesPlayed.value(in: stats, justSolved: false, now: .now) == 2)
+    }
+
+    @Test func gamesPlayedForModeSumsOnlyThatMode() {
+        let stats = makeStats()
+        stats.recordGamePlayed(for: StatsKey(gridSize: 3, gameMode: .zen))
+        stats.recordGamePlayed(for: StatsKey(gridSize: 4, gameMode: .zen))
+        stats.recordGamePlayed(for: StatsKey(gridSize: 3, gameMode: .swap))
+        #expect(AchievementMetric.gamesPlayedForMode(.zen).value(in: stats, justSolved: false, now: .now) == 2)
+    }
+
+    @Test func personalBestMovesDefaultsToIntMaxWhenNeverRecorded() {
+        let stats = makeStats()
+        #expect(AchievementMetric.personalBestMoves(size: 3, mode: .swap).value(in: stats, justSolved: false, now: .now) == Int.max)
+
+        stats.recordCompletion(for: StatsKey(gridSize: 3, gameMode: .swap), moves: 15, time: 10)
+        #expect(AchievementMetric.personalBestMoves(size: 3, mode: .swap).value(in: stats, justSolved: false, now: .now) == 15)
+    }
+
+    @Test func bestStreakOverallTakesTheMaxAcrossKeys() {
+        let stats = makeStats()
+        stats.recordStreakIncrement(for: StatsKey(gridSize: 3, gameMode: .swap), trackRecord: true)
+        for _ in 0..<5 { stats.recordStreakIncrement(for: StatsKey(gridSize: 4, gameMode: .slide), trackRecord: true) }
+        #expect(AchievementMetric.bestStreakOverall.value(in: stats, justSolved: false, now: .now) == 5)
+    }
+
+    @Test func booleanFlagMetricsReportZeroOrOne() {
+        let stats = makeStats()
+        #expect(AchievementMetric.zeroWasteSolve.value(in: stats, justSolved: false, now: .now) == 0)
+        stats.recordZeroWasteSolve()
+        #expect(AchievementMetric.zeroWasteSolve.value(in: stats, justSolved: false, now: .now) == 1)
+
+        #expect(AchievementMetric.photoLibrarySolve.value(in: stats, justSolved: false, now: .now) == 0)
+        stats.recordPhotoLibrarySolve()
+        #expect(AchievementMetric.photoLibrarySolve.value(in: stats, justSolved: false, now: .now) == 1)
+    }
+
+    @Test func soloedInHourRangeOnlyCountsWhenJustSolvedAndInRange() {
+        let stats = makeStats()
+        let twoAM = Calendar.current.date(bySettingHour: 2, minute: 0, second: 0, of: .now)!
+        let metric = AchievementMetric.soloedInHourRange(start: 0, end: 5)
+
+        #expect(metric.value(in: stats, justSolved: false, now: twoAM) == 0)
+        #expect(metric.value(in: stats, justSolved: true, now: twoAM) == 1)
+
+        let noon = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: .now)!
+        #expect(metric.value(in: stats, justSolved: true, now: noon) == 0)
+    }
+
+    @Test func completionistMetricAlwaysReportsZero() {
+        let stats = makeStats()
+        #expect(AchievementMetric.completionist.value(in: stats, justSolved: true, now: .now) == 0)
+    }
+}

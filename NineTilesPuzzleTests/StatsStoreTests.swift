@@ -203,6 +203,89 @@ struct StatsStoreTests {
         #expect(store.gamesPlayedCount(forSize: 4) == 0)
     }
 
+    // MARK: - distinct grid sizes / game modes
+
+    @Test func distinctGridSizesClearedCountsEachSizeOnceRegardlessOfMode() {
+        let store = makeStore()
+        store.recordGamePlayed(for: swap3)
+        store.recordGamePlayed(for: slide3)
+        store.recordGamePlayed(for: swap4)
+        #expect(store.distinctGridSizesCleared == 2)
+    }
+
+    @Test func distinctGameModesPlayedCountsEachModeOnceRegardlessOfSize() {
+        let store = makeStore()
+        store.recordGamePlayed(for: swap3)
+        store.recordGamePlayed(for: swap4)
+        store.recordGamePlayed(for: slide3)
+        #expect(store.distinctGameModesPlayed == 2)
+    }
+
+    // MARK: - one-shot lifetime flags
+
+    @Test func recordZeroWasteSolveSetsTheFlagOnce() {
+        let store = makeStore()
+        #expect(!store.hasZeroWasteSolve)
+        store.recordZeroWasteSolve()
+        #expect(store.hasZeroWasteSolve)
+    }
+
+    @Test func recordPhotoLibrarySolveSetsTheFlagOnce() {
+        let store = makeStore()
+        #expect(!store.hasSolvedWithPhotoLibrary)
+        store.recordPhotoLibrarySolve()
+        #expect(store.hasSolvedWithPhotoLibrary)
+    }
+
+    // MARK: - comeback tracking
+
+    @Test func breakingAStreakSetsHasEverBrokenAStreakOnlyIfItWasAboveZero() {
+        let store = makeStore()
+        store.resetStreak(for: swap3)
+        #expect(!store.hasEverBrokenAStreak)
+
+        store.recordStreakIncrement(for: swap3, trackRecord: true)
+        store.resetStreak(for: swap3)
+        #expect(store.hasEverBrokenAStreak)
+    }
+
+    @Test func comebackUnlocksOnceAStreakOfTenOrMoreFollowsABreak() {
+        let store = makeStore()
+        store.recordStreakIncrement(for: swap3, trackRecord: true)
+        store.resetStreak(for: swap3)
+        #expect(!store.hasComebackAfterBreak)
+
+        for _ in 0..<10 { store.recordStreakIncrement(for: swap3, trackRecord: true) }
+        #expect(store.hasComebackAfterBreak)
+    }
+
+    @Test func comebackNeverUnlocksWithoutAPriorBreak() {
+        let store = makeStore()
+        for _ in 0..<10 { store.recordStreakIncrement(for: swap3, trackRecord: true) }
+        #expect(!store.hasComebackAfterBreak)
+    }
+
+    // MARK: - recordGameCompletedToday
+
+    @Test func recordGameCompletedTodayTracksTheAllTimeDailyHigh() {
+        let store = makeStore()
+        let today = Date()
+        store.recordGameCompletedToday(now: today)
+        store.recordGameCompletedToday(now: today)
+        store.recordGameCompletedToday(now: today)
+        #expect(store.maxGamesInOneDay == 3)
+    }
+
+    @Test func recordGameCompletedTodayResetsTheDailyTallyOnANewDay() {
+        let store = makeStore()
+        let today = Date()
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
+        store.recordGameCompletedToday(now: today)
+        store.recordGameCompletedToday(now: today)
+        store.recordGameCompletedToday(now: tomorrow)
+        #expect(store.maxGamesInOneDay == 2)
+    }
+
     // MARK: - resetStats
 
     @Test func resetStatsClearsEverything() {
@@ -212,6 +295,10 @@ struct StatsStoreTests {
         store.recordTimeTrialScore(for: swap3, score: 500)
         store.recordLadderRunScore(5000)
         store.recordLadderStageReached(5)
+        store.recordZeroWasteSolve()
+        store.recordPhotoLibrarySolve()
+        store.resetStreak(for: swap3)
+        store.recordGameCompletedToday()
 
         store.resetStats()
 
@@ -223,6 +310,11 @@ struct StatsStoreTests {
         #expect(store.allTimeHighStreak.isEmpty)
         #expect(store.bestLadderScore == 0)
         #expect(store.bestLadderStageReached == 0)
+        #expect(!store.hasZeroWasteSolve)
+        #expect(!store.hasSolvedWithPhotoLibrary)
+        #expect(!store.hasEverBrokenAStreak)
+        #expect(!store.hasComebackAfterBreak)
+        #expect(store.maxGamesInOneDay == 0)
     }
 
     // MARK: - persistence round-trip
@@ -236,6 +328,12 @@ struct StatsStoreTests {
         first.recordTimeTrialScore(for: swap3, score: 500)
         first.recordLadderRunScore(5000)
         first.recordLadderStageReached(5)
+        first.recordZeroWasteSolve()
+        first.recordPhotoLibrarySolve()
+        first.recordGameCompletedToday()
+        first.recordStreakIncrement(for: slide3, trackRecord: true)
+        first.resetStreak(for: slide3)
+        for _ in 0..<10 { first.recordStreakIncrement(for: slide3, trackRecord: true) }
 
         let second = StatsStore(defaults: defaults)
         #expect(second.personalBestMoves[swap3] == 12)
@@ -246,5 +344,10 @@ struct StatsStoreTests {
         #expect(second.personalBestScore[swap3] == 500)
         #expect(second.bestLadderScore == 5000)
         #expect(second.bestLadderStageReached == 5)
+        #expect(second.hasZeroWasteSolve)
+        #expect(second.hasSolvedWithPhotoLibrary)
+        #expect(second.maxGamesInOneDay == 1)
+        #expect(second.hasEverBrokenAStreak)
+        #expect(second.hasComebackAfterBreak)
     }
 }

@@ -3,60 +3,350 @@
         "id": "firstSolve",
         "title": "First Solve",
         "description": "Complete your first puzzle",
-        "systemImage": "puzzlepiece.fill"
+        "systemImage": "puzzlepiece.fill",
+        "category": "milestones",
+        "metric": "totalGamesPlayed",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
     },
     {
         "id": "tenGames",
         "title": "Dedicated",
         "description": "Complete 10 puzzles",
-        "systemImage": "trophy.fill"
+        "systemImage": "trophy.fill",
+        "category": "milestones",
+        "metric": "totalGamesPlayed",
+        "target": 10,
+        "comparison": "greaterThanOrEqual"
     },
     {
         "id": "fiftyGames",
         "title": "On Fire",
         "description": "Complete 50 puzzles",
-        "systemImage": "flame.fill"
+        "systemImage": "flame.fill",
+        "category": "milestones",
+        "metric": "totalGamesPlayed",
+        "target": 50,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "hundredGames",
+        "title": "Centurion",
+        "description": "Complete 100 puzzles",
+        "systemImage": "medal.fill",
+        "category": "milestones",
+        "metric": "totalGamesPlayed",
+        "target": 100,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "marathonRunner",
+        "title": "Marathon",
+        "description": "Complete 5 puzzles in a single day",
+        "systemImage": "figure.run",
+        "category": "milestones",
+        "metric": "maxGamesInOneDay",
+        "target": 5,
+        "comparison": "greaterThanOrEqual"
     },
     {
         "id": "solveFourByFour",
         "title": "Step Up",
         "description": "Complete a 4×4 puzzle",
-        "systemImage": "square.grid.2x2.fill"
+        "systemImage": "square.grid.2x2.fill",
+        "category": "difficulty",
+        "metric": "gamesPlayedForSize.4",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
     },
     {
         "id": "solveFiveByFive",
         "title": "Hard Mode",
         "description": "Complete a 5×5 puzzle",
-        "systemImage": "square.grid.3x3.fill"
+        "systemImage": "square.grid.3x3.fill",
+        "category": "difficulty",
+        "metric": "gamesPlayedForSize.5",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "solveSixBySix",
+        "title": "Climbing",
+        "description": "Complete a 6×6 puzzle",
+        "systemImage": "rectangle.grid.2x2.fill",
+        "category": "difficulty",
+        "metric": "gamesPlayedForSize.6",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "solveSevenBySeven",
+        "title": "Almost There",
+        "description": "Complete a 7×7 puzzle",
+        "systemImage": "rectangle.grid.3x2.fill",
+        "category": "difficulty",
+        "metric": "gamesPlayedForSize.7",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
     },
     {
         "id": "solveEightByEight",
         "title": "Insane",
         "description": "Complete an 8×8 puzzle",
-        "systemImage": "infinity.circle.fill"
+        "systemImage": "infinity.circle.fill",
+        "category": "difficulty",
+        "metric": "gamesPlayedForSize.8",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
     },
     {
         "id": "under20Moves3x3",
         "title": "Speed Demon",
         "description": "Solve a 3×3 in 20 moves or fewer",
-        "systemImage": "bolt.fill"
+        "systemImage": "bolt.fill",
+        "category": "efficiency",
+        "metric": "personalBestMoves.3.swap",
+        "target": 20,
+        "comparison": "lessThanOrEqual"
     },
     {
         "id": "under60Moves4x4",
         "title": "Efficient",
         "description": "Solve a 4×4 in 60 moves or fewer",
-        "systemImage": "hare.fill"
+        "systemImage": "hare.fill",
+        "category": "efficiency",
+        "metric": "personalBestMoves.4.swap",
+        "target": 60,
+        "comparison": "lessThanOrEqual"
+    },
+    {
+        "id": "under150Moves5x5",
+        "title": "Sharp",
+        "description": "Solve a 5×5 in 150 moves or fewer",
+        "systemImage": "gauge.high",
+        "category": "efficiency",
+        "metric": "personalBestMoves.5.swap",
+        "target": 150,
+        "comparison": "lessThanOrEqual"
+    },
+    {
+        "id": "under250Moves6x6",
+        "title": "Precise",
+        "description": "Solve a 6×6 in 250 moves or fewer",
+        "systemImage": "scope",
+        "category": "efficiency",
+        "metric": "personalBestMoves.6.swap",
+        "target": 250,
+        "comparison": "lessThanOrEqual"
+    },
+    {
+        "id": "under400Moves7x7",
+        "title": "Calculated",
+        "description": "Solve a 7×7 in 400 moves or fewer",
+        "systemImage": "brain.head.profile",
+        "category": "efficiency",
+        "metric": "personalBestMoves.7.swap",
+        "target": 400,
+        "comparison": "lessThanOrEqual"
+    },
+    {
+        "id": "under600Moves8x8",
+        "title": "Mastermind",
+        "description": "Solve an 8×8 in 600 moves or fewer",
+        "systemImage": "checkmark.seal.fill",
+        "category": "efficiency",
+        "metric": "personalBestMoves.8.swap",
+        "target": 600,
+        "comparison": "lessThanOrEqual"
+    },
+    {
+        "id": "perfectionist",
+        "title": "Perfectionist",
+        "description": "Solve a puzzle where every move locks a tile",
+        "systemImage": "checkmark.diamond.fill",
+        "category": "efficiency",
+        "metric": "zeroWasteSolve",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "scoreHunter",
+        "title": "Score Hunter",
+        "description": "Reach a Time Trial score of 2000 or higher on 3×3",
+        "systemImage": "target",
+        "category": "efficiency",
+        "metric": "timeTrialScore.3.timeTrial",
+        "target": 2000,
+        "comparison": "greaterThanOrEqual"
     },
     {
         "id": "streak10",
         "title": "On a Roll",
         "description": "Reach a streak of 10",
-        "systemImage": "arrow.up.circle.fill"
+        "systemImage": "arrow.up.circle.fill",
+        "category": "streaks",
+        "metric": "bestStreakOverall",
+        "target": 10,
+        "comparison": "greaterThanOrEqual"
     },
     {
         "id": "streak25",
         "title": "Unstoppable",
         "description": "Reach a streak of 25",
-        "systemImage": "crown.fill"
+        "systemImage": "crown.fill",
+        "category": "streaks",
+        "metric": "bestStreakOverall",
+        "target": 25,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "streak50",
+        "title": "Unbreakable",
+        "description": "Reach a streak of 50",
+        "systemImage": "bolt.shield.fill",
+        "category": "streaks",
+        "metric": "bestStreakOverall",
+        "target": 50,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "comeback",
+        "title": "Comeback",
+        "description": "Rebuild a streak to 10 or higher right after one breaks",
+        "systemImage": "arrow.triangle.2.circlepath",
+        "category": "streaks",
+        "metric": "comebackAfterBreak",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "modeExplorer",
+        "title": "Jack of All Trades",
+        "description": "Play every game mode at least once",
+        "systemImage": "square.stack.3d.up.fill",
+        "category": "explorer",
+        "metric": "distinctGameModesPlayed",
+        "target": 6,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "fullHouse",
+        "title": "Full House",
+        "description": "Complete a puzzle at every grid size",
+        "systemImage": "square.grid.3x3.topleft.filled",
+        "category": "explorer",
+        "metric": "distinctGridSizesCleared",
+        "target": 6,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "personalTouch",
+        "title": "Personal Touch",
+        "description": "Solve a puzzle using a photo from your library",
+        "systemImage": "photo.fill",
+        "category": "explorer",
+        "metric": "photoLibrarySolve",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "nightOwl",
+        "title": "Night Owl",
+        "description": "Solve a puzzle between midnight and 5am",
+        "systemImage": "moon.stars.fill",
+        "category": "explorer",
+        "metric": "soloedInHourRange.0.5",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "earlyBird",
+        "title": "Early Bird",
+        "description": "Solve a puzzle before 7am",
+        "systemImage": "sunrise.fill",
+        "category": "explorer",
+        "metric": "soloedInHourRange.5.7",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "firstZenClear",
+        "title": "Inner Peace",
+        "description": "Complete a puzzle in Zen Mode",
+        "systemImage": "leaf.fill",
+        "category": "special",
+        "metric": "gamesPlayedForMode.zen",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "firstChaosClear",
+        "title": "Through the Looking Glass",
+        "description": "Complete a puzzle in Chaos Mode",
+        "systemImage": "tornado",
+        "category": "special",
+        "metric": "gamesPlayedForMode.chaos",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "firstTimeTrialClear",
+        "title": "Against the Clock",
+        "description": "Complete a puzzle in Time Trial mode",
+        "systemImage": "timer",
+        "category": "special",
+        "metric": "gamesPlayedForMode.timeTrial",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "firstLimitedMovesClear",
+        "title": "Tight Budget",
+        "description": "Complete a puzzle in Limited Moves mode",
+        "systemImage": "figure.walk",
+        "category": "special",
+        "metric": "gamesPlayedForMode.limitedMoves",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "ladderStage5",
+        "title": "Gauntlet Climber",
+        "description": "Reach Stage 5 of the Gauntlet Ladder",
+        "systemImage": "flag.fill",
+        "category": "special",
+        "metric": "bestLadderStageReached",
+        "target": 5,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "ladderChampion",
+        "title": "Gauntlet Champion",
+        "description": "Clear all 10 stages of the Gauntlet Ladder",
+        "systemImage": "flag.checkered",
+        "category": "special",
+        "metric": "bestLadderStageReached",
+        "target": 10,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "ladderLegend",
+        "title": "Gauntlet Legend",
+        "description": "Reach a cumulative Gauntlet Ladder score of 8000 or higher",
+        "systemImage": "star.circle.fill",
+        "category": "special",
+        "metric": "bestLadderScore",
+        "target": 8000,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "completionist",
+        "title": "Completionist",
+        "description": "Unlock every other achievement",
+        "systemImage": "rosette",
+        "category": "special",
+        "metric": "completionist",
+        "target": 0,
+        "comparison": "greaterThanOrEqual"
     }
 ]

@@ -10,6 +10,13 @@ import Foundation
 @MainActor
 @Observable
 final class AchievementsStore {
+    /// The one achievement that isn't evaluated generically: "unlock every other
+    /// achievement" depends on the achievements list itself, not on `StatsStore`, and —
+    /// unlike every other achievement — must be allowed to *re-lock* if a future app update
+    /// adds new achievements the player hasn't earned yet. `updateCompletionistAchievement`
+    /// handles both directions; the generic loop in `checkAchievements` skips this id.
+    private static let completionistId = "completionist"
+
     private let defaults: PersistenceStore
 
     var achievements: [Achievement] = []
@@ -22,39 +29,24 @@ final class AchievementsStore {
 
     func refreshAchievementsFromRemote() async {
         guard let definitions = try? await AchievementService.fetchRemote() else { return }
-        achievements = definitions.map { achievement in
-            var a = achievement
-            a.isUnlocked = defaults.bool(forKey: Keys.achievement(id: achievement.id))
-            return a
-        }
+        achievements = definitions.map(hydrated)
     }
 
-    func checkAchievements(using stats: StatsStore) {
-        let totalGames = stats.gamesPlayed.values.reduce(0, +)
+    /// Re-evaluates every achievement's metric against current `stats` and unlocks any that
+    /// newly qualify. `justSolved` and `now` only matter to the handful of metrics that read
+    /// them (e.g. time-of-day solves) — every other metric ignores them.
+    func checkAchievements(using stats: StatsStore, justSolved: Bool = false, now: Date = Date()) {
         for i in achievements.indices {
+            guard achievements[i].id != Self.completionistId else { continue }
             guard !achievements[i].isUnlocked else { continue }
-            let shouldUnlock: Bool
-            switch achievements[i].id {
-            case "firstSolve":        shouldUnlock = totalGames >= 1
-            case "tenGames":          shouldUnlock = totalGames >= 10
-            case "fiftyGames":        shouldUnlock = totalGames >= 50
-            case "solveFourByFour":   shouldUnlock = stats.gamesPlayedCount(forSize: 4) >= 1
-            case "solveFiveByFive":   shouldUnlock = stats.gamesPlayedCount(forSize: 5) >= 1
-            case "solveEightByEight": shouldUnlock = stats.gamesPlayedCount(forSize: 8) >= 1
-            case "under20Moves3x3":   shouldUnlock = stats.personalBestMoves[StatsKey(gridSize: 3, gameMode: .swap)].map { $0 <= 20 } ?? false
-            case "under60Moves4x4":   shouldUnlock = stats.personalBestMoves[StatsKey(gridSize: 4, gameMode: .swap)].map { $0 <= 60 } ?? false
-            case "streak10":          shouldUnlock = (stats.allTimeHighStreak.values.max() ?? 0) >= 10
-            case "streak25":          shouldUnlock = (stats.allTimeHighStreak.values.max() ?? 0) >= 25
-            default:                  shouldUnlock = false
-            }
-            if shouldUnlock {
-                achievements[i].isUnlocked = true
-                defaults.set(true, forKey: Keys.achievement(id: achievements[i].id))
-                if newlyUnlockedAchievement == nil {
-                    newlyUnlockedAchievement = achievements[i]
-                }
-            }
+
+            let value = achievements[i].metric.value(in: stats, justSolved: justSolved, now: now)
+            guard achievements[i].comparison.isSatisfied(value: value, target: achievements[i].target) else { continue }
+
+            unlock(at: i, now: now)
         }
+
+        updateCompletionistAchievement(now: now)
     }
 
     func dismissAchievementNotification() async {
@@ -65,14 +57,55 @@ final class AchievementsStore {
 private extension AchievementsStore {
     enum Keys {
         static func achievement(id: String) -> String { "puzzle.achievement.\(id)" }
+        static func achievementDate(id: String) -> String { "puzzle.achievementDate.\(id)" }
     }
 
     func loadAchievements() {
         let definitions = AchievementService.loadCached() ?? AchievementService.loadBundle()
-        achievements = definitions.map { achievement in
-            var a = achievement
-            a.isUnlocked = defaults.bool(forKey: Keys.achievement(id: achievement.id))
-            return a
+        achievements = definitions.map(hydrated)
+    }
+
+    /// Applies persisted unlock state to a freshly-loaded/fetched `Achievement` definition.
+    func hydrated(_ achievement: Achievement) -> Achievement {
+        var a = achievement
+        a.isUnlocked = defaults.bool(forKey: Keys.achievement(id: achievement.id))
+        if a.isUnlocked {
+            let date = defaults.double(forKey: Keys.achievementDate(id: achievement.id))
+            a.unlockedDate = date > 0 ? Date(timeIntervalSinceReferenceDate: date) : nil
+        }
+        return a
+    }
+
+    func unlock(at index: Int, now: Date) {
+        achievements[index].isUnlocked = true
+        achievements[index].unlockedDate = now
+        defaults.set(true, forKey: Keys.achievement(id: achievements[index].id))
+        defaults.set(now.timeIntervalSinceReferenceDate, forKey: Keys.achievementDate(id: achievements[index].id))
+        if newlyUnlockedAchievement == nil {
+            newlyUnlockedAchievement = achievements[index]
+        }
+    }
+
+    func revoke(at index: Int) {
+        achievements[index].isUnlocked = false
+        achievements[index].unlockedDate = nil
+        defaults.set(false, forKey: Keys.achievement(id: achievements[index].id))
+        defaults.removeObject(forKey: Keys.achievementDate(id: achievements[index].id))
+    }
+
+    /// Unlocks Completionist once every other achievement is unlocked, and revokes it the
+    /// moment that's no longer true — e.g. right after an app update introduces a new
+    /// achievement the player hasn't earned yet. Runs after the generic loop above so an
+    /// achievement unlocked in this same pass already counts toward completion.
+    func updateCompletionistAchievement(now: Date) {
+        guard let index = achievements.firstIndex(where: { $0.id == Self.completionistId }) else { return }
+        let others = achievements.indices.filter { $0 != index }
+        let allOthersUnlocked = !others.isEmpty && others.allSatisfy { achievements[$0].isUnlocked }
+
+        if allOthersUnlocked && !achievements[index].isUnlocked {
+            unlock(at: index, now: now)
+        } else if !allOthersUnlocked && achievements[index].isUnlocked {
+            revoke(at: index)
         }
     }
 }
