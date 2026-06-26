@@ -19,22 +19,6 @@ struct ImagePreviewView: View {
         VStack {
             Spacer()
 
-            if !isRevealed {
-                Label("Shake to reveal", systemImage: "iphone.gen3.radiowaves.left.and.right")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(.ultraThinMaterial, in: .capsule)
-                    .loudBounce()
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-            } else {
-                Text("Memorize the image")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-            }
-
             Image(decorative: image, scale: 1.0)
                 .resizable()
                 .scaledToFit()
@@ -50,9 +34,28 @@ struct ImagePreviewView: View {
                 }
                 .animation(.easeInOut(duration: 1.2), value: isRevealed)
                 .padding(.horizontal)
-                .padding(.top, 12)
 
             Spacer()
+        }
+        // Badge floats above the image without affecting its vertical position
+        .overlay(alignment: .top) {
+            if !isRevealed {
+                Label("Shake to reveal", systemImage: "iphone.gen3.radiowaves.left.and.right")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial, in: .capsule)
+                    .loudBounce()
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    .padding(.top)
+            } else {
+                Text("Memorize the image")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    .padding(.top)
+            }
         }
         .animation(.easeInOut(duration: 0.4), value: isRevealed)
         .background(ShakeDetector {
