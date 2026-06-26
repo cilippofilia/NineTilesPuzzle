@@ -72,9 +72,9 @@ struct ChaosTransform {
             // Block size is a fraction of the whole photo, not the per-tile size — source
             // resolution varies a lot (camera vs. library vs. remote photos aren't resized
             // before this runs), so anchoring to tile size made the effect look wildly
-            // different game to game. Targeting ~64 blocks across the whole image keeps it
+            // different game to game. Targeting ~96 blocks across the whole image keeps it
             // looking like a recognizable low-res photo rather than a mosaic of flat blocks.
-            let targetBlocksAcrossImage: CGFloat = 64
+            let targetBlocksAcrossImage: CGFloat = 96
             let scale = max(1, CGFloat(image.width) / targetBlocksAcrossImage)
             ciImage = ciImage.applyingFilter("CIPixellate", parameters: [
                 "inputScale": scale,
