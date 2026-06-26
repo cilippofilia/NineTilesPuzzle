@@ -56,10 +56,24 @@ and a solvability parity check on shuffle — half of random permutations are un
 reuses the entire image-slicing and grid-rendering pipeline. Effectively a second game in
 the same app.
 
-[] ### Fog / Reveal Mode — **M**
-Tiles start desaturated or hidden and reveal in full color only when locked, with no image
-preview. A visual-twist mode built almost entirely in `TileView` rendering, on top of the
-existing lock state.
+[X] ### Fog / Reveal Mode — **M**
+Shipped June 2026. Tiles start hidden behind an animated sparkle overlay (`FogTileOverlay`,
+a `Canvas`+`TimelineView` particle system seeded per tile so each tile's star field is
+unique). Three tile states driven purely by `TileModel` fields and local `isDragging`:
+
+- **Fogged** (unlocked, not dragging): heavy blur (18pt) + dark overlay + twinkling particles.
+- **Frosted glass** (dragging): lighter blur (3pt), no particles — you can see what you're
+  placing but just barely.
+- **Revealed** (locked/correct): full-color image, slow 1.2s easeInOut fade from fog.
+
+A dedicated 8-second preview phase (now using `settingsStore.previewDuration` like every
+other mode) replaces the standard preview — the image starts fogged and a `ShakeDetector`
+(UIKit bridge in `Views/Helpers/`) lets the player shake to lift the fog and study the image
+before tiles shuffle. The shake hint is animated with `LoudBounceModifier` (scale pop,
+brightness flash, horizontal rattle — iMessage Loud+Shake style). The gameplay shake-to-peek
+from earlier prototypes was removed; the shake gesture is preview-only. Still visual-twist,
+not budget-based — runs on `ClassicEngine` (SwapEngine) and feeds the same
+completion/streak/personal-best path as Swap. No new `GameEngine`, no fail state.
 
 [X] ### Chaos Mode — **S**
 Shipped June 2026, as a whole-image transform rather than the originally-sketched per-tile
@@ -284,7 +298,8 @@ add a data point here — it's deliberately modeled as a boolean flag on top of 
 (`isLadderMode`), not a new `GameMode`. Chaos Mode shipped since (June 2026) but doesn't add
 a data point either — it's a visual-only whole-image transform with no budget or fail state,
 playing like Swap underneath. Revisit the `GameModeRules` question again if a third
-budget-based mode arrives; Fog/Reveal (this section's one remaining unshipped mode) is also
-visual-twist, not budget-shaped, so that third data point still doesn't exist yet.
+budget-based mode arrives. Fog/Reveal also shipped June 2026 (also visual-twist, not
+budget-shaped) — all planned modes are now live; that third budget-based data point still
+doesn't exist.
 
 ---

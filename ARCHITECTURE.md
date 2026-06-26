@@ -70,8 +70,12 @@ NineTilesPuzzle/
 │   │   ├── PuzzleCompletionViewModel.swift  — completion banner, new-record badge timing,
 │   │   │                                      drag-to-dismiss, Zen's breathe/sparkle sequence
 │   │   ├── PuzzleGridView.swift     — tile layout, drag handling, slide/swap dispatch
-│   │   ├── TileView.swift           — single draggable tile
-│   │   ├── ImagePreviewView.swift   — pre-shuffle reveal
+│   │   ├── TileView.swift           — single draggable tile; owns the three Fog Mode visual
+│   │   │                              states (fogged / frosted-glass-while-dragging / revealed)
+│   │   ├── FogTileOverlay.swift     — Canvas+TimelineView animated star-field particle system,
+│   │   │                              per-tile seed so each tile's field is unique
+│   │   ├── ImagePreviewView.swift   — pre-shuffle reveal; fog overlay + shake-to-reveal in
+│   │   │                              Fog Mode (ShakeDetector + LoudBounceModifier hint badge)
 │   │   ├── PuzzleStatusBarView.swift, MoveCounterView.swift, TimeCounterView.swift
 │   │   ├── TimeTrialTimerView.swift, TimeTrialScoreView.swift — Time Trial's HUD
 │   │   ├── TimeTrialDeltaIndicatorView.swift — transient "+1s"/"-2s" combo indicator
@@ -82,7 +86,8 @@ NineTilesPuzzle/
 │   └── Helpers/                     — grab-bag of small reusable views (toast, banners,
 │                                       loading/splash, brand mark, badges, zen sparkle,
 │                                       Time Trial's "Out of Time" overlay, Limited Moves'
-│                                       "Out of Moves" overlay)
+│                                       "Out of Moves" overlay, ShakeDetector UIKit bridge,
+│                                       LoudBounceModifier repeating scale-pop view modifier)
 ├── Resources/                       — achievements.json, sounds, asset catalog, app icon
 NineTilesPuzzleTests/                 — real, wired-up Unit Testing Bundle target (see below)
 ```
@@ -147,14 +152,13 @@ new-record badges stay visible, and Zen mode's breathe-and-fade transition into 
 puzzle. Takes no store dependencies — callers pass live values and closures per call — so
 it's constructible and testable with zero environment setup.
 
-**Game modes today**: `GameMode` is 7 cases; `isAvailable` now gates 6 of them (`.classic`,
-`.slide`, `.zen`, `.timeTrial`, `.limitedMoves`, `.chaos`), with the remaining one
-(Fog/Reveal) listed in the UI as "Coming soon…" with no behavior. Mode-specific behavior is
-still expressed as scattered conditionals (`isZenMode`, `isTimeTrialMode`,
-`isLimitedMovesMode`, `selectedGameMode == .slide`, `settingsStore.debugOverlayEnabled`)
-inside `GameSession` and `PuzzleView`/`PuzzleGridView` — see the §6 resolution below for why
-this stayed conditionals-based even with Time Trial and Limited Moves as two structurally
-similar real modes.
+**Game modes today**: `GameMode` is 7 cases; all 7 are now live (`.classic`, `.slide`,
+`.zen`, `.timeTrial`, `.limitedMoves`, `.chaos`, `.fog`). Mode-specific behavior is still
+expressed as scattered conditionals (`isZenMode`, `isTimeTrialMode`, `isLimitedMovesMode`,
+`isFogMode`, `selectedGameMode == .slide`, `settingsStore.debugOverlayEnabled`) inside
+`GameSession` and `PuzzleView`/`PuzzleGridView` — see the §6 resolution below for why this
+stayed conditionals-based even with Time Trial and Limited Moves as two structurally similar
+real modes.
 
 **Time Trial mode** (MVP scope — see `ROADMAP.md` §1 for what's deferred): one timed puzzle
 per grid size, always on `ClassicEngine` (its per-move `isLocked` signal is what makes
@@ -238,6 +242,49 @@ on the edge. Chaos has no new `GameEngine`, no fail state, and no stats/streak e
 runs on `ClassicEngine` like Swap and feeds the same completion/streak/personal-best path,
 since the transform is purely visual noise on top of an otherwise-ordinary Swap game.
 
+**Fog Mode** (shipped June 2026): a tile-level reveal mode — the second visual-twist mode
+after Chaos, but implemented at the tile rendering layer rather than as a whole-image bake.
+Three visual states per tile, driven by `TileModel` fields and `TileView`'s local
+`isDragging` state:
+
+- **Fogged** (`isFogMode && !tile.isLocked && !isDragging`): `TileContentView` blurred at
+  18pt + `Color.black.opacity(0.45)` tint + `FogTileOverlay` sparkles.
+- **Frosted glass** (`isFogMode && !tile.isLocked && isDragging`): blur drops to 3pt, tint
+  and sparkles hidden — the image is barely readable while a tile is in motion.
+- **Revealed** (`tile.isLocked`): no blur, no overlay; transitions from fog over 1.2s
+  easeInOut.
+
+`FogTileOverlay` (`Views/Puzzle/`) is a `Canvas`+`TimelineView` particle system: each frame
+draws N twinkling ellipses whose brightness oscillates via `sin(time * freq + phase)`. A
+`seed: Float` parameter (passed as `Float(tile.id)`) offsets the particle index sequence by
+`seed × 1000`, making each tile's star field visually distinct without any per-instance
+state. Particle count scales with tile area (`max(640, Int(area / 6.875))`); `time` is
+sourced from `timeline.date.timeIntervalSince1970` (large absolute value — acceptable since
+`sin()` is periodic and only brightness oscillates, not position).
+
+`ShakeDetector` (`Views/Helpers/`) is a lightweight `UIViewControllerRepresentable` that
+overrides `motionBegan(_:with:)` and fires a closure on `.motionShake` — the UIKit bridge
+needed because SwiftUI has no shake API. Used exclusively in `ImagePreviewView` for Fog Mode's
+preview phase; the in-game shake-to-peek was removed in favour of the preview-only reveal.
+
+`ImagePreviewView` gained a `duration: Double` parameter (fed from
+`GameSession.currentPreviewDuration`, which returns `settingsStore.previewDuration` for all
+modes) so its countdown bar always matches the actual preview duration. In Fog Mode the preview
+image starts fogged (blur + overlay + `FogTileOverlay(seed: 99)`) and shaking lifts the fog
+with a 1.2s easeInOut; a `Label` badge above the image animates with `LoudBounceModifier`
+("Shake to reveal") until revealed.
+
+`LoudBounceModifier` (`Views/Helpers/`) is a repeating `keyframeAnimator` modifier: a
+scale spring pop (1.0 → 1.25, `Spring(response: 0.25, dampingRatio: 0.48)` for natural
+overshoot, then back via `Spring(response: 0.42, dampingRatio: 0.66)`), a `brightness`
+flash at pop peak, and a horizontal offsetX rattle — iMessage Loud+Shake style. Factored
+into its own file and exposed as `.loudBounce()` so it's reusable anywhere.
+
+Fog Mode has no new `GameEngine`, no new fail state, and no stats/streak exemption — it runs
+on `ClassicEngine` (SwapEngine) and feeds the same completion/streak/personal-best path as
+Swap. `GameSession.isFogMode` is the single gate (`selectedGameMode == .fog`);
+`currentPreviewDuration` is the only new computed property added to `GameSession`.
+
 **§6 resolution**: with both Time Trial and Limited Moves now shipped, the question of
 whether mode-specific behavior deserves a generic `GameModeRules` abstraction was
 revisited a second time — and conditionals still won, though more narrowly than before.
@@ -252,10 +299,10 @@ existing moves/time records. Pulling the "budget + fail" shape into `GameModeRul
 would save two small `if`/`else if` branches in `registerMove()` at the cost of a generic
 type whose fields don't mean the same thing across its two conformers — not yet a clear
 win. Zen still doesn't fit this axis at all; it disables tracking rather than budgeting
-anything. Revisit again if a third budget-based mode arrives (Fog/Reveal and Chaos, per
-`ROADMAP.md` §1, are visual-twist modes, not budget modes, so neither is that third data
-point) — three real conformers sharing the same "budget + fail" axis would make the
-abstraction's payoff much clearer than two.
+anything. Revisit again if a third budget-based mode arrives. Both remaining planned modes — Fog/Reveal
+and Chaos — have now shipped as visual-twist modes, not budget modes, so neither is that
+third data point. All 7 `GameMode` cases are live; no new mode is currently planned that
+would change this calculus.
 
 **Image pipeline**: `ImageSource` protocol → `RemoteImageSource` (picsum.photos) /
 `PhotoLibraryImageSource` / `LocalImageSource` (bundled fallback) → `ImageService` (primary
