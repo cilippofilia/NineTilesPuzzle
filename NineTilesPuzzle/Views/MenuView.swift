@@ -46,17 +46,17 @@ struct MenuView: View {
                     .background(.quaternary, in: .rect(cornerRadius: 20))
 
                     Button {
-                        guard !session.isLadderMode else { return }
+                        guard !session.isGauntletLadderMode else { return }
                         path.append(.gridSizePicker)
                     } label: {
                         HStack {
                             LabeledContent(
                                 "Grid Size",
-                                value: session.isLadderMode
+                                value: session.isGauntletLadderMode
                                     ? "Stage \(session.currentLadderStage) of \(GauntletLadderRules.stageCount)"
                                     : session.difficultyDisplayValue
                             )
-                            if !session.isLadderMode {
+                            if !session.isGauntletLadderMode {
                                 Image(systemName: "chevron.forward")
                                     .imageScale(.small)
                                     .foregroundStyle(.secondary)
@@ -64,9 +64,9 @@ struct MenuView: View {
                         }
                         .padding()
                     }
-                    .foregroundStyle(session.isLadderMode ? .secondary : .primary)
+                    .foregroundStyle(session.isGauntletLadderMode ? .secondary : .primary)
                     .background(.quaternary, in: .rect(cornerRadius: 20))
-                    .disabled(session.isLadderMode)
+                    .disabled(session.isGauntletLadderMode)
 
                     Button {
                         path.append(.achievements)
