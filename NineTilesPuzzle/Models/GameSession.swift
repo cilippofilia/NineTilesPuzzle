@@ -286,11 +286,19 @@ final class GameSession {
                     throw ImageSourceError.providerUnavailable
                 }
             }
-            sourceImage = image
-
             let slicer = ImageSlicer()
-            croppedSourceImage = slicer.centerCrop(image)
-            let slices = slicer.slice(image, into: gridSize * gridSize)
+            var workingImage = slicer.centerCrop(image)
+            // Baked into the image itself, before slicing, rather than kept as separate
+            // transform state — `sourceImage` (below) is what gets persisted and re-sliced
+            // on restore, so a transformed image survives backgrounding for free with no
+            // extra persistence key, and never re-rolls to a different transform than the
+            // one the player's tiles were actually shuffled against.
+            if selectedGameMode == .chaos {
+                workingImage = ChaosTransform.random().apply(to: workingImage, gridSize: gridSize)
+            }
+            sourceImage = workingImage
+            croppedSourceImage = workingImage
+            let slices = slicer.slice(workingImage, into: gridSize * gridSize)
             tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
 
             isLoading = false

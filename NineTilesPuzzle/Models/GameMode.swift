@@ -56,5 +56,6 @@ enum GameMode: String, CaseIterable, Identifiable, Codable {
 
     var isAvailable: Bool {
         self == .swap || self == .slide || self == .zen || self == .timeTrial || self == .limitedMoves
+            || self == .chaos
     }
 }
