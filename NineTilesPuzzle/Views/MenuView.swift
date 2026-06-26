@@ -12,6 +12,7 @@ enum GameRoute: Hashable {
     case gridSizePicker
     case achievements
     case gameModes
+    case mediaPicker
 }
 
 struct MenuView: View {
@@ -35,6 +36,21 @@ struct MenuView: View {
                     } label: {
                         HStack {
                             LabeledContent("Game Mode", value: session.selectedGameMode.title)
+                            Image(systemName: "chevron.forward")
+                                .imageScale(.small)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .contentShape(.rect(cornerRadius: 20))
+                    }
+                    .foregroundStyle(.primary)
+                    .background(.quaternary, in: .rect(cornerRadius: 20))
+
+                    Button {
+                        path.append(.mediaPicker)
+                    } label: {
+                        HStack {
+                            LabeledContent("Media", value: session.mediaSourceType.label)
                             Image(systemName: "chevron.forward")
                                 .imageScale(.small)
                                 .foregroundStyle(.secondary)
@@ -144,6 +160,8 @@ struct MenuView: View {
                     AchievementsView()
                 case .gameModes:
                     GameModeView()
+                case .mediaPicker:
+                    MediaSourcePickerView()
                 }
             }
         }

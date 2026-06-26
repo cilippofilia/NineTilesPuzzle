@@ -31,7 +31,7 @@ struct PuzzleView: View {
                         // on screen crossfaded over the preview/grid that replaces it.
                         .transition(.asymmetric(insertion: .opacity, removal: .identity))
                 } else if session.isPreviewing, let image = session.previewImage {
-                    ImagePreviewView(image: image, duration: session.currentPreviewDuration, onSkip: session.skipPreview)
+                    ImagePreviewView(image: image, duration: session.currentPreviewDuration, isFogMode: session.isFogMode, onSkip: session.skipPreview)
                         .transition(.asymmetric(insertion: .opacity, removal: .identity))
                 } else if let error = session.error {
                     PuzzleErrorView(error: error, onRetry: startNewGame, onSwitchToPhotos: switchToPhotosAndRetry)
