@@ -40,39 +40,39 @@ enum AchievementMetric: Equatable {
     func value(in stats: StatsStore, justSolved: Bool, now: Date) -> Int {
         switch self {
         case .totalGamesPlayed:
-            stats.gamesPlayed.values.reduce(0, +)
+            return stats.gamesPlayed.values.reduce(0, +)
         case .gamesPlayedForSize(let size):
-            stats.gamesPlayedCount(forSize: size)
+            return stats.gamesPlayedCount(forSize: size)
         case .gamesPlayedForMode(let mode):
-            stats.gamesPlayed.filter { $0.key.gameMode == mode }.values.reduce(0, +)
+            return stats.gamesPlayed.filter { $0.key.gameMode == mode }.values.reduce(0, +)
         case .personalBestMoves(let size, let mode):
-            stats.personalBestMoves[StatsKey(gridSize: size, gameMode: mode)] ?? Int.max
+            return stats.personalBestMoves[StatsKey(gridSize: size, gameMode: mode)] ?? Int.max
         case .timeTrialScore(let size, let mode):
-            stats.personalBestScore[StatsKey(gridSize: size, gameMode: mode)] ?? 0
+            return stats.personalBestScore[StatsKey(gridSize: size, gameMode: mode)] ?? 0
         case .bestStreakOverall:
-            stats.allTimeHighStreak.values.max() ?? 0
+            return stats.allTimeHighStreak.values.max() ?? 0
         case .distinctGridSizesCleared:
-            stats.distinctGridSizesCleared
+            return stats.distinctGridSizesCleared
         case .distinctGameModesPlayed:
-            stats.distinctGameModesPlayed
+            return stats.distinctGameModesPlayed
         case .zeroWasteSolve:
-            stats.hasZeroWasteSolve ? 1 : 0
+            return stats.hasZeroWasteSolve ? 1 : 0
         case .photoLibrarySolve:
-            stats.hasSolvedWithPhotoLibrary ? 1 : 0
+            return stats.hasSolvedWithPhotoLibrary ? 1 : 0
         case .comebackAfterBreak:
-            stats.hasComebackAfterBreak ? 1 : 0
+            return stats.hasComebackAfterBreak ? 1 : 0
         case .maxGamesInOneDay:
-            stats.maxGamesInOneDay
+            return stats.maxGamesInOneDay
         case .bestLadderStageReached:
-            stats.bestLadderStageReached
+            return stats.bestLadderStageReached
         case .bestLadderScore:
-            stats.bestLadderScore
+            return stats.bestLadderScore
         case .soloedInHourRange(let start, let end):
             guard justSolved else { return 0 }
             let hour = Calendar.current.component(.hour, from: now)
             return (start..<end).contains(hour) ? 1 : 0
         case .completionist:
-            0
+            return 0
         }
     }
 }
