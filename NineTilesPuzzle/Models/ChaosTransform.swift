@@ -59,11 +59,8 @@ struct ChaosTransform {
 
     private static let context = CIContext()
 
-    /// Applies orientation, tone, and any optional structural filters to `image`, in that
-    /// order. `gridSize` is used to cap the pixelate block size relative to tile size, so
-    /// the fixed ~32pt target doesn't flatten whole tiles to a single color on dense grids,
-    /// making them unsolvable-by-eye rather than just harder.
-    func apply(to image: CGImage, gridSize: Int) -> CGImage {
+    /// Applies orientation, tone, and any optional structural filters to `image`, in that order.
+    func apply(to image: CGImage) -> CGImage {
         var ciImage = oriented(CIImage(cgImage: image))
         ciImage = toned(ciImage)
 
@@ -72,11 +69,14 @@ struct ChaosTransform {
         }
 
         if pixelate {
-            // Target a chunky ~32pt block, but cap it at a third of a tile's edge so dense
-            // grids (7x7/8x8) don't flatten a whole tile to a single solid color.
-            let targetBlockSize: CGFloat = 32
-            let tileSize = CGFloat(image.width) / CGFloat(gridSize)
-            let scale = max(1, min(targetBlockSize, tileSize / 3))
+            // Block size is a fraction of the whole photo, not the per-tile size — source
+            // resolution varies a lot (camera vs. library vs. remote photos aren't resized
+            // before this runs), so anchoring to tile size made the effect look wildly
+            // different game to game. Targeting ~32 blocks across the whole image keeps it
+            // looking like a consistent low-res photo, recognizable rather than a mosaic of
+            // oversized flat blocks.
+            let targetBlocksAcrossImage: CGFloat = 32
+            let scale = max(1, CGFloat(image.width) / targetBlocksAcrossImage)
             ciImage = ciImage.applyingFilter("CIPixellate", parameters: [
                 "inputScale": scale,
                 "inputCenter": CIVector(x: ciImage.extent.midX, y: ciImage.extent.midY)

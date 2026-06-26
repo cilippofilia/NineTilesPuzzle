@@ -306,7 +306,7 @@ final class GameSession {
             // extra persistence key, and never re-rolls to a different transform than the
             // one the player's tiles were actually shuffled against.
             if selectedGameMode == .chaos {
-                workingImage = ChaosTransform.random().apply(to: workingImage, gridSize: gridSize)
+                workingImage = ChaosTransform.random().apply(to: workingImage)
             }
             sourceImage = workingImage
             croppedSourceImage = workingImage
