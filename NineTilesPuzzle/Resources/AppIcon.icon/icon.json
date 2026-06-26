@@ -1,32 +1,49 @@
 {
-  "fill" : {
-    "linear-gradient" : [
-      "extended-srgb:1.00000,0.55294,0.15686,1.00000",
-      "extended-srgb:1.00000,0.21961,0.23529,1.00000"
-    ],
-    "orientation" : {
-      "start" : {
-        "x" : 0.5,
-        "y" : 0
-      },
-      "stop" : {
-        "x" : 0.5,
-        "y" : 0.7
-      }
-    }
-  },
+  "fill" : "system-dark",
   "groups" : [
     {
       "layers" : [
         {
           "blend-mode" : "normal",
           "fill" : {
-            "automatic-gradient" : "extended-gray:1.00000,1.00000"
+            "linear-gradient" : [
+              "extended-srgb:1.00000,0.80000,0.00000,1.00000",
+              "extended-srgb:1.00000,0.21961,0.23529,1.00000"
+            ],
+            "orientation" : {
+              "start" : {
+                "x" : 0.5,
+                "y" : 0
+              },
+              "stop" : {
+                "x" : 0.4999999999999996,
+                "y" : 1
+              }
+            }
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "Vector 2.png",
+          "name" : "puzzle",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1.9,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "fill" : {
+            "solid" : "extended-gray:1.00000,0.09831"
           },
           "image-name" : "icon.png",
           "name" : "icon",
+          "opacity" : 0.01,
           "position" : {
-            "scale" : 1.19,
+            "scale" : 1.15,
             "translation-in-points" : [
               0,
               0
@@ -34,6 +51,21 @@
           }
         }
       ],
+      "name" : "icon",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+
+      ],
+      "name" : "grid",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
