@@ -30,7 +30,7 @@ struct PuzzleView: View {
                         // Removal is instant rather than fading, so this never lingers
                         // on screen crossfaded over the preview/grid that replaces it.
                         .transition(.asymmetric(insertion: .opacity, removal: .identity))
-                } else if session.isPreviewing, let image = session.croppedSourceImage {
+                } else if session.isPreviewing, let image = session.previewImage {
                     ImagePreviewView(image: image, onSkip: session.skipPreview)
                         .transition(.asymmetric(insertion: .opacity, removal: .identity))
                 } else if let error = session.error {

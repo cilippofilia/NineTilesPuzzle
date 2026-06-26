@@ -31,7 +31,13 @@ final class GameSession {
     var sourceImage: CGImage?
     /// The center-cropped square `sourceImage` is sliced from — what tiles actually show,
     /// used to reveal the complete picture on solve without a mismatched, uncropped edge.
+    /// In Chaos Mode this is the post-transform image (matching the tiles), not the original.
     var croppedSourceImage: CGImage?
+    /// The pre-shuffle "memorize the image" preview, shown by `ImagePreviewView`. Always the
+    /// untouched, untransformed crop — in Chaos Mode the player should study the real photo,
+    /// not the mirrored/inverted/pixelated version the tiles are about to show, otherwise the
+    /// "memorize" step would just be teaching them the wrong picture.
+    var previewImage: CGImage?
     var isLoading = false
     var isPreviewing = false
     var isSolved = false
@@ -223,6 +229,7 @@ final class GameSession {
         tileImages = [:]
         sourceImage = nil
         croppedSourceImage = nil
+        previewImage = nil
         isLoading = true
         isSolved = false
         isNewRecord = false
@@ -287,7 +294,12 @@ final class GameSession {
                 }
             }
             let slicer = ImageSlicer()
-            var workingImage = slicer.centerCrop(image)
+            let cropped = slicer.centerCrop(image)
+            // The preview always shows this untouched crop — Chaos Mode's transform is baked
+            // in below, after the preview's source is captured, so "memorize the image" still
+            // teaches the real photo even though the tiles are about to show something else.
+            previewImage = cropped
+            var workingImage = cropped
             // Baked into the image itself, before slicing, rather than kept as separate
             // transform state — `sourceImage` (below) is what gets persisted and re-sliced
             // on restore, so a transformed image survives backgrounding for free with no
@@ -525,6 +537,7 @@ extension GameSession {
         tileImages = [:]
         sourceImage = nil
         croppedSourceImage = nil
+        previewImage = nil
         isSolved = false
         isNewRecord = false
         defaults.set(false, forKey: Keys.useRandomSize)
@@ -539,6 +552,7 @@ extension GameSession {
         tileImages = [:]
         sourceImage = nil
         croppedSourceImage = nil
+        previewImage = nil
         isSolved = false
         isNewRecord = false
         defaults.set(true, forKey: Keys.useRandomSize)

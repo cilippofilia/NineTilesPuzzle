@@ -11,8 +11,9 @@ import CoreImage
 /// at shuffle time, before `ImageSlicer` ever sees it — every tile inherits the same
 /// transform, so the solved puzzle still reads as one coherent (if mirrored/inverted/
 /// pixelated) photo rather than a mosaic of independently-warped pieces. Orientation and
-/// tone always pick exactly one option each (never a no-op); posterize/pixelate are
-/// independent coin flips on top, so a game can stack 2-4 modifications total.
+/// tone always pick exactly one option each (never a no-op); posterize is an independent
+/// coin flip on top, while pixelate is weighted lower since its block size reads as a much
+/// stronger effect than the others, so a game can stack 2-4 modifications total.
 struct ChaosTransform {
     /// Mutually exclusive — picking more than one of these at once isn't meaningful, since
     /// e.g. a horizontal mirror plus a vertical flip is just a 180° rotation already in this
@@ -49,16 +50,19 @@ struct ChaosTransform {
             orientation: Orientation.allCases.randomElement()!,
             tone: .random(),
             posterize: Bool.random(),
-            pixelate: Bool.random()
+            // Pixelate reads as much chunkier than the other modifiers at the same block
+            // size, so it gets a lower hit rate than posterize's 50/50 to keep it feeling
+            // like an occasional twist rather than the default look.
+            pixelate: Double.random(in: 0..<1) < 0.25
         )
     }
 
     private static let context = CIContext()
 
     /// Applies orientation, tone, and any optional structural filters to `image`, in that
-    /// order. `gridSize` scales the pixelate filter so blocks stay sized per-tile rather than
-    /// per-image — a fixed block size would flatten whole tiles to a single color on larger
-    /// grids, making them unsolvable-by-eye rather than just harder.
+    /// order. `gridSize` is used to cap the pixelate block size relative to tile size, so
+    /// the fixed ~32pt target doesn't flatten whole tiles to a single color on dense grids,
+    /// making them unsolvable-by-eye rather than just harder.
     func apply(to image: CGImage, gridSize: Int) -> CGImage {
         var ciImage = oriented(CIImage(cgImage: image))
         ciImage = toned(ciImage)
@@ -68,8 +72,11 @@ struct ChaosTransform {
         }
 
         if pixelate {
-            let blocksPerTileEdge: CGFloat = 6
-            let scale = max(1, CGFloat(image.width) / (CGFloat(gridSize) * blocksPerTileEdge))
+            // Target a chunky ~32pt block, but cap it at a third of a tile's edge so dense
+            // grids (7x7/8x8) don't flatten a whole tile to a single solid color.
+            let targetBlockSize: CGFloat = 32
+            let tileSize = CGFloat(image.width) / CGFloat(gridSize)
+            let scale = max(1, min(targetBlockSize, tileSize / 3))
             ciImage = ciImage.applyingFilter("CIPixellate", parameters: [
                 "inputScale": scale,
                 "inputCenter": CIVector(x: ciImage.extent.midX, y: ciImage.extent.midY)
