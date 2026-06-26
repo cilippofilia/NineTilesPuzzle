@@ -25,7 +25,7 @@ enum GameMode: String, CaseIterable, Identifiable, Codable {
         case .timeTrial: "Time Trial"
         case .limitedMoves: "Limited Moves"
         case .zen: "Zen Mode"
-        case .fog: "Fog Mode"
+        case .fog: "Haze"
         case .chaos: "Chaos Mode"
         }
     }
@@ -37,7 +37,7 @@ enum GameMode: String, CaseIterable, Identifiable, Codable {
         case .timeTrial: "Race against the clock to finish the puzzle"
         case .limitedMoves: "Solve the puzzle within a fixed number of moves"
         case .zen: "A relaxing, untimed experience with no streaks to break"
-        case .fog: "Tiles are hidden until you move them"
+        case .fog: "Tiles are hidden in a drifting haze. Shake to reveal the image, then place each piece before the fog rolls back in."
         case .chaos: "This is not for the faint of heart. Is the image fully colored, mirrored, flipped or all of the above? Only one way to find out."
         }
     }
