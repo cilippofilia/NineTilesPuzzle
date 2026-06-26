@@ -4,7 +4,6 @@
     {
       "layers" : [
         {
-          "blend-mode" : "normal",
           "fill" : {
             "linear-gradient" : [
               "extended-srgb:1.00000,0.80000,0.00000,1.00000",
@@ -16,18 +15,15 @@
                 "y" : 0
               },
               "stop" : {
-                "x" : 0.4999999999999996,
+                "x" : 0.49999999999999956,
                 "y" : 1
               }
             }
           },
-          "glass" : true,
-          "hidden" : false,
-          "image-name" : "Vector 2.png",
+          "image-name" : "puzzle.png",
           "name" : "puzzle",
-          "opacity" : 1,
           "position" : {
-            "scale" : 1.9,
+            "scale" : 1.85,
             "translation-in-points" : [
               0,
               0
@@ -52,20 +48,6 @@
         }
       ],
       "name" : "icon",
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
-      }
-    },
-    {
-      "layers" : [
-
-      ],
-      "name" : "grid",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
