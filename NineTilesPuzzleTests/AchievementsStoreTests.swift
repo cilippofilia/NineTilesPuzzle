@@ -5,6 +5,7 @@
 //  Created by Filippo Cilia on 6/19/26.
 //
 
+import Foundation
 import Testing
 @testable import NineTilesPuzzle
 
@@ -35,22 +36,28 @@ struct AchievementsStoreTests {
         return stats
     }
 
-    private func achievement(_ id: String) -> Achievement {
-        Achievement(id: id, title: id, description: id, systemImage: "star")
+    private func achievement(
+        _ id: String,
+        metric: AchievementMetric = .totalGamesPlayed,
+        target: Int = 0,
+        comparison: AchievementComparison = .greaterThanOrEqual
+    ) -> Achievement {
+        Achievement(id: id, title: id, description: id, systemImage: "star", metric: metric, target: target, comparison: comparison)
     }
 
-    @Test func unlocksFirstSolveOnceAGameHasBeenPlayed() {
-        let store = makeStore(achievements: [achievement("firstSolve")])
+    @Test func unlocksOnceTheMetricReachesItsTarget() {
+        let store = makeStore(achievements: [achievement("firstSolve", metric: .totalGamesPlayed, target: 1)])
         let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
 
         store.checkAchievements(using: stats)
 
         #expect(store.achievements[0].isUnlocked)
         #expect(store.newlyUnlockedAchievement?.id == "firstSolve")
+        #expect(store.achievements[0].unlockedDate != nil)
     }
 
     @Test func doesNotUnlockBeforeThresholdIsReached() {
-        let store = makeStore(achievements: [achievement("tenGames")])
+        let store = makeStore(achievements: [achievement("tenGames", metric: .totalGamesPlayed, target: 10)])
         let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
 
         store.checkAchievements(using: stats)
@@ -59,8 +66,8 @@ struct AchievementsStoreTests {
         #expect(store.newlyUnlockedAchievement == nil)
     }
 
-    @Test func solveFourByFourDependsOnSizeNotTotalGames() {
-        let store = makeStore(achievements: [achievement("solveFourByFour")])
+    @Test func gamesPlayedForSizeDependsOnSizeNotTotalGames() {
+        let store = makeStore(achievements: [achievement("solveFourByFour", metric: .gamesPlayedForSize(4), target: 1)])
         let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 5])
 
         store.checkAchievements(using: stats)
@@ -71,8 +78,10 @@ struct AchievementsStoreTests {
         #expect(store.achievements[0].isUnlocked)
     }
 
-    @Test func under20Moves3x3RequiresSwapPersonalBest() {
-        let store = makeStore(achievements: [achievement("under20Moves3x3")])
+    @Test func lessThanOrEqualComparisonRequiresMovesAtOrUnderTarget() {
+        let store = makeStore(achievements: [
+            achievement("under20Moves3x3", metric: .personalBestMoves(size: 3, mode: .swap), target: 20, comparison: .lessThanOrEqual)
+        ])
         let tooSlow = makeStats(personalBestMoves: [StatsKey(gridSize: 3, gameMode: .swap): 25])
         store.checkAchievements(using: tooSlow)
         #expect(!store.achievements[0].isUnlocked)
@@ -83,7 +92,7 @@ struct AchievementsStoreTests {
     }
 
     @Test func streakAchievementsLookAtTheMaxAcrossAllKeys() {
-        let store = makeStore(achievements: [achievement("streak10")])
+        let store = makeStore(achievements: [achievement("streak10", metric: .bestStreakOverall, target: 10)])
         let stats = makeStats(allTimeHighStreak: [
             StatsKey(gridSize: 3, gameMode: .swap): 4,
             StatsKey(gridSize: 5, gameMode: .slide): 10
@@ -95,7 +104,7 @@ struct AchievementsStoreTests {
     }
 
     @Test func alreadyUnlockedAchievementsAreNeverReEvaluated() {
-        let store = makeStore(achievements: [achievement("firstSolve")])
+        let store = makeStore(achievements: [achievement("firstSolve", metric: .totalGamesPlayed, target: 1)])
         store.achievements[0].isUnlocked = true
         let stats = makeStats()
 
@@ -105,7 +114,10 @@ struct AchievementsStoreTests {
     }
 
     @Test func onlyTheFirstNewUnlockInAPassBecomesTheNotification() {
-        let store = makeStore(achievements: [achievement("firstSolve"), achievement("tenGames")])
+        let store = makeStore(achievements: [
+            achievement("firstSolve", metric: .totalGamesPlayed, target: 1),
+            achievement("tenGames", metric: .totalGamesPlayed, target: 10)
+        ])
         let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 10])
 
         store.checkAchievements(using: stats)
@@ -114,17 +126,8 @@ struct AchievementsStoreTests {
         #expect(store.newlyUnlockedAchievement?.id == "firstSolve")
     }
 
-    @Test func unknownIdNeverUnlocks() {
-        let store = makeStore(achievements: [achievement("madeUpId")])
-        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 100])
-
-        store.checkAchievements(using: stats)
-
-        #expect(!store.achievements[0].isUnlocked)
-    }
-
     @Test func dismissAchievementNotificationClearsIt() async {
-        let store = makeStore(achievements: [achievement("firstSolve")])
+        let store = makeStore(achievements: [achievement("firstSolve", metric: .totalGamesPlayed, target: 1)])
         let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
         store.checkAchievements(using: stats)
         #expect(store.newlyUnlockedAchievement != nil)
@@ -132,5 +135,87 @@ struct AchievementsStoreTests {
         await store.dismissAchievementNotification()
 
         #expect(store.newlyUnlockedAchievement == nil)
+    }
+
+    // MARK: - Time-of-day metrics
+
+    @Test func nightOwlMetricOnlyCountsTheExactCallThatJustSolved() {
+        let store = makeStore(achievements: [
+            achievement("nightOwl", metric: .soloedInHourRange(start: 0, end: 5), target: 1)
+        ])
+        let stats = makeStats()
+        let twoAM = Calendar.current.date(bySettingHour: 2, minute: 0, second: 0, of: .now)!
+
+        store.checkAchievements(using: stats, justSolved: false, now: twoAM)
+        #expect(!store.achievements[0].isUnlocked)
+
+        store.checkAchievements(using: stats, justSolved: true, now: twoAM)
+        #expect(store.achievements[0].isUnlocked)
+    }
+
+    @Test func nightOwlMetricDoesNotUnlockOutsideItsHourRange() {
+        let store = makeStore(achievements: [
+            achievement("nightOwl", metric: .soloedInHourRange(start: 0, end: 5), target: 1)
+        ])
+        let stats = makeStats()
+        let noon = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: .now)!
+
+        store.checkAchievements(using: stats, justSolved: true, now: noon)
+
+        #expect(!store.achievements[0].isUnlocked)
+    }
+
+    // MARK: - Completionist
+
+    @Test func completionistUnlocksOnceEveryOtherAchievementIsUnlocked() {
+        let store = makeStore(achievements: [
+            achievement("firstSolve", metric: .totalGamesPlayed, target: 1),
+            achievement("completionist")
+        ])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
+
+        store.checkAchievements(using: stats)
+
+        #expect(store.achievements[0].isUnlocked)
+        #expect(store.achievements[1].id == "completionist")
+        #expect(store.achievements[1].isUnlocked)
+    }
+
+    @Test func completionistStaysLockedWhileAnyOtherAchievementIsLocked() {
+        let store = makeStore(achievements: [
+            achievement("firstSolve", metric: .totalGamesPlayed, target: 1),
+            achievement("tenGames", metric: .totalGamesPlayed, target: 10),
+            achievement("completionist")
+        ])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
+
+        store.checkAchievements(using: stats)
+
+        #expect(store.achievements[0].isUnlocked)
+        #expect(!store.achievements[1].isUnlocked)
+        #expect(!store.achievements.first(where: { $0.id == "completionist" })!.isUnlocked)
+    }
+
+    @Test func completionistIsRevokedWhenANewAchievementIsAddedAndNotYetEarned() {
+        let store = makeStore(achievements: [achievement("firstSolve", metric: .totalGamesPlayed, target: 1)])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
+        store.achievements.append(achievement("completionist"))
+        store.checkAchievements(using: stats)
+        #expect(store.achievements.first(where: { $0.id == "completionist" })!.isUnlocked)
+
+        // Simulates an app update introducing a new, not-yet-earned achievement.
+        store.achievements.append(achievement("hundredGames", metric: .totalGamesPlayed, target: 100))
+        store.checkAchievements(using: stats)
+
+        #expect(!store.achievements.first(where: { $0.id == "completionist" })!.isUnlocked)
+    }
+
+    @Test func completionistNeverUnlocksWhenItIsTheOnlyAchievement() {
+        let store = makeStore(achievements: [achievement("completionist")])
+        let stats = makeStats()
+
+        store.checkAchievements(using: stats)
+
+        #expect(!store.achievements[0].isUnlocked)
     }
 }

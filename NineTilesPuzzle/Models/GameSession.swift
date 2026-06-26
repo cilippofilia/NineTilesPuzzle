@@ -70,6 +70,11 @@ final class GameSession {
     private(set) var isTimerRunning = false
     private(set) var didBreakStreak = false
 
+    /// True once any move this game failed to lock a new tile correctly — tracked only for
+    /// the swap-style engine (Slide never locks tiles, so "every move locks a tile" isn't a
+    /// meaningful question there). Backs the "Perfectionist" achievement.
+    private(set) var hasHadWastedMoveThisGame = false
+
     private(set) var timeTrialRemaining: Double = 0
     private(set) var isTimeTrialRunning = false
     private(set) var isTimeTrialFailed = false
@@ -243,6 +248,7 @@ final class GameSession {
         isNewLadderScoreRecord = false
         isNewLadderStageRecord = false
         isLimitedMovesFailed = false
+        hasHadWastedMoveThisGame = false
         // Otherwise this stays stuck from a previous Time Trial run that ended in failure —
         // `startTimeTrialCountdown()` only resets it when re-entering Time Trial itself, so
         // every other mode's `swapTiles` (which guards on this flag regardless of mode)
@@ -390,6 +396,13 @@ final class GameSession {
 
         let key = currentStatsKey
         let debugOverlayEnabled = settingsStore.debugOverlayEnabled
+        let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
+
+        // Slide never locks tiles, so a tile sliding in and back out again isn't a
+        // "wasted move" in the same sense as a swap-style engine's permanent lock.
+        if selectedGameMode != .slide && newlyCorrect <= 0 {
+            hasHadWastedMoveThisGame = true
+        }
 
         if isSolved {
             if isTimeTrialMode { stopTimeTrialCountdown() } else { stopCountdown() }
@@ -429,14 +442,25 @@ final class GameSession {
                     isNewTimeTrialScoreRecord = statsStore.recordTimeTrialScore(for: key, score: score)
                 }
             }
+
+            // Tracked across every mode (including Zen) whenever the game isn't practice
+            // play — these back achievements that aren't about records or streaks.
+            if !debugOverlayEnabled {
+                if selectedGameMode != .slide && !hasHadWastedMoveThisGame {
+                    statsStore.recordZeroWasteSolve()
+                }
+                if mediaSourceType == .local {
+                    statsStore.recordPhotoLibrarySolve()
+                }
+                statsStore.recordGameCompletedToday()
+            }
         }
 
         if isTimeTrialMode {
-            applyTimeTrialMoveOutcome(correctBefore: correctBefore)
+            applyTimeTrialMoveOutcome(newlyCorrect: newlyCorrect)
         } else if isLimitedMovesMode {
             applyLimitedMovesBudgetCheck()
         } else if !isZenMode {
-            let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
             if newlyCorrect > 0 {
                 let result = statsStore.recordStreakIncrement(for: key, trackRecord: !debugOverlayEnabled)
                 if !isSolved { startCountdown() }
@@ -448,17 +472,21 @@ final class GameSession {
             }
         }
 
-        if !isZenMode && !debugOverlayEnabled { achievementsStore.checkAchievements(using: statsStore) }
+        // Zen used to be excluded here too, which meant Zen-only achievements (e.g. a first
+        // Zen clear) could never unlock. Practice/debug play is still excluded — it never
+        // touches `StatsStore` records above, so it shouldn't unlock achievements either.
+        if !debugOverlayEnabled {
+            achievementsStore.checkAchievements(using: statsStore, justSolved: isSolved)
+        }
         saveToUserDefaults()
     }
 
     /// Applies the flat combo bonus/misplay penalty to the running Time Trial countdown and
     /// fails the puzzle if that empties the clock. No-ops once already solved — the puzzle's
     /// final move shouldn't also be penalized/bonused after `stopTimeTrialCountdown()` above.
-    private func applyTimeTrialMoveOutcome(correctBefore: Int) {
+    private func applyTimeTrialMoveOutcome(newlyCorrect: Int) {
         guard !isSolved, let end = timeTrialEndDate else { return }
 
-        let newlyCorrect = tiles.filter { $0.isCorrect }.count - correctBefore
         let delta = newlyCorrect > 0 ? TimeTrialRules.comboBonusSeconds : -TimeTrialRules.misplayPenaltySeconds
         let newEnd = end.addingTimeInterval(delta)
         timeTrialEndDate = newEnd
@@ -617,6 +645,7 @@ extension GameSession {
         static let currentLadderStage = "puzzle.currentLadderStage"
         static let ladderCumulativeScore = "puzzle.ladderCumulativeScore"
         static let ladderWinStreak = "puzzle.ladderWinStreak"
+        static let hasHadWastedMoveThisGame = "puzzle.hasHadWastedMoveThisGame"
     }
 }
 
@@ -641,6 +670,7 @@ private extension GameSession {
         defaults.set(currentLadderStage, forKey: Keys.currentLadderStage)
         defaults.set(ladderCumulativeScore, forKey: Keys.ladderCumulativeScore)
         defaults.set(ladderWinStreak, forKey: Keys.ladderWinStreak)
+        defaults.set(hasHadWastedMoveThisGame, forKey: Keys.hasHadWastedMoveThisGame)
     }
 
     func restoreFromUserDefaults() {
@@ -694,6 +724,7 @@ private extension GameSession {
         if currentLadderStage < 1 || currentLadderStage > GauntletLadderRules.stageCount { currentLadderStage = 1 }
         ladderCumulativeScore = defaults.integer(forKey: Keys.ladderCumulativeScore)
         ladderWinStreak = defaults.integer(forKey: Keys.ladderWinStreak)
+        hasHadWastedMoveThisGame = defaults.bool(forKey: Keys.hasHadWastedMoveThisGame)
         if !isSolved && currentStreakForCurrentSize > 0 { startCountdown() }
         // Resuming restarts the Time Trial countdown at the full base duration rather than
         // the exact persisted remainder — background/foreground interruption handling is a
