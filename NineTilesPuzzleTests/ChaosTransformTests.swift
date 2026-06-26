@@ -28,7 +28,7 @@ struct ChaosTransformTests {
         let image = makeImage(width: 300, height: 200)
         for orientation: ChaosTransform.Orientation in [.mirror, .flip, .rotate180] {
             let transform = ChaosTransform(orientation: orientation, tone: .desaturate, posterize: false, pixelate: false)
-            let result = transform.apply(to: image, gridSize: 3)
+            let result = transform.apply(to: image)
             #expect(result.width == 300)
             #expect(result.height == 200)
         }
@@ -38,7 +38,7 @@ struct ChaosTransformTests {
         let image = makeImage(width: 300, height: 200)
         for orientation: ChaosTransform.Orientation in [.rotate90, .rotate270] {
             let transform = ChaosTransform(orientation: orientation, tone: .invert, posterize: false, pixelate: false)
-            let result = transform.apply(to: image, gridSize: 3)
+            let result = transform.apply(to: image)
             #expect(result.width == 200)
             #expect(result.height == 300)
         }
@@ -49,7 +49,7 @@ struct ChaosTransformTests {
         let tones: [ChaosTransform.Tone] = [.desaturate, .invert, .hueShift(angle: .pi / 2), .sepia]
         for tone in tones {
             let transform = ChaosTransform(orientation: .mirror, tone: tone, posterize: false, pixelate: false)
-            let result = transform.apply(to: image, gridSize: 4)
+            let result = transform.apply(to: image)
             #expect(result.width == 240)
             #expect(result.height == 240)
         }
@@ -59,14 +59,14 @@ struct ChaosTransformTests {
         let image = makeImage(width: 240, height: 240)
         let posterizeOnly = ChaosTransform(orientation: .rotate180, tone: .sepia, posterize: true, pixelate: false)
         let pixelateOnly = ChaosTransform(orientation: .rotate180, tone: .sepia, posterize: false, pixelate: true)
-        #expect(posterizeOnly.apply(to: image, gridSize: 5).width == 240)
-        #expect(pixelateOnly.apply(to: image, gridSize: 5).height == 240)
+        #expect(posterizeOnly.apply(to: image).width == 240)
+        #expect(pixelateOnly.apply(to: image).height == 240)
     }
 
     @Test func allModifiersStackedStillProducesAnImage() {
         let image = makeImage(width: 240, height: 240)
         let transform = ChaosTransform(orientation: .rotate180, tone: .hueShift(angle: 1.0), posterize: true, pixelate: true)
-        let result = transform.apply(to: image, gridSize: 6)
+        let result = transform.apply(to: image)
         #expect(result.width == 240)
         #expect(result.height == 240)
     }
@@ -75,7 +75,7 @@ struct ChaosTransformTests {
         let image = makeImage(width: 240, height: 240)
         for _ in 0..<50 {
             let transform = ChaosTransform.random()
-            let result = transform.apply(to: image, gridSize: 3)
+            let result = transform.apply(to: image)
             #expect(result.width > 0)
             #expect(result.height > 0)
         }
