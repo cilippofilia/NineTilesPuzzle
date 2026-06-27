@@ -133,6 +133,39 @@ Still to decide: whether to use a discrete threshold (snap to the dominant axis)
 continuous tilt that lets tiles slide diagonally. Discrete is simpler to implement and
 likely more fun to play.
 
+### Quick Snap — **S/M**
+Point the camera at whatever's in front of you right now, snap a photo, and solve a puzzle
+made from it on the spot — no internet image, no digging through the photo library. Not a
+new engine or rule set: it plays exactly like Swap underneath (same pattern as Chaos/Haze),
+the only new thing is *where the image comes from* and the immediacy of "this very second"
+replacing "pick something."
+
+Architecture hooks:
+- The existing `ImageSource` protocol's `fetchImage() async throws -> CGImage` assumes a
+  headless fetch (network call, photo library query). Camera capture needs a presented UI
+  step first, so it doesn't fit as a drop-in fourth conformer the way `PhotoLibraryImageSource`
+  does — instead, add a camera capture sheet (`UIImagePickerController` with
+  `sourceType = .camera`, wrapped in a `UIViewControllerRepresentable`, same shape as any
+  SwiftUI/UIKit bridge already used for `ShakeDetector`) that resolves to a `CGImage` and
+  hands it to `GameSession` directly, bypassing `ImageService`'s primary/fallback source pair
+  entirely for this one mode.
+- `GameSession.enterQuickSnapMode()` (mirrors `enterDailyMode()`'s transient-flag pattern)
+  presents the capture sheet; only once a photo is captured does it call `startNewGame()`
+  with that image, then resets the flag in `leaveGame()` like Daily Challenge does.
+- Reuses `ImagePreviewView`'s existing "memorize the image" preview step before shuffling —
+  the captured photo *is* the preview image, no new preview UI needed.
+- Needs a new `NSCameraUsageDescription` entry in `Info.plist` — today only
+  `NSPhotoLibraryUsageDescription` exists. Camera access can be denied or the device may have
+  no camera (Simulator); fall back to `ImageSourceError`-style messaging and grey the mode out
+  in the menu the same way `.numbers` is only shown conditionally in `MediaSourcePickerView`.
+- Runs on `ClassicEngine` (Swap) — no new `GameMode` rules, no fail state, no stats/streak
+  exemption.
+
+Still to decide: whether to let the player retake the shot before committing to it (an extra
+confirm step over the raw `UIImagePickerController` flow), and whether Quick Snap should carry
+any of Time Trial's urgency (a short countdown to match the "right now" framing) or stay a
+pure variation on Swap with no budget attached.
+
 ---
 
 ## 2. Power-ups & Twists
