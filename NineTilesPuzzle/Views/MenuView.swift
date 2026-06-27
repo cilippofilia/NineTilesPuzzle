@@ -33,6 +33,9 @@ struct MenuView: View {
                 BrandMarkView()
                     .padding()
 
+                MenuStatsCardView()
+                    .padding(.horizontal)
+
                 VStack(spacing: 12) {
                     Button {
                         path.append(.gameModes)
@@ -130,10 +133,6 @@ struct MenuView: View {
                     }
                 }
                 .padding(.horizontal)
-
-                MenuStatsCardView()
-                    .padding(.horizontal)
-                    .padding(.top, 4)
 
                 Button {
                     session.tiles = []

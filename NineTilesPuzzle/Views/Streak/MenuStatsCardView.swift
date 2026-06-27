@@ -51,10 +51,20 @@ struct MenuStatsCardView: View {
                 rightColor: .blue
             )
         } else {
-            StreakStatsView(
-                currentStreak: session.currentStreakForCurrentSize,
-                allTimeHigh: session.allTimeHighStreakForCurrentSize,
-                personalBestMoves: session.personalBestForCurrentSize
+            threeStatCard(
+                leftValue: "\(session.currentStreakForCurrentSize)",
+                leftLabel: "Current streak",
+                leftIcon: "flame.fill",
+                leftColor: session.currentStreakForCurrentSize > 0 ? .orange : .secondary,
+                midValue: "\(session.allTimeHighStreakForCurrentSize)",
+                midLabel: "Best streak",
+                midIcon: "trophy.fill",
+                midColor: session.allTimeHighStreakForCurrentSize > 0
+                    ? Color(hue: 0.12, saturation: 0.9, brightness: 0.85) : .secondary,
+                rightValue: session.personalBestForCurrentSize.map { "\($0)" } ?? "--",
+                rightLabel: "Best moves",
+                rightIcon: "arrow.left.arrow.right",
+                rightColor: session.personalBestForCurrentSize != nil ? .primary : .secondary
             )
         }
     }
@@ -70,21 +80,39 @@ private extension MenuStatsCardView {
             Divider()
             statItem(value: rightValue, label: rightLabel, icon: rightIcon, color: rightColor)
         }
-        .padding()
+        .padding(.vertical, 10)
+        .padding(.horizontal)
+        .background(.quaternary, in: .rect(cornerRadius: 20))
+    }
+
+    func threeStatCard(
+        leftValue: String, leftLabel: String, leftIcon: String, leftColor: Color,
+        midValue: String, midLabel: String, midIcon: String, midColor: Color,
+        rightValue: String, rightLabel: String, rightIcon: String, rightColor: Color
+    ) -> some View {
+        HStack {
+            statItem(value: leftValue, label: leftLabel, icon: leftIcon, color: leftColor)
+            Divider()
+            statItem(value: midValue, label: midLabel, icon: midIcon, color: midColor)
+            Divider()
+            statItem(value: rightValue, label: rightLabel, icon: rightIcon, color: rightColor)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal)
         .background(.quaternary, in: .rect(cornerRadius: 20))
     }
 
     func statItem(value: String, label: String, icon: String, color: Color) -> some View {
-        VStack {
-            HStack(spacing: 6) {
+        VStack(spacing: 2) {
+            HStack(spacing: 4) {
                 Image(systemName: icon)
                     .foregroundStyle(value == "--" ? .secondary : color)
                 Text(value)
                     .foregroundStyle(value == "--" ? .secondary : .primary)
             }
-            .font(.system(.title2, weight: .heavy))
+            .font(.system(.headline, weight: .bold))
             Text(label)
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
