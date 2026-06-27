@@ -172,20 +172,20 @@ struct MenuView: View {
                     Button {
                         showTipsAlert = true
                     } label: {
-                        Label("Tips", systemImage: "lightbulb.fill")
+                        Label("Tips", systemImage: "lightbulb.max")
                     }
                     .labelStyle(.iconOnly)
                 }
             }
-            .alert("Less Is More", isPresented: $showTipsAlert) {
-                Button("Update Photo Access in Settings") {
+            .alert("Quick Tip", isPresented: $showTipsAlert) {
+                Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         openURL(url)
                     }
                 }
-                Button("OK", role: .cancel) { }
+                Button("Got It", role: .cancel) { }
             } message: {
-                Text("To best enjoy this game, create a dedicated folder in Photos with just the images you want to play with, then tap Update Photo Access in Settings to select that folder.")
+                Text("For a curated experience with your own photos, create a dedicated album in the Photos app with only the images you'd like to use as puzzles, then grant Nine Tiles access to that album only.")
             }
         }
     }
