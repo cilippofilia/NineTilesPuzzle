@@ -16,6 +16,8 @@ struct NineTilesPuzzleApp: App {
     @State private var gameSession: GameSession
     @State private var soundService = SoundService()
     @State private var gameCenterService = GameCenterService()
+    @State private var wallOfFameStore = WallOfFameStore()
+    @State private var motionManager = MotionManager()
     @State private var showSplash = true
 
     init() {
@@ -46,6 +48,8 @@ struct NineTilesPuzzleApp: App {
                     .environment(dailyChallengeStore)
                     .environment(soundService)
                     .environment(gameCenterService)
+                    .environment(wallOfFameStore)
+                    .environment(motionManager)
 
                 if showSplash {
                     SplashScreenView {

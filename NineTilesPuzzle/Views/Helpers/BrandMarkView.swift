@@ -50,7 +50,7 @@ struct BrandMarkView: View {
             .font(font)
             .bold()
             .lineLimit(1)
-            .minimumScaleFactor(0.5)
+            .minimumScaleFactor(0.75)
     }
 }
 

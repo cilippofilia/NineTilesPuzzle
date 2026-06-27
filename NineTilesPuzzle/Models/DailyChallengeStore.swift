@@ -58,9 +58,10 @@ final class DailyChallengeStore {
     /// replaying the same puzzle (which is allowed) can still improve `bestMoves`
     /// and `bestTime` without double-counting the streak.
     @discardableResult
-    func recordCompletion(moves: Int, time: TimeInterval, date: Date = .now) -> (isNewMovesRecord: Bool, isNewTimeRecord: Bool) {
+    func recordCompletion(moves: Int, time: TimeInterval, date: Date = .now) -> (isNewMovesRecord: Bool, isNewTimeRecord: Bool, isNewCalendarStreakRecord: Bool) {
+        var isNewCalendarStreakRecord = false
         if !isDailyCompletedToday {
-            advanceCalendarStreak(for: date)
+            isNewCalendarStreakRecord = advanceCalendarStreak(for: date)
             lastCompletedDate = date
             defaults.set(date.timeIntervalSinceReferenceDate, forKey: Keys.lastCompletedDate)
         }
@@ -79,7 +80,7 @@ final class DailyChallengeStore {
             isNewTimeRecord = true
         }
 
-        return (isNewMovesRecord, isNewTimeRecord)
+        return (isNewMovesRecord, isNewTimeRecord, isNewCalendarStreakRecord)
     }
 
     func resetStats() {
@@ -107,7 +108,9 @@ private extension DailyChallengeStore {
 
     /// Increments the streak when today directly follows the last completed day;
     /// resets it to 1 when there's a gap (or no prior completion).
-    func advanceCalendarStreak(for date: Date) {
+    /// Returns `true` when a new all-time best calendar streak is set.
+    @discardableResult
+    func advanceCalendarStreak(for date: Date) -> Bool {
         let cal = Calendar.current
         let yesterday = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: date))!
         if let last = lastCompletedDate, cal.isDate(last, inSameDayAs: yesterday) {
@@ -116,10 +119,10 @@ private extension DailyChallengeStore {
             calendarStreak = 1
         }
         defaults.set(calendarStreak, forKey: Keys.calendarStreak)
-        if calendarStreak > bestCalendarStreak {
-            bestCalendarStreak = calendarStreak
-            defaults.set(bestCalendarStreak, forKey: Keys.bestCalendarStreak)
-        }
+        guard calendarStreak > bestCalendarStreak else { return false }
+        bestCalendarStreak = calendarStreak
+        defaults.set(bestCalendarStreak, forKey: Keys.bestCalendarStreak)
+        return true
     }
 
     func restoreFromUserDefaults() {

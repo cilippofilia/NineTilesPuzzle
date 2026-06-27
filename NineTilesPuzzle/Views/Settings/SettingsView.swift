@@ -86,6 +86,14 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        StatsView()
+                    } label: {
+                        Label("Stats", systemImage: "chart.bar.fill")
+                    }
+                }
+
+                Section {
                     Button("Reset Stats", role: .destructive) {
                         showResetStatsAlert = true
                     }

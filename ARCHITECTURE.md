@@ -1,6 +1,6 @@
 # NineTilesPuzzle — Architecture Overview
 
-Snapshot of the current codebase structure, as of 2026-06-27. This is a descriptive
+Snapshot of the current codebase structure, as of 2026-06-27 (updated for Wall of Fame + Stats→Settings). This is a descriptive
 document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in sync with
 it) for how the "does mode-specific behavior need a shared abstraction" question was
 revisited once Time Trial and Limited Moves both existed, and what would justify
@@ -20,8 +20,10 @@ revisiting it again.
 
 ```
 NineTilesPuzzle/
-├── NineTilesPuzzleApp.swift        — @main, constructs the five stores below + SoundService
-│                                    + GameCenterService; kicks off authentication via .task
+├── NineTilesPuzzleApp.swift        — @main, constructs StatsStore, SettingsStore,
+│                                    AchievementsStore, DailyChallengeStore, WallOfFameStore,
+│                                    MotionManager, SoundService, GameCenterService;
+│                                    injects all into the environment; kicks off GC auth via .task
 ├── Models/
 │   ├── GameSession.swift           — the game currently configured/in progress (see below)
 │   ├── StatsStore.swift            — personal bests, games played, streaks (keyed by StatsKey)
@@ -53,6 +55,13 @@ NineTilesPuzzle/
 │   │                                  string (e.g. "personalBestMoves.3.swap") for hand-editable
 │   │                                  JSON; value(in:justSolved:now:) reads StatsStore
 │   ├── AchievementComparison.swift — greaterThanOrEqual | lessThanOrEqual
+│   ├── WallOfFameSlot.swift        — 15-case enum: bestMoves(3…8), bestTime(3…8),
+│   │                                  dailyBestMoves, dailyBestTime, calendarStreak;
+│   │                                  exposes fileName, displayTitle, seedValue
+│   ├── WallOfFameStore.swift       — @Observable, @MainActor; persists card PNGs to
+│   │                                  Documents/wall_of_fame/<slot>.png via ImageIO (no UIKit);
+│   │                                  caches CGImages in memory; exposes cardImage(for:),
+│   │                                  save(_:for:) (disk write off main actor), fileURL(for:)
 │   ├── ZenSparkle.swift            — decorative particle model for Zen mode's solve animation
 │   ├── Bundle-Decodable-Ext.swift
 │   ├── TimeInterval-Formatting-Ext.swift
@@ -67,11 +76,16 @@ NineTilesPuzzle/
 │       └── ImageSourceError.swift
 ├── Services/
 │   ├── GameEngine.swift            — protocol: shuffle() + shared isSolved()
-│   ├── ClassicEngine.swift         — swap-any-two-tiles rules
+│   ├── SwapEngine.swift            — swap-any-two-tiles rules (was ClassicEngine)
 │   ├── SlideEngine.swift           — 15-puzzle slide rules + solvability parity check
 │   ├── SlideSolver.swift           — BFS solver, debug-only "Solve" button
 │   ├── ImageService.swift          — primary/fallback source orchestration
 │   ├── ImageSlicer.swift           — center-crop + slice CGImage into tile images
+│   ├── MotionManager.swift         — @Observable, @MainActor; wraps CMMotionManager at 30 Hz;
+│   │                                  captures first attitude as reference (multiply(byInverseOf:))
+│   │                                  so neutral = whatever orientation the phone is in when
+│   │                                  updates start; exposes pitch/roll normalized to −1…1,
+│   │                                  clamped at ±0.14 rad; startUpdates()/stopUpdates()
 │   ├── SoundService.swift          — @Observable, AVAudioPlayer-backed SFX
 │   ├── AchievementService.swift    — bundled JSON + remote fetch + on-disk cache
 │   └── GameCenterService.swift     — @Observable, handles GKLocalPlayer authentication;
@@ -80,8 +94,11 @@ NineTilesPuzzle/
 │                                     GKAccessPoint.trigger(handler:) (the iOS 26 replacement
 │                                     for the deprecated GKGameCenterViewController)
 ├── Views/
-│   ├── MenuView.swift               — root NavigationStack, routes via GameRoute enum
-│   ├── StatsView.swift              — sheet: streaks, personal bests, games played
+│   ├── MenuView.swift               — root NavigationStack, routes via GameRoute enum;
+│   │                                  Stats button removed — Stats now lives in Settings
+│   ├── StatsView.swift              — push-navigation destination (no NavigationStack of its
+│   │                                  own); reached via NavigationLink in SettingsView;
+│   │                                  shows streaks, personal bests, games played
 │   ├── AchievementsView.swift       — sheet: achievement list
 │   ├── GameMode/GameModeView.swift  — mode picker only (media source moved to MenuView)
 │   ├── Settings/                    — SettingsView, GridSizePickerView, PreviewTimePickerView,
@@ -115,6 +132,13 @@ NineTilesPuzzle/
 │   ├── Daily/
 │   │   └── DailyChallengeCardView.swift — menu card: today's date, calendar streak,
 │   │                                       "Play" button (or "Done ✓" once completed)
+│   ├── WallOfFame/
+│   │   ├── WallOfFameView.swift     — root ZStack: ScrollView(cork board) + backdrop +
+│   │   │                              zoom overlay as three siblings so each can carry its
+│   │   │                              own SwiftUI transition independently; sections: Best
+│   │   │                              Moves, Fastest Solve, Daily Challenge, Streaks
+│   │   ├── WallOfFamePinnedCard.swift — 160×192 pt polaroid + pendulum physics (see below)
+│   │   └── WallOfFameEmptySlot.swift — dashed rounded-rect placeholder for unfilled slots
 │   └── Helpers/                     — grab-bag of small reusable views (toast, banners,
 │                                       loading/splash, brand mark, badges, zen sparkle,
 │                                       AchievementRowView (icon + title/description + inline
@@ -133,12 +157,15 @@ NineTilesPuzzleTests/                 — real, wired-up Unit Testing Bundle tar
 NineTilesPuzzleApp.init()
    constructs, in dependency order:
      StatsStore()  SettingsStore()  AchievementsStore()  ──▶  GameSession(stats:, achievements:, settings:)
+     WallOfFameStore()   MotionManager()   SoundService()   GameCenterService()   DailyChallengeStore()
    (each store defaults its `defaults:` param to UserDefaults.standard via PersistenceStore)
-   injects all four + SoundService + GameCenterService into the environment (app-wide singletons)
+   injects all into the environment (app-wide singletons)
         │
         ▼
-MenuView ── NavigationStack(GameRoute) ──▶ PuzzleView / GameModeView / MediaSourcePickerView / StatsView / ...
-        (each view reads only the store(s) it actually needs from the environment)
+MenuView ── NavigationStack(GameRoute) ──▶ PuzzleView / WallOfFameView / GameModeView / ...
+   ├── SettingsView (sheet, owns a NavigationStack)
+   │       └── NavigationLink ──▶ StatsView (plain List, no own NavigationStack)
+   └── (each view reads only the store(s) it actually needs from the environment)
         │
         ▼
 GameSession (@Observable, @MainActor)
@@ -351,6 +378,51 @@ purposes). `leaveGame()` resets the flag. The card `DailyChallengeCardView` on t
 reads `DailyChallengeStore` directly from the environment and shows a "Done ✓" indicator
 once `isDailyCompletedToday`; the flag is not persisted (transient) so a force-quit mid-game
 just restarts the same daily puzzle on next launch.
+
+**Wall of Fame** (shipped June 2026): a cork-board view where every personal best is
+automatically captured and pinned as a polaroid card. `PuzzleView` renders `ShareCardView`
+via `ImageRenderer` at 3× scale at the moment a record is set, converts the result to a
+`CGImage`, and calls `WallOfFameStore.save(_:for:)`. `WallOfFameStore` writes a PNG to
+`Documents/wall_of_fame/<slot>.png` using `CGImageDestinationCreateWithData` / ImageIO
+(no UIKit, compatible with `ShareLink`'s `URL`-based `Transferable` requirement); the
+in-memory `[WallOfFameSlot: CGImage]` cache avoids repeated disk reads within a session.
+
+`WallOfFameView` is a `ZStack` containing three sibling layers:
+1. `ScrollView` — the cork board with four `LazyVGrid` sections.
+2. `Color.black.opacity(0.78)` backdrop — conditional on `zoomedCardImage != nil`,
+   transition `.opacity`.
+3. `ZoomedCardOverlay` (card + transparent dismiss button) — conditional on `let image =
+   zoomedCardImage`, transition `.scale(0.82).combined(with: .opacity)`.
+
+Separating the backdrop and card into siblings (rather than one `ZoomedCardOverlay` containing
+both) is what lets each carry its own `SwiftUI.transition` — backdrop fades while the card
+scales, both driven by a shared `.animation(..., value: zoomedCardImage == nil)` on the
+`ZStack`. The dismiss button in `ZoomedCardOverlay` is a full-screen `Color.clear.ignoresSafeArea()
+.contentShape(.rect)` — it expands to fill all available space so tapping anywhere
+(backdrop or card) dismisses without a button-press color flash. The card image is layered
+on top via `.overlay` with `.allowsHitTesting(false)` so taps pass through to the button;
+the dark backdrop sibling also has `.allowsHitTesting(false)` so neither intercepts.
+
+**Pendulum physics** (`WallOfFamePinnedCard`): `TimelineView(.animation(minimumInterval: 1/60))`
+runs a spring-damper loop per frame:
+```
+let springForce  = (targetAngle − swingAngle) × stiffness   // stiffness = 0.025
+let dampingForce = −angularVelocity × damping                // damping   = 0.11
+angularVelocity += springForce + dampingForce
+swingAngle      += angularVelocity
+```
+`targetAngle = −motionManager.roll × 6.0` (negated: tilt right → cards swing left).
+Each card has a seeded `baseAngle` (±6°) additive with `swingAngle`, so cards rest at
+unique angles at rest and the whole board sways together.
+
+**`MotionManager`** (`Services/MotionManager.swift`): `@MainActor @Observable`, starts
+`CMMotionManager.startDeviceMotionUpdates` at 30 Hz. The first `CMDeviceMotion` reading is
+stored as `referenceAttitude`; every subsequent reading is multiplied by its inverse
+(`attitude.multiply(byInverseOf: ref)`) so the attitude is always relative to how the phone
+was held at the moment the view opened, not the device's absolute orientation. Roll and pitch
+are divided by the clamp radius (0.14 rad ≈ 8°) and clamped to −1…1. `stopUpdates()` resets
+`referenceAttitude` and zeroes both values, so the cards snap back to their base angles when
+the view disappears.
 
 **§6 resolution**: with both Time Trial and Limited Moves now shipped, the question of
 whether mode-specific behavior deserves a generic `GameModeRules` abstraction was

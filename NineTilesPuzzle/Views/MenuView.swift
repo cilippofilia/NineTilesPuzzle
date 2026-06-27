@@ -12,6 +12,7 @@ enum GameRoute: Hashable {
     case game
     case gridSizePicker
     case achievements
+    case wallOfFame
     case gameModes
     case mediaPicker
 }
@@ -23,7 +24,6 @@ struct MenuView: View {
     @Environment(GameCenterService.self) private var gameCenterService
     @Environment(\.openURL) private var openURL
     @State private var path: [GameRoute] = []
-    @State private var showStats = false
     @State private var showSettings = false
     @State private var showTipsAlert = false
 
@@ -45,7 +45,6 @@ struct MenuView: View {
 
                 VStack(spacing: 12) {
                     MenuStatsCardView()
-                        .frame(height: 88)
 
                     Button {
                         path.append(.gameModes)
@@ -118,29 +117,34 @@ struct MenuView: View {
                     .foregroundStyle(.primary)
                     .background(.quaternary, in: .rect(cornerRadius: 20))
 
-                    HStack(spacing: 12) {
-                        Button {
-                            showStats = true
-                        } label: {
-                            Label("Stats", systemImage: "chart.bar.fill")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                                .contentShape(.rect(cornerRadius: 20))
+                    Button {
+                        path.append(.wallOfFame)
+                    } label: {
+                        HStack {
+                            Label("Wall of Fame", systemImage: "photo.on.rectangle.angled")
+                            Spacer()
+                            Image(systemName: "chevron.forward")
+                                .imageScale(.small)
+                                .foregroundStyle(.secondary)
                         }
-                        .foregroundStyle(.primary)
-                        .background(.quaternary, in: .rect(cornerRadius: 20))
-
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Label("Settings", systemImage: "gearshape.fill")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                                .contentShape(.rect(cornerRadius: 20))
-                        }
-                        .foregroundStyle(.primary)
-                        .background(.quaternary, in: .rect(cornerRadius: 20))
+                        .padding()
+                        .contentShape(.rect(cornerRadius: 20))
                     }
+                    .foregroundStyle(.primary)
+                    .background(.quaternary, in: .rect(cornerRadius: 20))
+
+                    Button {
+                        showSettings = true
+                    } label: {
+                        HStack {
+                            Label("Settings", systemImage: "gearshape.fill")
+                            Spacer()
+                        }
+                        .padding()
+                        .contentShape(.rect(cornerRadius: 20))
+                    }
+                    .foregroundStyle(.primary)
+                    .background(.quaternary, in: .rect(cornerRadius: 20))
                 }
                 .padding(.horizontal)
 
@@ -160,9 +164,6 @@ struct MenuView: View {
 
                 Spacer()
             }
-            .sheet(isPresented: $showStats) {
-                StatsView()
-            }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
@@ -174,6 +175,8 @@ struct MenuView: View {
                     GridSizePickerView()
                 case .achievements:
                     AchievementsView()
+                case .wallOfFame:
+                    WallOfFameView()
                 case .gameModes:
                     GameModeView()
                 case .mediaPicker:

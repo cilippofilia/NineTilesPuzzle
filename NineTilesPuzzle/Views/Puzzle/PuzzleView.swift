@@ -12,6 +12,8 @@ struct PuzzleView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(AchievementsStore.self) private var achievementsStore
     @Environment(SoundService.self) private var soundService
+    @Environment(DailyChallengeStore.self) private var dailyChallengeStore
+    @Environment(WallOfFameStore.self) private var wallOfFameStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
@@ -121,6 +123,22 @@ struct PuzzleView: View {
         // One handler mirrors every per-solve record flag in a single update; see `recordFlags`.
         .onChange(of: recordFlags) { _, flags in
             completion.applyRecords(flags)
+            if flags.isNewMovesRecord {
+                let slot: WallOfFameSlot = session.isDailyGameActive
+                    ? .dailyBestMoves
+                    : .bestMoves(gridSize: session.gridSize)
+                captureWallOfFameCard(for: slot)
+            }
+            if flags.isNewBestTime {
+                let slot: WallOfFameSlot = session.isDailyGameActive
+                    ? .dailyBestTime
+                    : .bestTime(gridSize: session.gridSize)
+                captureWallOfFameCard(for: slot)
+            }
+        }
+        .onChange(of: session.isNewCalendarStreakRecord) { _, isNew in
+            guard isNew else { return }
+            captureWallOfFameCard(for: .calendarStreak)
         }
         .onChange(of: session.isTimeTrialFailed) { _, failed in
             completion.handleTimeTrialFailedChange(failed)
@@ -243,6 +261,24 @@ struct PuzzleView: View {
                 await session.startNewGame()
             }
         }
+    }
+
+    private func captureWallOfFameCard(for slot: WallOfFameSlot) {
+        guard let cgImage = session.croppedSourceImage else { return }
+        let card = ShareCardView(
+            image: cgImage,
+            gridSize: session.gridSize,
+            gameMode: session.selectedGameMode,
+            moveCount: session.currentMoveCount,
+            elapsedTime: session.elapsedTime,
+            isDailyChallenge: session.isDailyGameActive,
+            dailyDate: session.dailyEffectiveDate,
+            calendarStreak: session.dailyCalendarStreak
+        )
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        guard let captured = renderer.cgImage else { return }
+        wallOfFameStore.save(captured, for: slot)
     }
 
     private func switchToPhotosAndRetry() {

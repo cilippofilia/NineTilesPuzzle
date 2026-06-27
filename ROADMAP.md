@@ -273,46 +273,53 @@ packs are designed to make it bolt-on.
 - [X] Share a completed puzzle as an image via `ShareLink` — toolbar share button appears in
   `PuzzleView` once the puzzle is solved; exports a PNG of the completed image via a custom
   `Transferable` type and `SharePreview` (required in iOS 26). *(shipped June 2026)*
-- [ ] First-launch tutorial overlay explaining drag-to-swap and locking.
 - [ ] Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
   select-then-place via accessibility actions).
 
-### Wall of Fame — **M**
-A cork-board style view where the player's personal records live as pinned polaroid cards.
-Each slot on the board corresponds to a distinct record category (fastest solve per grid
-size, fewest moves per grid size, best daily-challenge time, longest calendar streak) and
-renders a `ShareCardView` via `ImageRenderer` at the moment the record is set — the
-resulting `CGImage` (or a PNG written to the app's Documents directory) is persisted
-alongside the stat in `StatsStore` / `DailyChallengeStore`. On the cork board, each card
-appears rotated by a small seeded random angle and held in place by an `ImagePin` (a small
-circular badge in the corner), exactly like a physical polaroid pinned to a bulletin board.
-Empty slots show a faint dashed outline so the board feels like something to fill in.
+[X] ### Wall of Fame — **M** *(shipped June 2026)*
+A cork-board view where every personal record is automatically pinned as a polaroid card.
+15 slots in four sections, defined by `Models/WallOfFameSlot.swift`:
+`bestMoves(gridSize: 3…8)`, `bestTime(gridSize: 3…8)`, `dailyBestMoves`, `dailyBestTime`,
+`calendarStreak`. At the moment any record is set `PuzzleView` renders `ShareCardView` via
+`ImageRenderer` at scale 3, converts the result to a `CGImage`, and calls
+`WallOfFameStore.save(_:for:)` — which writes a PNG to
+`Documents/wall_of_fame/<slot>.png` using ImageIO (no UIKit) and caches the `CGImage`
+in memory. Cards are auto-pinned; no manual curation.
 
-Architecture hooks:
-- `StatsStore` already holds personal bests per `GameMode` and grid size; persisting the
-  associated `CGImage` alongside each record is a small additive change to each store's
-  `Keys` enum.
-- `ShareCardView` is already the polaroid-shaped card we render for the share sheet —
-  reusing it here costs nothing extra.
-- `ImageRenderer` is already used at share time; pin generation can reuse the same call,
-  triggered inside `GameSession.handleSolve()` whenever a personal best is beaten.
-- The board itself is a lazy `LazyVGrid` of card slots wrapped in a `ScrollView`, with a
-  cork-texture background image (bundled asset or a simple `Canvas`-drawn noise pattern).
-- If Stats history & charts (§4) lands first, the board can pull from richer per-solve
-  records rather than just the current aggregate bests.
-- **Gyroscope tilt effect**: each pinned card reacts to how the player holds their phone.
-  The shared `MotionManager` service (introduced for Gravity Mode in §1) streams
-  `CMDeviceMotion` attitude (pitch and roll); each card applies a `rotation3DEffect` on
-  both axes proportional to the current attitude, clamped to a gentle ±8° range. The base
-  pin rotation (seeded per card) is additive with the dynamic tilt so the cards feel like
-  physical polaroids resting on the cork board. A subtle shadow offset that tracks the
-  tilt direction reinforces the depth illusion. Motion updates stop when the view
-  disappears (`.onDisappear`) to preserve battery.
+Visual design:
+- `WallOfFamePinnedCard`: 160 × 192 pt image, clipped at 3pt corner radius,
+  seeded base rotation ±6° (derived from `slot.seedValue × 1_000_003 % 13`),
+  📍 emoji pin at top edge, shadow offset tracks live swing angle.
+- **Pendulum physics**: `TimelineView(.animation(minimumInterval: 1/60))` drives a
+  spring-damper loop — `angularVelocity += (target − angle) × stiffness + −velocity × damping`
+  — at 60 fps. `MotionManager.roll` sets the equilibrium angle; stiffness = 0.025,
+  damping = 0.11 gives the lazy, heavy swing of a real card on a pin.
+- **Gyroscope**: `Services/MotionManager.swift` wraps `CMMotionManager.startDeviceMotionUpdates`
+  at 30 Hz. The first attitude reading is captured as a reference
+  (`CMAttitude.multiply(byInverseOf:)`), so cards hang vertically regardless of how the
+  phone is held when the view opens. Roll is clamped to ±0.14 rad and normalized to −1…1.
+- **Cork texture**: `CorkTextureView` is a multi-layer `Canvas` drawing using a seeded LCG
+  PRNG (`SeededRNG`) for per-pixel noise — ochre base, diagonal grain streaks, scattered
+  darker specks — no bundled asset, renders once and never redraws.
+- **Empty slots**: dashed rounded-rect outline (`WallOfFameEmptySlot`) so the board reads
+  as something to fill in.
+- **Tap to zoom**: tapping a pinned card sets `zoomedSlot`/`zoomedCardImage` state in the
+  root `ZStack`. The dark backdrop and card content are sibling views so each can carry
+  its own transition — backdrop fades (`.opacity`), card scales + fades
+  (`.scale(0.82).combined(.opacity)`) — both driven by a single
+  `.animation(.spring(response: 0.38, dampingFraction: 0.85), value: zoomedCardImage == nil)`.
+  A transparent `Color.clear.contentShape(.rect)` dismiss button avoids the button-press
+  color flash that a tinted label would cause.
+- **Share from zoom**: a `ShareLink` `ToolbarItem` appears in the nav bar when a card is
+  zoomed, referencing the on-disk PNG URL from `WallOfFameStore.fileURL(for:)`.
 
-Still to decide: whether "pinning" is automatic (every new record auto-pins) or whether the
-player curates the board manually (long-press to unpin, swap cards between slots). Manual
-curation pairs nicely with the share sheet — the player plays, shares, then optionally pins
-that same card to their board.
+Stats moved from `MenuView` sheet to `SettingsView` push-navigation (June 2026). Stats
+button removed from the menu; `StatsView` is now a plain `List` (no `NavigationStack` of
+its own) pushed via `NavigationLink` from inside `SettingsView`'s `NavigationStack`.
+
+Still deferred:
+- Manual curation (long-press to unpin / rearrange slots).
+- Tapping a card's share button from the zoomed overlay (currently only the nav bar item).
 
 ### [X] Menu stats card — **S** *(shipped June 2026 as `MenuStatsCardView`)*
 Re-added with per-mode content: three-stat card (streak / best streak / best moves) for

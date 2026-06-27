@@ -51,6 +51,7 @@ final class GameSession {
     var selectedGameMode: GameMode = .slide
     var isNewTimeTrialScoreRecord: Bool = false
     var timeTrialScore: Int = 0
+    var isNewCalendarStreakRecord: Bool = false
 
     /// True while the player is in a Daily Challenge game. Transient — not persisted,
     /// so a force-quit always starts fresh on the next launch rather than accidentally
@@ -346,6 +347,7 @@ final class GameSession {
         elapsedTime = 0
         isNewBestTime = false
         isNewTimeTrialScoreRecord = false
+        isNewCalendarStreakRecord = false
         timeTrialScore = 0
         isLadderRunComplete = false
         isNewLadderScoreRecord = false
@@ -553,6 +555,7 @@ final class GameSession {
                     let result = dailyChallengeStore.recordCompletion(moves: currentMoveCount, time: elapsedTime, date: dailyChallengeStore.effectiveDate)
                     isNewMovesRecord = result.isNewMovesRecord
                     isNewBestTime = result.isNewTimeRecord
+                    isNewCalendarStreakRecord = result.isNewCalendarStreakRecord
                 }
             } else if isZenMode {
                 statsStore.recordGamePlayed(for: key)
