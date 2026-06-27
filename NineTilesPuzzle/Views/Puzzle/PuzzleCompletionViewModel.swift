@@ -40,28 +40,17 @@ final class PuzzleCompletionViewModel {
         }
     }
 
-    func handleNewRecordChange(_ isRecord: Bool) {
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewRecord = isRecord }
-    }
-
-    func handleNewMovesRecordChange(_ isRecord: Bool) {
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewMovesRecord = isRecord }
-    }
-
-    func handleNewBestTimeChange(_ isRecord: Bool) {
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewBestTime = isRecord }
-    }
-
-    func handleNewTimeTrialScoreRecordChange(_ isRecord: Bool) {
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewTimeTrialScoreRecord = isRecord }
-    }
-
-    func handleNewLadderScoreRecordChange(_ isRecord: Bool) {
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewLadderScoreRecord = isRecord }
-    }
-
-    func handleNewLadderStageRecordChange(_ isRecord: Bool) {
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { showNewLadderStageRecord = isRecord }
+    /// Mirrors every "new record" flag from the session in one animated update, so the view
+    /// can react with a single `.onChange` rather than wiring up one handler per record type.
+    func applyRecords(_ flags: PuzzleRecordFlags) {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+            showNewRecord = flags.isNewRecord
+            showNewMovesRecord = flags.isNewMovesRecord
+            showNewBestTime = flags.isNewBestTime
+            showNewTimeTrialScoreRecord = flags.isNewTimeTrialScoreRecord
+            showNewLadderScoreRecord = flags.isNewLadderScoreRecord
+            showNewLadderStageRecord = flags.isNewLadderStageRecord
+        }
     }
 
     /// New-record badges fade out a few seconds after a solve, independent of how long the
