@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 enum GameRoute: Hashable {
     case game
@@ -18,9 +19,11 @@ enum GameRoute: Hashable {
 struct MenuView: View {
     @Environment(GameSession.self) private var session
     @Environment(AchievementsStore.self) private var achievementsStore
+    @Environment(\.openURL) private var openURL
     @State private var path: [GameRoute] = []
     @State private var showStats = false
     @State private var showSettings = false
+    @State private var showTipsAlert = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -163,6 +166,26 @@ struct MenuView: View {
                 case .mediaPicker:
                     MediaSourcePickerView()
                 }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showTipsAlert = true
+                    } label: {
+                        Label("Tips", systemImage: "lightbulb.fill")
+                    }
+                    .labelStyle(.iconOnly)
+                }
+            }
+            .alert("Less Is More", isPresented: $showTipsAlert) {
+                Button("Update Photo Access in Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(url)
+                    }
+                }
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("To best enjoy this game, create a dedicated folder in Photos with just the images you want to play with, then tap Update Photo Access in Settings to select that folder.")
             }
         }
     }
