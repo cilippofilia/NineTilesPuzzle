@@ -33,10 +33,10 @@ struct MenuView: View {
                 BrandMarkView()
                     .padding()
 
-                MenuStatsCardView()
-                    .padding(.horizontal)
-
                 VStack(spacing: 12) {
+                    MenuStatsCardView()
+                        .frame(height: 88)
+
                     Button {
                         path.append(.gameModes)
                     } label: {
