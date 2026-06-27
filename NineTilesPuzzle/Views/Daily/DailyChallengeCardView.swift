@@ -1,0 +1,57 @@
+//
+//  DailyChallengeCardView.swift
+//  NineTilesPuzzle
+//
+//  Created by Filippo Cilia on 6/27/26.
+//
+
+import SwiftUI
+
+/// Menu card for the Daily Challenge. Shows today's date, the player's current
+/// calendar streak, and either a "Play" button (if not yet completed today) or
+/// a "Done" indicator (if already completed).
+struct DailyChallengeCardView: View {
+    @Environment(DailyChallengeStore.self) private var dailyStore
+    let onPlay: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Daily Challenge", systemImage: "calendar")
+                    .font(.headline)
+                    .bold()
+                Text(Date.now, format: .dateTime.weekday(.wide).month(.abbreviated).day())
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if dailyStore.calendarStreak > 0 {
+                Label("\(dailyStore.calendarStreak)", systemImage: "flame.fill")
+                    .foregroundStyle(dailyStore.isDailyCompletedToday ? .orange : .secondary)
+                    .font(.subheadline)
+                    .bold()
+            }
+
+            if dailyStore.isDailyCompletedToday {
+                Label("Done", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.subheadline)
+            } else {
+                Button("Play", action: onPlay)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+        }
+        .padding()
+        .background(.quaternary, in: .rect(cornerRadius: 20))
+    }
+}
+
+#Preview {
+    let dailyStore = DailyChallengeStore()
+    DailyChallengeCardView(onPlay: {})
+        .environment(dailyStore)
+        .padding()
+}

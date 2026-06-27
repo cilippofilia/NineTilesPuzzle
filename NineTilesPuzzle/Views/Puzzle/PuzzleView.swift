@@ -129,7 +129,7 @@ struct PuzzleView: View {
             completion.handleLimitedMovesFailedChange(failed)
         }
         return gameView
-        .navigationTitle(session.isZenMode ? "" : "Puzzle")
+        .navigationTitle(session.isDailyGameActive ? "Daily Challenge" : (session.isZenMode ? "" : "Puzzle"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isGameActive)
         .toolbar {
@@ -155,7 +155,7 @@ struct PuzzleView: View {
                 }
             }
 
-            if completion.showCompletion, let png = solvedPNG {
+            if settings.debugOverlayEnabled, completion.showCompletion, let png = solvedPNG {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: png, preview: SharePreview("Solved Puzzle")) {
                         Label("Share", systemImage: "square.and.arrow.up")
@@ -268,7 +268,7 @@ struct PuzzleView: View {
     let settings = SettingsStore()
     let achievements = AchievementsStore()
     PuzzleView()
-        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore()))
         .environment(settings)
         .environment(achievements)
         .environment(SoundService())

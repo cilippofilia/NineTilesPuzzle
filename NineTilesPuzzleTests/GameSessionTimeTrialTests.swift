@@ -25,6 +25,7 @@ struct GameSessionTimeTrialTests {
             statsStore: StatsStore(defaults: InMemoryPersistenceStore()),
             achievementsStore: AchievementsStore(defaults: InMemoryPersistenceStore()),
             settingsStore: SettingsStore(defaults: InMemoryPersistenceStore()),
+            dailyChallengeStore: DailyChallengeStore(defaults: InMemoryPersistenceStore()),
             defaults: InMemoryPersistenceStore()
         )
         session.selectedGameMode = .timeTrial

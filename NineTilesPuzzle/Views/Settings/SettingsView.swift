@@ -11,6 +11,7 @@ struct SettingsView: View {
     @Environment(GameSession.self) private var session
     @Environment(StatsStore.self) private var statsStore
     @Environment(SettingsStore.self) private var settings
+    @Environment(DailyChallengeStore.self) private var dailyStore
     @Environment(SoundService.self) private var soundService
     @Environment(\.dismiss) private var dismiss
 
@@ -64,6 +65,26 @@ struct SettingsView: View {
                     Text("This feature is for development testing only and is not intended for production use.")
                 }
 
+                if settings.debugOverlayEnabled {
+                    Section {
+                        Stepper(
+                            "Day offset: \(dailyStore.debugDayOffset > 0 ? "+" : "")\(dailyStore.debugDayOffset)",
+                            value: Binding(
+                                get: { dailyStore.debugDayOffset },
+                                set: { dailyStore.setDebugDayOffset($0) }
+                            )
+                        )
+
+                        Button("Reset Today's Completion") {
+                            dailyStore.resetCompletionForDebug()
+                        }
+                    } header: {
+                        Text("Daily Challenge")
+                    } footer: {
+                        Text("Offset shifts the puzzle date so you can test different modes and grid sizes. Reset clears today's completion so the Play button reappears.")
+                    }
+                }
+
                 Section {
                     Button("Reset Stats", role: .destructive) {
                         showResetStatsAlert = true
@@ -111,12 +132,14 @@ struct SettingsView: View {
     let stats = StatsStore()
     let settings = SettingsStore()
     let achievements = AchievementsStore()
+    let daily = DailyChallengeStore()
     Color.clear
         .sheet(isPresented: .constant(true)) {
             SettingsView()
-                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily))
                 .environment(stats)
                 .environment(settings)
+                .environment(daily)
                 .environment(SoundService())
         }
 }

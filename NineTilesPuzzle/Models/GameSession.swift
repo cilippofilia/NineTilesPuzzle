@@ -17,6 +17,7 @@ final class GameSession {
     private let statsStore: StatsStore
     private let achievementsStore: AchievementsStore
     private let settingsStore: SettingsStore
+    private let dailyChallengeStore: DailyChallengeStore
     private let defaults: PersistenceStore
 
     private let swapEngine = SwapEngine()
@@ -50,6 +51,13 @@ final class GameSession {
     var selectedGameMode: GameMode = .slide
     var isNewTimeTrialScoreRecord: Bool = false
     var timeTrialScore: Int = 0
+
+    /// True while the player is in a Daily Challenge game. Transient — not persisted,
+    /// so a force-quit always starts fresh on the next launch rather than accidentally
+    /// routing a regular game through the daily image/shuffle path.
+    private(set) var isDailyGameActive: Bool = false
+    /// The user's `selectedGameMode` before entering a daily game, restored in `leaveGame()`.
+    private var preDailyGameMode: GameMode? = nil
 
     /// The "Single Puzzle vs Ladder" toggle for Time Trial — a sticky preference, like
     /// `mediaSourceType` generally is, rather than something that resets when the player
@@ -97,6 +105,25 @@ final class GameSession {
     var isFogMode: Bool { selectedGameMode == .fog }
     var currentPreviewDuration: Double { settingsStore.previewDuration }
 
+    // MARK: - Daily Challenge
+
+    var dailyCalendarStreak: Int { dailyChallengeStore.calendarStreak }
+    var dailyBestCalendarStreak: Int { dailyChallengeStore.bestCalendarStreak }
+    var isDailyCompletedToday: Bool { dailyChallengeStore.isDailyCompletedToday }
+    var dailyBestMoves: Int? { dailyChallengeStore.bestMoves }
+    var dailyBestTime: TimeInterval? { dailyChallengeStore.bestTime }
+
+    /// Marks this session as a Daily Challenge game. Must be called before navigating
+    /// to `PuzzleView` — `startNewGame()` checks `isDailyGameActive` to use the
+    /// seeded image/shuffle path instead of the regular source/engine path.
+    /// Saves the user's current game mode and replaces it with today's seeded mode;
+    /// `leaveGame()` restores the original.
+    func enterDailyMode() {
+        preDailyGameMode = selectedGameMode
+        selectedGameMode = DailyChallengeSeeder.gameMode(for: dailyChallengeStore.effectiveDate)
+        isDailyGameActive = true
+    }
+
     /// Total moves allowed this game; Limited Moves' flat budget per grid size.
     var movesBudgetForCurrentSize: Int { LimitedMovesRules.moveBudget(forGridSize: gridSize) }
     /// Moves left before `isLimitedMovesFailed` trips — every move costs 1, regardless of
@@ -118,11 +145,13 @@ final class GameSession {
         statsStore: StatsStore,
         achievementsStore: AchievementsStore,
         settingsStore: SettingsStore,
+        dailyChallengeStore: DailyChallengeStore,
         defaults: PersistenceStore = UserDefaults.standard
     ) {
         self.statsStore = statsStore
         self.achievementsStore = achievementsStore
         self.settingsStore = settingsStore
+        self.dailyChallengeStore = dailyChallengeStore
         self.defaults = defaults
         restoreFromUserDefaults()
         achievementsStore.checkAchievements(using: statsStore)
@@ -294,9 +323,11 @@ final class GameSession {
     /// Fetches a fresh image, slices it, shuffles the tiles, and persists state. In `.numbers`
     /// media mode there is no image to fetch or preview — tiles are shuffled immediately.
     func startNewGame() async {
-        // The Ladder dictates its own grid size per stage; this must win over `useRandomSize`
-        // in case a stale `true` is left over from before the player entered Ladder mode.
-        if isGauntletLadderMode {
+        // Grid size is determined by mode priority: daily (fixed 4×4) > ladder (stage
+        // table) > random > user-selected. Each overrides the one below it.
+        if isDailyGameActive {
+            gridSize = DailyChallengeSeeder.gridSize(for: dailyChallengeStore.effectiveDate)
+        } else if isGauntletLadderMode {
             gridSize = GauntletLadderRules.stage(currentLadderStage).gridSize
         } else if useRandomSize {
             gridSize = Int.random(in: 3...8)
@@ -334,7 +365,9 @@ final class GameSession {
             TileModel(id: $0, currentIndex: $0, isLocked: false)
         }
 
-        guard mediaSourceType != .numbers else {
+        // Daily mode always fetches a remote image regardless of the user's media
+        // source preference, so bypass the numbers-only fast path entirely.
+        guard mediaSourceType != .numbers || isDailyGameActive else {
             isLoading = false
             tiles = activeEngine.shuffle(initial, gridSize: gridSize)
             if currentStreakForCurrentSize > 0 { startCountdown() }
@@ -345,29 +378,37 @@ final class GameSession {
 
         do {
             let image: CGImage
-            switch mediaSourceType {
-            case .local:
-                image = try await ImageService(primarySource: PhotoLibraryImageSource()).loadImage().image
-            case .mixed:
-                // Mixed already accepts photo-library images as a valid outcome, so a failed
-                // remote fetch falls back to a real library photo rather than the bundled
-                // placeholder — unlike `.random`, where the player explicitly chose Internet.
-                image = if Bool.random() {
-                    try await ImageService(
-                        primarySource: RemoteImageSource(),
-                        fallbackSource: PhotoLibraryImageSource()
-                    ).loadImage().image
-                } else {
-                    try await ImageService(primarySource: PhotoLibraryImageSource()).loadImage().image
-                }
-            default: // .random; .numbers is handled above
-                // No bundled-image fallback here: a player who chose Internet-only shouldn't
-                // keep silently playing the same static placeholder every game when the
-                // provider is down — surface it so they can switch media source instead.
+            if isDailyGameActive {
                 do {
-                    image = try await RemoteImageSource().fetchImage()
+                    image = try await DailyImageSource(date: dailyChallengeStore.effectiveDate).fetchImage()
                 } catch {
                     throw ImageSourceError.providerUnavailable
+                }
+            } else {
+                switch mediaSourceType {
+                case .local:
+                    image = try await ImageService(primarySource: PhotoLibraryImageSource()).loadImage().image
+                case .mixed:
+                    // Mixed already accepts photo-library images as a valid outcome, so a failed
+                    // remote fetch falls back to a real library photo rather than the bundled
+                    // placeholder — unlike `.random`, where the player explicitly chose Internet.
+                    image = if Bool.random() {
+                        try await ImageService(
+                            primarySource: RemoteImageSource(),
+                            fallbackSource: PhotoLibraryImageSource()
+                        ).loadImage().image
+                    } else {
+                        try await ImageService(primarySource: PhotoLibraryImageSource()).loadImage().image
+                    }
+                default: // .random; .numbers is handled above
+                    // No bundled-image fallback here: a player who chose Internet-only shouldn't
+                    // keep silently playing the same static placeholder every game when the
+                    // provider is down — surface it so they can switch media source instead.
+                    do {
+                        image = try await RemoteImageSource().fetchImage()
+                    } catch {
+                        throw ImageSourceError.providerUnavailable
+                    }
                 }
             }
             let slicer = ImageSlicer()
@@ -401,9 +442,30 @@ final class GameSession {
                 isPreviewing = false
             }
 
-            tiles = activeEngine.shuffle(initial, gridSize: gridSize)
-            if currentStreakForCurrentSize > 0 { startCountdown() }
-            if isTimeTrialMode { startTimeTrialCountdown() }
+            if isDailyGameActive {
+                // Apply a deterministic shuffle seeded from today's date so every player
+                // gets the same starting arrangement. Slide mode requires a solvability
+                // check; swap/limited-moves use a simpler derangement.
+                let seed = DailyChallengeSeeder.seed(for: dailyChallengeStore.effectiveDate)
+                if selectedGameMode == .slide {
+                    let board = DailyChallengeSeeder.shuffledSlideBoard(count: initial.count, gridSize: gridSize, seed: seed)
+                    for position in initial.indices {
+                        initial[board[position]].currentIndex = position
+                        initial[board[position]].isLocked = false
+                    }
+                } else {
+                    let positions = DailyChallengeSeeder.shuffledPositions(count: initial.count, seed: seed)
+                    for i in initial.indices {
+                        initial[i].currentIndex = positions[i]
+                        initial[i].isLocked = false
+                    }
+                }
+                tiles = initial
+            } else {
+                tiles = activeEngine.shuffle(initial, gridSize: gridSize)
+                if currentStreakForCurrentSize > 0 { startCountdown() }
+                if isTimeTrialMode { startTimeTrialCountdown() }
+            }
             saveToUserDefaults()
         } catch {
             self.error = error
@@ -485,7 +547,13 @@ final class GameSession {
         if isSolved {
             if isTimeTrialMode { stopTimeTrialCountdown() } else { stopCountdown() }
             stopStopwatch()
-            if isZenMode {
+            if isDailyGameActive {
+                if !debugOverlayEnabled {
+                    let result = dailyChallengeStore.recordCompletion(moves: currentMoveCount, time: elapsedTime, date: dailyChallengeStore.effectiveDate)
+                    isNewMovesRecord = result.isNewMovesRecord
+                    isNewBestTime = result.isNewTimeRecord
+                }
+            } else if isZenMode {
                 statsStore.recordGamePlayed(for: key)
             } else if !debugOverlayEnabled {
                 // Ladder stages span every grid size in the table, so a stage clear must
@@ -521,13 +589,14 @@ final class GameSession {
                 }
             }
 
-            // Tracked across every mode (including Zen) whenever the game isn't practice
-            // play — these back achievements that aren't about records or streaks.
+            // Tracked across every mode (including Zen and Daily) whenever the game
+            // isn't practice play — these back achievements unrelated to records/streaks.
             if !debugOverlayEnabled {
                 if selectedGameMode != .slide && !hasHadWastedMoveThisGame {
                     statsStore.recordZeroWasteSolve()
                 }
-                if mediaSourceType == .local {
+                // Daily always uses a seeded remote image, not the user's photo library.
+                if !isDailyGameActive && mediaSourceType == .local {
                     statsStore.recordPhotoLibrarySolve()
                 }
                 statsStore.recordGameCompletedToday()
@@ -538,7 +607,7 @@ final class GameSession {
             applyTimeTrialMoveOutcome(newlyCorrect: newlyCorrect)
         } else if isLimitedMovesMode {
             applyLimitedMovesBudgetCheck()
-        } else if !isZenMode {
+        } else if !isZenMode && !isDailyGameActive {
             if newlyCorrect > 0 {
                 let result = statsStore.recordStreakIncrement(for: key, trackRecord: !debugOverlayEnabled)
                 if !isSolved { startCountdown() }
@@ -594,6 +663,11 @@ final class GameSession {
 
     /// Stops the countdown when the user quits mid-game; streak is preserved.
     func leaveGame() {
+        if let backup = preDailyGameMode {
+            selectedGameMode = backup
+            preDailyGameMode = nil
+        }
+        isDailyGameActive = false
         stopCountdown()
         stopTimeTrialCountdown()
         stopStopwatch()

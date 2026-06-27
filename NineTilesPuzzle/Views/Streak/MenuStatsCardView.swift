@@ -125,7 +125,7 @@ private extension MenuStatsCardView {
     let achievements = AchievementsStore()
     VStack(spacing: 16) {
         MenuStatsCardView()
-            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore()))
     }
     .padding()
 }

@@ -13,12 +13,25 @@ already threaded through `GameSession`, with mode selection routed via the exist
 `GameRoute` enum in `Views/MenuView.swift`. See `ARCHITECTURE.md` for how `GameSession`,
 `StatsStore`, `SettingsStore`, and `AchievementsStore` fit together today.
 
-[] ### Daily Challenge — **M**
-One puzzle per day, identical for every player: seed the shuffle deterministically from the
-date (`GameEngine.shuffle` would accept a `RandomNumberGenerator`) and use a fixed image per
-day (a bundled pack indexed by date, or a date-seeded picsum ID). Track a calendar streak of
-completed days, separate from the in-game move streak. This is the single highest-leverage
-feature for retention, and the natural companion to an online leaderboard (see §3).
+[X] ### Daily Challenge — **M** *(shipped June 2026)*
+One puzzle per day, identical for every player. A date-seeded picsum URL
+(`/seed/ntp-YYYY-MM-DD/1024/1024`) delivers the same image to every device; a seeded
+xorshift64 PRNG (`DailyChallengeSeeder`) produces the same derangement shuffle from the same
+date integer. `DailyChallengeStore` tracks a calendar streak of completed days (separate from
+the in-game move streak), all-time best calendar streak, and daily personal bests for moves
+and time. `DailyImageSource` fetches via the system URL cache (unlike `RemoteImageSource`
+which bypasses caching), so the image is loaded at most once per day. On the menu a dedicated
+`DailyChallengeCardView` shows today's date, the current streak, and a "Play" button that
+transitions to "Done ✓" once completed; the Play button calls `session.enterDailyMode()`
+which sets a transient `isDailyGameActive` flag — the session routes the seeded image fetch
+and shuffle through `startNewGame()`, skips the regular move-streak countdown, and on solve
+routes to `DailyChallengeStore.recordCompletion()` rather than StatsStore. The flag is reset
+in `leaveGame()` so the user's regular mode preference is untouched after playing a daily.
+Still deferred:
+- Leaderboard for daily challenge (§3 prerequisite for comparison across players).
+- Calendar streak achievements (7 / 30 days) — deferred until §5 achievements overhaul.
+- Replay limit / "come back tomorrow" gate — today the player can replay the same puzzle to
+  improve best moves/time; the calendar streak only advances once per day.
 
 [X] ### Time Attack — **S/M**
 Shipped as Time Trial mode (MVP scope, June 2026): one timed puzzle per grid size, with a

@@ -82,6 +82,6 @@ struct MediaSourcePickerView: View {
     let achievements = AchievementsStore()
     NavigationStack {
         MediaSourcePickerView()
-            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore()))
     }
 }

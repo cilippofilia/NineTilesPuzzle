@@ -19,6 +19,7 @@ enum GameRoute: Hashable {
 struct MenuView: View {
     @Environment(GameSession.self) private var session
     @Environment(AchievementsStore.self) private var achievementsStore
+    @Environment(DailyChallengeStore.self) private var dailyChallengeStore
     @Environment(GameCenterService.self) private var gameCenterService
     @Environment(\.openURL) private var openURL
     @State private var path: [GameRoute] = []
@@ -33,6 +34,14 @@ struct MenuView: View {
 
                 BrandMarkView()
                     .padding()
+
+                DailyChallengeCardView {
+                    session.enterDailyMode()
+                    session.tiles = []
+                    session.isLoading = true
+                    path.append(.game)
+                }
+                .padding([.horizontal, .bottom])
 
                 VStack(spacing: 12) {
                     MenuStatsCardView()
@@ -205,9 +214,11 @@ struct MenuView: View {
     let stats = StatsStore()
     let settings = SettingsStore()
     let achievements = AchievementsStore()
+    let daily = DailyChallengeStore()
     MenuView()
-        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily))
         .environment(stats)
         .environment(settings)
         .environment(achievements)
+        .environment(daily)
 }

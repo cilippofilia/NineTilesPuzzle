@@ -90,7 +90,7 @@ private extension StatsView {
     Color.clear
         .sheet(isPresented: .constant(true)) {
             StatsView()
-                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings))
+                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore()))
                 .environment(stats)
         }
 }

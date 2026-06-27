@@ -20,11 +20,17 @@ revisiting it again.
 
 ```
 NineTilesPuzzle/
-├── NineTilesPuzzleApp.swift        — @main, constructs the four stores below + SoundService
+├── NineTilesPuzzleApp.swift        — @main, constructs the five stores below + SoundService
 │                                    + GameCenterService; kicks off authentication via .task
 ├── Models/
 │   ├── GameSession.swift           — the game currently configured/in progress (see below)
 │   ├── StatsStore.swift            — personal bests, games played, streaks (keyed by StatsKey)
+│   ├── DailyChallengeStore.swift   — daily-challenge-specific stats: calendar streak,
+│   │                                  best calendar streak, last completed date, daily
+│   │                                  best moves/time. Fully independent of StatsStore.
+│   ├── DailyChallengeSeeder.swift  — pure enum: date→UInt64 seed, seeded picsum URL
+│   │                                  (/seed/ntp-YYYY-MM-DD/1024/1024), deterministic
+│   │                                  derangement shuffle via xorshift64 PRNG (SeededGenerator)
 │   ├── SettingsStore.swift         — app prefs unrelated to "which game": preview/streak
 │   │                                  countdown durations, haptics, debug overlay
 │   ├── AchievementsStore.swift     — achievement definitions, unlock checks, remote refresh
@@ -55,6 +61,9 @@ NineTilesPuzzle/
 │       ├── RemoteImageSource.swift — also declares the `ImageSource` protocol
 │       ├── LocalImageSource.swift  — bundled fallback image
 │       ├── PhotoLibraryImageSource.swift
+│       ├── DailyImageSource.swift  — fetches today's seeded picsum image via system
+│       │                              URL cache (same date → same image, at most one
+│       │                              network call per day)
 │       └── ImageSourceError.swift
 ├── Services/
 │   ├── GameEngine.swift            — protocol: shuffle() + shared isSolved()
@@ -103,6 +112,9 @@ NineTilesPuzzle/
 │   │   ├── LimitedMovesCounterView.swift — Limited Moves' "N left" HUD pill, color-coded
 │   │   │                                   by fraction of budget remaining
 │   │   └── PuzzleErrorView.swift
+│   ├── Daily/
+│   │   └── DailyChallengeCardView.swift — menu card: today's date, calendar streak,
+│   │                                       "Play" button (or "Done ✓" once completed)
 │   └── Helpers/                     — grab-bag of small reusable views (toast, banners,
 │                                       loading/splash, brand mark, badges, zen sparkle,
 │                                       AchievementRowView (icon + title/description + inline
@@ -319,6 +331,26 @@ Haze has no new `GameEngine`, no new fail state, and no stats/streak exemption �
 `ClassicEngine` (SwapEngine) and feeds the same completion/streak/personal-best path as
 Swap. `GameSession.isFogMode` is the single gate (`selectedGameMode == .fog`);
 `currentPreviewDuration` is the only new computed property added to `GameSession`.
+
+**Daily Challenge** (shipped June 2026): one puzzle per day, identical for every player.
+Implemented as a transient `GameSession.isDailyGameActive` flag rather than a new `GameMode`
+case — this keeps the user's regular mode preference untouched. `DailyChallengeSeeder`
+derives a `UInt64` seed from calendar date components, generates a deterministic picsum seed
+URL (`/seed/ntp-YYYY-MM-DD/1024/1024`), and produces the same Fisher-Yates derangement via
+a xorshift64 PRNG (`SeededGenerator`) — identical seed + count → identical tile arrangement
+for every player. `DailyImageSource` fetches via the system URL cache (the regular
+`RemoteImageSource` bypasses it), so the image is downloaded at most once per calendar day.
+`DailyChallengeStore` is a fifth, fully independent `@Observable` store: calendar streak,
+best calendar streak, last completed date, daily best moves/time — none of this touches
+`StatsStore`. `enterDailyMode()` sets the flag; `startNewGame()` checks it to override grid
+size to 4×4, use `DailyImageSource`, and apply a seeded shuffle instead of
+`activeEngine.shuffle()`. `registerMove()` checks it to skip the move-streak countdown and
+to route solve completion to `DailyChallengeStore.recordCompletion()` (which also feeds
+`statsStore.recordGameCompletedToday()` and `recordZeroWasteSolve()` for achievement
+purposes). `leaveGame()` resets the flag. The card `DailyChallengeCardView` on the menu
+reads `DailyChallengeStore` directly from the environment and shows a "Done ✓" indicator
+once `isDailyCompletedToday`; the flag is not persisted (transient) so a force-quit mid-game
+just restarts the same daily puzzle on next launch.
 
 **§6 resolution**: with both Time Trial and Limited Moves now shipped, the question of
 whether mode-specific behavior deserves a generic `GameModeRules` abstraction was

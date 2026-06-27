@@ -71,12 +71,14 @@ struct PuzzleCompletionOverlayView: View {
 
             Spacer()
 
-            Button(continueButtonLabel, action: continueAction)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .padding(.bottom)
-                .offset(y: completion.showCompletion ? 0 : 300)
-                .opacity(completion.showCompletion ? 1 : 0)
+            if !session.isDailyGameActive {
+                Button(continueButtonLabel, action: continueAction)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.bottom)
+                    .offset(y: completion.showCompletion ? 0 : 300)
+                    .opacity(completion.showCompletion ? 1 : 0)
+            }
         }
         .allowsHitTesting(completion.showCompletion)
     }
