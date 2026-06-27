@@ -14,6 +14,7 @@ struct NineTilesPuzzleApp: App {
     @State private var achievementsStore: AchievementsStore
     @State private var gameSession: GameSession
     @State private var soundService = SoundService()
+    @State private var gameCenterService = GameCenterService()
     @State private var showSplash = true
 
     init() {
@@ -39,6 +40,7 @@ struct NineTilesPuzzleApp: App {
                     .environment(settingsStore)
                     .environment(achievementsStore)
                     .environment(soundService)
+                    .environment(gameCenterService)
 
                 if showSplash {
                     SplashScreenView {
@@ -48,6 +50,7 @@ struct NineTilesPuzzleApp: App {
                 }
             }
             .preferredColorScheme(.dark)
+            .task { gameCenterService.authenticate() }
         }
     }
 }

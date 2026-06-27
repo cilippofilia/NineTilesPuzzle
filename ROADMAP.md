@@ -133,9 +133,13 @@ on unlock. Keep the local system as the source of truth so the game still works 
 offline. While in this area: `AchievementService.remoteURL` still points at
 `example.com` — either wire up a real hosted JSON or remove the remote path.
 
-### Access point — **S**
-`GKAccessPoint` on the menu screen gives players the Game Center profile/leaderboard UI
-for free.
+### [X] Access point — **S** *(shipped June 2026)*
+A `gamecontroller` toolbar button on the menu screen (visible only when authenticated) opens
+the native Game Center dashboard via `GKAccessPoint.trigger(handler:)` — the iOS 26
+replacement for the deprecated `GKGameCenterViewController`. The access point widget itself
+(`GKAccessPoint.isActive`) is kept inactive so the system-provided icon never appears;
+authentication is handled by `GameCenterService` (injected app-wide) at startup.
+Prerequisite: Game Center capability must be enabled under Signing & Capabilities.
 
 ### Friend challenges — **L** *(defer)*
 Send a friend the same seeded puzzle and compare move counts. Builds directly on the
@@ -185,7 +189,9 @@ packs are designed to make it bolt-on.
 ### Smaller polish — **S each**
 - [X] Pause timers when the app is backgrounded — `PuzzleView` monitors `scenePhase` and
   calls `session.pauseTimers()` / `session.resumeTimers()` (shipped June 2026).
-- [ ] Share a completed puzzle as an image via `ShareLink`.
+- [X] Share a completed puzzle as an image via `ShareLink` — toolbar share button appears in
+  `PuzzleView` once the puzzle is solved; exports a PNG of the completed image via a custom
+  `Transferable` type and `SharePreview` (required in iOS 26). *(shipped June 2026)*
 - [ ] First-launch tutorial overlay explaining drag-to-swap and locking.
 - [ ] Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
   select-then-place via accessibility actions).

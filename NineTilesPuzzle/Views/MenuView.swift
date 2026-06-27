@@ -19,6 +19,7 @@ enum GameRoute: Hashable {
 struct MenuView: View {
     @Environment(GameSession.self) private var session
     @Environment(AchievementsStore.self) private var achievementsStore
+    @Environment(GameCenterService.self) private var gameCenterService
     @Environment(\.openURL) private var openURL
     @State private var path: [GameRoute] = []
     @State private var showStats = false
@@ -171,11 +172,17 @@ struct MenuView: View {
                 }
             }
             .toolbar {
+                if gameCenterService.isAuthenticated {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Game Center", systemImage: "gamecontroller") {
+                            gameCenterService.showDashboard()
+                        }
+                        .labelStyle(.iconOnly)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
+                    Button("Tips", systemImage: "lightbulb.max") {
                         showTipsAlert = true
-                    } label: {
-                        Label("Tips", systemImage: "lightbulb.max")
                     }
                     .labelStyle(.iconOnly)
                 }

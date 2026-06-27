@@ -1,6 +1,6 @@
 # NineTilesPuzzle — Architecture Overview
 
-Snapshot of the current codebase structure, as of 2026-06-26. This is a descriptive
+Snapshot of the current codebase structure, as of 2026-06-27. This is a descriptive
 document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in sync with
 it) for how the "does mode-specific behavior need a shared abstraction" question was
 revisited once Time Trial and Limited Moves both existed, and what would justify
@@ -21,6 +21,7 @@ revisiting it again.
 ```
 NineTilesPuzzle/
 ├── NineTilesPuzzleApp.swift        — @main, constructs the four stores below + SoundService
+│                                    + GameCenterService; kicks off authentication via .task
 ├── Models/
 │   ├── GameSession.swift           — the game currently configured/in progress (see below)
 │   ├── StatsStore.swift            — personal bests, games played, streaks (keyed by StatsKey)
@@ -63,7 +64,12 @@ NineTilesPuzzle/
 │   ├── ImageService.swift          — primary/fallback source orchestration
 │   ├── ImageSlicer.swift           — center-crop + slice CGImage into tile images
 │   ├── SoundService.swift          — @Observable, AVAudioPlayer-backed SFX
-│   └── AchievementService.swift    — bundled JSON + remote fetch + on-disk cache
+│   ├── AchievementService.swift    — bundled JSON + remote fetch + on-disk cache
+│   └── GameCenterService.swift     — @Observable, handles GKLocalPlayer authentication;
+│                                     exposes isAuthenticated + showDashboard() which
+│                                     triggers the native Game Center UI via
+│                                     GKAccessPoint.trigger(handler:) (the iOS 26 replacement
+│                                     for the deprecated GKGameCenterViewController)
 ├── Views/
 │   ├── MenuView.swift               — root NavigationStack, routes via GameRoute enum
 │   ├── StatsView.swift              — sheet: streaks, personal bests, games played
@@ -116,7 +122,7 @@ NineTilesPuzzleApp.init()
    constructs, in dependency order:
      StatsStore()  SettingsStore()  AchievementsStore()  ──▶  GameSession(stats:, achievements:, settings:)
    (each store defaults its `defaults:` param to UserDefaults.standard via PersistenceStore)
-   injects all four + SoundService into the environment (app-wide singletons)
+   injects all four + SoundService + GameCenterService into the environment (app-wide singletons)
         │
         ▼
 MenuView ── NavigationStack(GameRoute) ──▶ PuzzleView / GameModeView / MediaSourcePickerView / StatsView / ...
