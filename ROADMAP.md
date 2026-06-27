@@ -104,6 +104,35 @@ underneath). Same pattern still available for a future Fog/Reveal: this shipped 
 whole-image bake rather than per-tile `TileModel` flags, so Fog/Reveal would need its own
 approach if it wants tile-level reveal timing rather than a single baked-in effect.
 
+### Gravity Mode — **M**
+A tilt-to-play mode: the player holds their phone and all tiles simultaneously slide toward
+the direction of gravity. Tilt left → every tile drifts left until it hits the wall or
+another tile; tilt right → same in reverse; and so on for up/down. The mechanic is
+fundamentally different from Slide (where you drag one tile into the adjacent blank cell)
+because every tile moves at once — the empty space(s) collect at the "high" side of the
+board, and the order in which you make moves matters at a whole-board level.
+
+Architecture hooks:
+- Add `.gravity` to the `GameMode` enum and a `GravityEngine: GameEngine` in `Services/`.
+  `shuffle()` can delegate to `SwapEngine`'s derangement shuffle since any state is
+  solvable under gravity rules (no parity constraint). The engine exposes a
+  `slide(direction:)` method that iterates columns/rows and cascades tiles toward the wall.
+- `GameSession` gets a `gravitateBoard(direction: GravityDirection)` entry point (analogous
+  to `slideTile(from:)`) that calls the engine and then `registerMove()`.
+- Motion input via a `MotionManager` service (`@Observable @MainActor` wrapping
+  `CMMotionManager.startDeviceMotionUpdates`). Gravity vector from `CMDeviceMotion.gravity`
+  maps to a discrete direction once a tilt threshold is crossed; a cooldown prevents
+  repeated triggers on a single deliberate tilt.
+- `PuzzleGridView` embeds a tilt listener (similar to the existing `ShakeDetector` pattern
+  in `Views/Helpers/`) that calls `session.gravitateBoard(direction:)` on threshold
+  crossings. Drag gestures can be disabled entirely for this mode.
+- A tilt-direction indicator (arrow or subtle board-edge highlight) gives the player
+  real-time feedback on which way the tiles will slide.
+
+Still to decide: whether to use a discrete threshold (snap to the dominant axis) or a
+continuous tilt that lets tiles slide diagonally. Discrete is simpler to implement and
+likely more fun to play.
+
 ---
 
 ## 2. Power-ups & Twists
@@ -208,6 +237,43 @@ packs are designed to make it bolt-on.
 - [ ] First-launch tutorial overlay explaining drag-to-swap and locking.
 - [ ] Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
   select-then-place via accessibility actions).
+
+### Wall of Fame — **M**
+A cork-board style view where the player's personal records live as pinned polaroid cards.
+Each slot on the board corresponds to a distinct record category (fastest solve per grid
+size, fewest moves per grid size, best daily-challenge time, longest calendar streak) and
+renders a `ShareCardView` via `ImageRenderer` at the moment the record is set — the
+resulting `CGImage` (or a PNG written to the app's Documents directory) is persisted
+alongside the stat in `StatsStore` / `DailyChallengeStore`. On the cork board, each card
+appears rotated by a small seeded random angle and held in place by an `ImagePin` (a small
+circular badge in the corner), exactly like a physical polaroid pinned to a bulletin board.
+Empty slots show a faint dashed outline so the board feels like something to fill in.
+
+Architecture hooks:
+- `StatsStore` already holds personal bests per `GameMode` and grid size; persisting the
+  associated `CGImage` alongside each record is a small additive change to each store's
+  `Keys` enum.
+- `ShareCardView` is already the polaroid-shaped card we render for the share sheet —
+  reusing it here costs nothing extra.
+- `ImageRenderer` is already used at share time; pin generation can reuse the same call,
+  triggered inside `GameSession.handleSolve()` whenever a personal best is beaten.
+- The board itself is a lazy `LazyVGrid` of card slots wrapped in a `ScrollView`, with a
+  cork-texture background image (bundled asset or a simple `Canvas`-drawn noise pattern).
+- If Stats history & charts (§4) lands first, the board can pull from richer per-solve
+  records rather than just the current aggregate bests.
+- **Gyroscope tilt effect**: each pinned card reacts to how the player holds their phone.
+  The shared `MotionManager` service (introduced for Gravity Mode in §1) streams
+  `CMDeviceMotion` attitude (pitch and roll); each card applies a `rotation3DEffect` on
+  both axes proportional to the current attitude, clamped to a gentle ±8° range. The base
+  pin rotation (seeded per card) is additive with the dynamic tilt so the cards feel like
+  physical polaroids resting on the cork board. A subtle shadow offset that tracks the
+  tilt direction reinforces the depth illusion. Motion updates stop when the view
+  disappears (`.onDisappear`) to preserve battery.
+
+Still to decide: whether "pinning" is automatic (every new record auto-pins) or whether the
+player curates the board manually (long-press to unpin, swap cards between slots). Manual
+curation pairs nicely with the share sheet — the player plays, shares, then optionally pins
+that same card to their board.
 
 ### [X] Menu stats card — **S** *(shipped June 2026 as `MenuStatsCardView`)*
 Re-added with per-mode content: three-stat card (streak / best streak / best moves) for

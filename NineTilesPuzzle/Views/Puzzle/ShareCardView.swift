@@ -20,11 +20,11 @@ struct ShareCardView: View {
     let dailyDate: Date
     let calendarStreak: Int
 
-    // Fixed dark palette — the card always renders dark regardless of device color
+    // Fixed light palette — the card always renders light regardless of device color
     // scheme so every share destination sees an identical image.
-    private let background    = Color(red: 0.10, green: 0.10, blue: 0.11)
-    private let labelPrimary  = Color.white
-    private let labelSecondary = Color(white: 1, opacity: 0.55)
+    private let background     = Color(red: 0.98, green: 0.97, blue: 0.95)
+    private let labelPrimary   = Color(red: 0.10, green: 0.10, blue: 0.12)
+    private let labelSecondary = Color(red: 0.10, green: 0.10, blue: 0.12).opacity(0.5)
 
     var body: some View {
         ZStack {
@@ -35,7 +35,8 @@ struct ShareCardView: View {
                 statsSection
             }
         }
-        .frame(width: 400, height: 500)
+        .frame(width: 400, height: 480)
+        .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 6)
     }
 
     // MARK: - Sections
@@ -43,14 +44,11 @@ struct ShareCardView: View {
     private var imageSection: some View {
         Image(decorative: image, scale: 1)
             .resizable()
-            .scaledToFit()
+            .scaledToFill()
             .frame(width: 360, height: 360)
-            .clipShape(.rect(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color(white: 1, opacity: 0.08), lineWidth: 1)
-            )
+            .clipShape(.rect(cornerRadius: 4))
             .padding(.top, 20)
+            .padding(.horizontal, 20)
     }
 
     private var puzzleGradient: LinearGradient {
@@ -58,8 +56,8 @@ struct ShareCardView: View {
     }
 
     private var statsSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 4) {
                 Image(systemName: "puzzlepiece.fill")
                     .resizable()
                     .scaledToFit()
@@ -78,31 +76,30 @@ struct ShareCardView: View {
                     .foregroundStyle(labelSecondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color(white: 1, opacity: 0.10), in: .capsule)
+                    .background(Color(red: 0.10, green: 0.10, blue: 0.12).opacity(0.08), in: .capsule)
             }
-            .padding(.top, 14)
 
             Text(contextLine)
                 .font(.system(size: 12))
                 .foregroundStyle(labelSecondary)
-                .padding(.top, 3)
+                .padding(.bottom, 6)
 
             Divider()
-                .background(Color(white: 1, opacity: 0.08))
-                .padding(.vertical, 10)
 
-            HStack(spacing: 20) {
-                ShareStatBadge(value: moveCount.formatted(), icon: "arrow.left.arrow.right")
-                ShareStatBadge(value: formattedTime, icon: "clock")
+            HStack(spacing: 16) {
+                ShareStatBadge(value: moveCount.formatted(), icon: "arrow.left.arrow.right", tint: labelPrimary)
+                ShareStatBadge(value: formattedTime, icon: "clock", tint: labelPrimary)
 
                 if isDailyChallenge && calendarStreak > 0 {
                     Spacer()
                     ShareStatBadge(value: "\(calendarStreak)", icon: "flame.fill", tint: .orange)
                 }
             }
+            .padding(.top, 6)
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 20)
+        .padding(.vertical, 14)
+        .frame(height: 100)
     }
 
     // MARK: - Helpers
@@ -131,7 +128,7 @@ struct ShareCardView: View {
 private struct ShareStatBadge: View {
     let value: String
     let icon: String
-    var tint: Color = .white
+    var tint: Color = Color(red: 0.10, green: 0.10, blue: 0.12)
 
     var body: some View {
         HStack(spacing: 4) {
@@ -164,5 +161,7 @@ private struct ShareStatBadge: View {
             dailyDate: .now,
             calendarStreak: 3
         )
+        .padding(40)
+        .background(Color.gray.opacity(0.2))
     }
 }
