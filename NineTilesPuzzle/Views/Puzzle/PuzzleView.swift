@@ -13,6 +13,7 @@ struct PuzzleView: View {
     @Environment(AchievementsStore.self) private var achievementsStore
     @Environment(SoundService.self) private var soundService
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var completion = PuzzleCompletionViewModel()
     @State private var showQuitAlert = false
@@ -347,6 +348,13 @@ struct PuzzleView: View {
             Button("Keep Playing", role: .cancel) { }
         } message: {
             Text("Your progress on this puzzle will be lost.")
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background {
+                session.pauseTimers()
+            } else if newPhase == .active, !session.isLoading, !session.isPreviewing {
+                session.resumeTimers()
+            }
         }
         .onDisappear {
             session.leaveGame()

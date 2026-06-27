@@ -222,6 +222,75 @@ final class GameSession {
         stopwatchTask = nil
     }
 
+    /// Suspends all active timers without resetting their remaining values, so
+    /// `resumeTimers()` can restart each one exactly where it left off.
+    func pauseTimers() {
+        countdownTask?.cancel()
+        countdownTask = nil
+        isTimerRunning = false
+        stopTimeTrialCountdown()    // preserves timeTrialRemaining by design
+        stopStopwatch()             // preserves elapsedTime by design
+    }
+
+    /// Restarts whichever timers should be running given the current game state.
+    /// Safe to call speculatively — each guard checks whether the timer was actually active.
+    func resumeTimers() {
+        guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return }
+        if currentStreakForCurrentSize > 0 && timerRemaining > 0 {
+            resumeCountdown()
+        }
+        if isTimeTrialMode && timeTrialRemaining > 0 {
+            resumeTimeTrialCountdown()
+        }
+        if currentMoveCount > 0 {
+            startStopwatch()
+        }
+    }
+
+    /// Restarts the streak countdown from the current `timerRemaining` value.
+    private func resumeCountdown() {
+        guard settingsStore.streakCountdownDuration > 0 else { return }
+        isTimerRunning = true
+        let end = Date.now.addingTimeInterval(timerRemaining)
+        countdownTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled else { break }
+                let remaining = end.timeIntervalSinceNow
+                if remaining <= 0 {
+                    statsStore.resetStreak(for: currentStatsKey)
+                    isNewRecord = false
+                    didBreakStreak.toggle()
+                    stopCountdown()
+                    return
+                }
+                timerRemaining = remaining
+            }
+        }
+    }
+
+    /// Restarts the Time Trial countdown from the current `timeTrialRemaining` value.
+    private func resumeTimeTrialCountdown() {
+        isTimeTrialRunning = true
+        timeTrialEndDate = Date.now.addingTimeInterval(timeTrialRemaining)
+        timeTrialTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled, let end = timeTrialEndDate else { break }
+                let remaining = end.timeIntervalSinceNow
+                if remaining <= 0 {
+                    timeTrialRemaining = 0
+                    isTimeTrialFailed = true
+                    if isGauntletLadderMode { isLadderRunFailed = true }
+                    stopTimeTrialCountdown()
+                    saveToUserDefaults()
+                    return
+                }
+                timeTrialRemaining = remaining
+            }
+        }
+    }
+
     /// Fetches a fresh image, slices it, shuffles the tiles, and persists state. In `.numbers`
     /// media mode there is no image to fetch or preview — tiles are shuffled immediately.
     func startNewGame() async {
