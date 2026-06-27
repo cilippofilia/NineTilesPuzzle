@@ -155,7 +155,7 @@ struct PuzzleView: View {
                 }
             }
 
-            if settings.debugOverlayEnabled, completion.showCompletion, let png = solvedPNG {
+            if completion.showCompletion, let png = solvedPNG {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: png, preview: SharePreview("Solved Puzzle")) {
                         Label("Share", systemImage: "square.and.arrow.up")
@@ -186,9 +186,20 @@ struct PuzzleView: View {
     }
 
     private var solvedPNG: SolvedPuzzleImage? {
-        guard let cgImage = session.croppedSourceImage,
-              let data = UIImage(cgImage: cgImage).pngData()
-        else { return nil }
+        guard let cgImage = session.croppedSourceImage else { return nil }
+        let card = ShareCardView(
+            image: cgImage,
+            gridSize: session.gridSize,
+            gameMode: session.selectedGameMode,
+            moveCount: session.currentMoveCount,
+            elapsedTime: session.elapsedTime,
+            isDailyChallenge: session.isDailyGameActive,
+            dailyDate: session.dailyEffectiveDate,
+            calendarStreak: session.dailyCalendarStreak
+        )
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        guard let data = renderer.uiImage?.pngData() else { return nil }
         return SolvedPuzzleImage(pngData: data)
     }
 

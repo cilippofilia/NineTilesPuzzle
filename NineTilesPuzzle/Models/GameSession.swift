@@ -112,6 +112,7 @@ final class GameSession {
     var isDailyCompletedToday: Bool { dailyChallengeStore.isDailyCompletedToday }
     var dailyBestMoves: Int? { dailyChallengeStore.bestMoves }
     var dailyBestTime: TimeInterval? { dailyChallengeStore.bestTime }
+    var dailyEffectiveDate: Date { dailyChallengeStore.effectiveDate }
 
     /// Marks this session as a Daily Challenge game. Must be called before navigating
     /// to `PuzzleView` — `startNewGame()` checks `isDailyGameActive` to use the
