@@ -38,7 +38,14 @@ NineTilesPuzzle/
 │   ├── ChaosTransform.swift        — pure whole-image orientation/tone/posterize/pixelate
 │   │                                  transform for Chaos Mode (see below)
 │   ├── TileModel.swift             — @Observable tile: id, currentIndex, isLocked
-│   ├── Achievement.swift           — Codable achievement definition + unlock flag
+│   ├── Achievement.swift           — Codable definition: id, title, systemImage, category,
+│   │                                  metric, target, comparison, isUnlocked, unlockedDate
+│   ├── AchievementCategory.swift   — 6-case enum (milestones/difficulty/efficiency/
+│   │                                  streaks/explorer/special); drives AchievementsView sections
+│   ├── AchievementMetric.swift     — what a target is measured against; encodes as a dotted
+│   │                                  string (e.g. "personalBestMoves.3.swap") for hand-editable
+│   │                                  JSON; value(in:justSolved:now:) reads StatsStore
+│   ├── AchievementComparison.swift — greaterThanOrEqual | lessThanOrEqual
 │   ├── ZenSparkle.swift            — decorative particle model for Zen mode's solve animation
 │   ├── Bundle-Decodable-Ext.swift
 │   ├── TimeInterval-Formatting-Ext.swift
@@ -64,7 +71,10 @@ NineTilesPuzzle/
 │   ├── GameMode/GameModeView.swift  — mode picker only (media source moved to MenuView)
 │   ├── Settings/                    — SettingsView, GridSizePickerView, PreviewTimePickerView,
 │   │                                  MediaSourcePickerView (moved here from GameModeView)
-│   ├── Streak/                      — StreakCounterView, StreakStatsView, StreakCountdownPickerView
+│   ├── Streak/                      — StreakCounterView, StreakStatsView, StreakCountdownPickerView,
+│   │                                  MenuStatsCardView (mode-aware menu card: 3-stat for
+│   │                                  Swap/Slide/Haze/Chaos, 2-stat for Time Trial / Limited
+│   │                                  Moves / Gauntlet, hidden for Zen)
 │   ├── Puzzle/
 │   │   ├── PuzzleView.swift                 — game screen orchestrator (mostly rendering now;
 │   │   │                                      sequencing delegated to the view model below)
@@ -89,9 +99,12 @@ NineTilesPuzzle/
 │   │   └── PuzzleErrorView.swift
 │   └── Helpers/                     — grab-bag of small reusable views (toast, banners,
 │                                       loading/splash, brand mark, badges, zen sparkle,
-│                                       Time Trial's "Out of Time" overlay, Limited Moves'
-│                                       "Out of Moves" overlay, ShakeDetector UIKit bridge,
-│                                       LoudBounceModifier repeating scale-pop view modifier)
+│                                       AchievementRowView (icon + title/description + inline
+│                                       progress bar for count-based achievements, best-moves
+│                                       hint for efficiency achievements, unlock date for
+│                                       unlocked ones), Time Trial's "Out of Time" overlay,
+│                                       Limited Moves' "Out of Moves" overlay, ShakeDetector
+│                                       UIKit bridge, LoudBounceModifier scale-pop modifier)
 ├── Resources/                       — achievements.json, sounds, asset catalog, app icon
 NineTilesPuzzleTests/                 — real, wired-up Unit Testing Bundle target (see below)
 ```
@@ -139,6 +152,14 @@ they did:
   since it's the one place that knows what "current" means.
 - **`AchievementsStore.checkAchievements(using:)`** takes `StatsStore` as a parameter rather
   than holding a permanent reference, so it stays decoupled and easy to test with fake stats.
+  The check is fully data-driven: for each `Achievement` in the list (loaded from
+  `achievements.json` via `AchievementService`), it calls `metric.value(in: stats)` and
+  compares against `target` using `comparison` — no hardcoded per-id `switch`. The
+  Completionist achievement is the one exception: it's skipped in the generic loop and handled
+  by `updateCompletionistAchievement`, since "all others unlocked" depends on the list itself.
+  `AchievementsView` groups rows into sections by `AchievementCategory`; `AchievementRowView`
+  reads `StatsStore` from the environment to render inline progress for count-based
+  achievements (≥, target > 1) and a best-moves hint for efficiency achievements (≤).
 
 **`PersistenceStore`** (`Models/PersistenceStore.swift`) — a minimal protocol mirroring the
 handful of `UserDefaults` methods the four stores actually use (`set`/`object`/`string`/

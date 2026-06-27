@@ -15,19 +15,26 @@ struct AchievementsView: View {
 
     var body: some View {
         List {
-            Section {
-                ForEach(achievementsStore.achievements) { achievement in
-                    AchievementRowView(achievement: achievement)
+            ForEach(AchievementCategory.allCases, id: \.self) { category in
+                Section {
+                    ForEach(achievementsStore.achievements.filter { $0.category == category }) { achievement in
+                        AchievementRowView(achievement: achievement)
+                    }
+                } header: {
+                    Text(category.title)
                 }
-            } header: {
-                Text("\(unlockedCount) of \(totalCount) unlocked")
-                    .font(.subheadline)
-                    .textCase(nil)
-                    .foregroundStyle(.secondary)
             }
         }
         .navigationTitle("Achievements")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Text("\(unlockedCount) / \(totalCount)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 }
 

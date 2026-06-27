@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct PuzzleView: View {
     @Environment(GameSession.self) private var session
@@ -21,60 +22,24 @@ struct PuzzleView: View {
     @State private var showTimeTrialDelta = false
     @State private var newGameTask: Task<Void, Never>?
 
+    private var solvedPNG: SolvedPuzzleImage? {
+        guard let cgImage = session.croppedSourceImage,
+              let data = UIImage(cgImage: cgImage).pngData()
+        else { return nil }
+        return SolvedPuzzleImage(pngData: data)
+    }
+
     var body: some View {
-        ZStack {
+        // Split into two independently type-checked expressions to avoid the compiler's
+        // expression complexity limit on long modifier chains.
+        let gameView = ZStack {
             // Layer 1: centered main content — only Spacer/content/Spacer so centering
             // is never affected by supplementary elements in other layers
-            VStack {
-                if session.isLoading {
-                    LoadingView()
-                        // Removal is instant rather than fading, so this never lingers
-                        // on screen crossfaded over the preview/grid that replaces it.
-                        .transition(.asymmetric(insertion: .opacity, removal: .identity))
-                } else if session.isPreviewing, let image = session.previewImage {
-                    ImagePreviewView(image: image, duration: session.currentPreviewDuration, isFogMode: session.isFogMode, onSkip: session.skipPreview)
-                        .transition(.asymmetric(insertion: .opacity, removal: .identity))
-                } else if let error = session.error {
-                    PuzzleErrorView(error: error, onRetry: startNewGame, onSwitchToPhotos: switchToPhotosAndRetry)
-                        .transition(.opacity)
-                } else {
-                    Spacer()
-                    PuzzleGridView(showReveal: completion.showCompletion)
-                        .clipShape(.rect(cornerRadius: 12))
-                        // Zen mode's only acknowledgment that a puzzle is done: the finished
-                        // picture takes one slow, soft breath, with a little magic dust
-                        // drifting around its edge, before the next one quietly arrives.
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(
-                                    LinearGradient(colors: [.teal, .mint], startPoint: .topLeading, endPoint: .bottomTrailing),
-                                    lineWidth: 4
-                                )
-                                .blur(radius: 7)
-                                .opacity(session.isZenMode ? completion.zenGlowOpacity : 0)
-                        }
-                        .overlay {
-                            GeometryReader { proxy in
-                                ForEach(completion.zenSparkles) { sparkle in
-                                    ZenSparkleView(size: sparkle.size, color: sparkle.color, delay: sparkle.delay)
-                                        .position(x: sparkle.x * proxy.size.width, y: sparkle.y * proxy.size.height)
-                                }
-                            }
-                            .opacity(session.isZenMode ? completion.zenGlowOpacity : 0)
-                            .allowsHitTesting(false)
-                        }
-                        .shadow(color: .teal.opacity(session.isZenMode ? completion.zenGlowOpacity * 0.7 : 0), radius: 28)
-                        .scaleEffect(session.isZenMode ? completion.zenBreathScale : 1)
-                        .padding(.horizontal)
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.95).combined(with: .opacity),
-                            removal: .identity
-                        ))
-                    Spacer()
-                }
-            }
-            .animation(.easeInOut(duration: 0.35), value: session.isLoading)
-            .animation(.easeInOut(duration: 0.35), value: session.isPreviewing)
+            PuzzleMainContentLayer(
+                completion: completion,
+                startNewGame: startNewGame,
+                switchToPhotosAndRetry: switchToPhotosAndRetry
+            )
 
             // Layer 2: streak counter + move counter float at top — outside layout flow so
             // they don't shift the grid's vertical center. Hidden entirely in Zen mode, which
@@ -125,49 +90,10 @@ struct PuzzleView: View {
             // Layer 3: completion overlay. Skipped in Zen mode — the solved picture reveal
             // (in PuzzleGridView) is the only feedback; the next puzzle starts on its own.
             if !session.isZenMode {
-                VStack {
-                    CompletionBannerView(gameMode: session.selectedGameMode, streak: session.currentStreakForCurrentSize, isNewRecord: completion.showNewRecord, moveCount: session.currentMoveCount, personalBest: session.personalBestForCurrentSize, elapsedTime: session.elapsedTime, personalBestTime: session.personalBestTimeForCurrentSize, isPracticeMode: settings.debugOverlayEnabled, timeTrialScore: session.timeTrialScore, personalBestScore: session.personalBestScoreForCurrentSize, isNewTimeTrialScoreRecord: completion.showNewTimeTrialScoreRecord, isLadderMode: session.isGauntletLadderMode, isLadderRunComplete: session.isLadderRunComplete, lastClearedLadderStage: session.lastClearedLadderStage, ladderCumulativeScore: session.ladderCumulativeScore, bestLadderScoreOverall: session.bestLadderScoreOverall, isNewLadderScoreRecord: completion.showNewLadderScoreRecord)
-                        .padding(.top)
-                        .padding(.horizontal)
-                        .offset(x: completion.bannerOffset.width, y: (completion.showCompletion ? 0 : -300) + completion.bannerOffset.height)
-                        .opacity(completion.showCompletion ? 1 : 0)
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in completion.updateBannerDrag(value.translation) }
-                                .onEnded { _ in completion.endBannerDrag() }
-                        )
-
-                    // Floats below the banner as its own layer — rather than growing the
-                    // banner's card — and slides down out from behind it on appear.
-                    if completion.showCompletion && completion.hasNewBestBadge(selectedGameMode: session.selectedGameMode) {
-                        NewBestBadgesView(
-                            showsStreak: session.selectedGameMode != .slide && session.selectedGameMode != .limitedMoves,
-                            moveCount: session.currentMoveCount,
-                            isNewMovesRecord: completion.showNewMovesRecord,
-                            elapsedTime: session.elapsedTime,
-                            isNewBestTime: completion.showNewBestTime,
-                            isNewTimeTrialScoreRecord: completion.showNewTimeTrialScoreRecord,
-                            timeTrialScore: session.timeTrialScore,
-                            isNewLadderScoreRecord: completion.showNewLadderScoreRecord,
-                            ladderCumulativeScore: session.ladderCumulativeScore,
-                            isNewLadderStageRecord: completion.showNewLadderStageRecord,
-                            ladderStageReached: session.lastClearedLadderStage
-                        )
-                        .padding(.horizontal)
-                        .offset(completion.bannerOffset)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-
-                    Spacer()
-
-                    Button(continueButtonLabel, action: startNewGame)
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .padding(.bottom)
-                        .offset(y: completion.showCompletion ? 0 : 300)
-                        .opacity(completion.showCompletion ? 1 : 0)
-                }
-                .allowsHitTesting(completion.showCompletion)
+                PuzzleCompletionOverlayView(
+                    completion: completion,
+                    continueAction: startNewGame
+                )
             }
 
             // Layer 3b: Time Trial fail overlay — mutually exclusive with the completion
@@ -314,6 +240,7 @@ struct PuzzleView: View {
         .onChange(of: session.isLimitedMovesFailed) { _, failed in
             completion.handleLimitedMovesFailedChange(failed)
         }
+        return gameView
         .navigationTitle(session.isZenMode ? "" : "Puzzle")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isGameActive)
@@ -337,6 +264,15 @@ struct PuzzleView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Solve", systemImage: "wand.and.stars", action: solvePuzzle)
                         .disabled(isSolving)
+                }
+            }
+
+            if completion.showCompletion, let png = solvedPNG {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ShareLink(item: png, preview: SharePreview("Solved Puzzle")) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                            .labelStyle(.iconOnly)
+                    }
                 }
             }
         }
@@ -432,6 +368,66 @@ struct PuzzleView: View {
     }
 }
 
+private struct PuzzleMainContentLayer: View {
+    @Environment(GameSession.self) private var session
+    let completion: PuzzleCompletionViewModel
+    let startNewGame: () -> Void
+    let switchToPhotosAndRetry: () -> Void
+
+    var body: some View {
+        VStack {
+            if session.isLoading {
+                LoadingView()
+                    // Removal is instant rather than fading, so this never lingers
+                    // on screen crossfaded over the preview/grid that replaces it.
+                    .transition(.asymmetric(insertion: .opacity, removal: .identity))
+            } else if session.isPreviewing, let image = session.previewImage {
+                ImagePreviewView(image: image, duration: session.currentPreviewDuration, isFogMode: session.isFogMode, onSkip: session.skipPreview)
+                    .transition(.asymmetric(insertion: .opacity, removal: .identity))
+            } else if let error = session.error {
+                PuzzleErrorView(error: error, onRetry: startNewGame, onSwitchToPhotos: switchToPhotosAndRetry)
+                    .transition(.opacity)
+            } else {
+                Spacer()
+                PuzzleGridView(showReveal: completion.showCompletion)
+                    .clipShape(.rect(cornerRadius: 12))
+                    // Zen mode's only acknowledgment that a puzzle is done: the finished
+                    // picture takes one slow, soft breath, with a little magic dust
+                    // drifting around its edge, before the next one quietly arrives.
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(
+                                LinearGradient(colors: [.teal, .mint], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                lineWidth: 4
+                            )
+                            .blur(radius: 7)
+                            .opacity(session.isZenMode ? completion.zenGlowOpacity : 0)
+                    }
+                    .overlay {
+                        GeometryReader { proxy in
+                            ForEach(completion.zenSparkles) { sparkle in
+                                ZenSparkleView(size: sparkle.size, color: sparkle.color, delay: sparkle.delay)
+                                    .position(x: sparkle.x * proxy.size.width, y: sparkle.y * proxy.size.height)
+                            }
+                        }
+                        .opacity(session.isZenMode ? completion.zenGlowOpacity : 0)
+                        .allowsHitTesting(false)
+                    }
+                    .shadow(color: .teal.opacity(session.isZenMode ? completion.zenGlowOpacity * 0.7 : 0), radius: 28)
+                    .scaleEffect(session.isZenMode ? completion.zenBreathScale : 1)
+                    .padding(.horizontal)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.95).combined(with: .opacity),
+                        removal: .identity
+                    ))
+                Spacer()
+            }
+        }
+        .animation(.easeInOut(duration: 0.35), value: session.isLoading)
+        .animation(.easeInOut(duration: 0.35), value: session.isPreviewing)
+    }
+}
+
 #Preview {
     let stats = StatsStore()
     let settings = SettingsStore()
@@ -441,4 +437,12 @@ struct PuzzleView: View {
         .environment(settings)
         .environment(achievements)
         .environment(SoundService())
+}
+
+private struct SolvedPuzzleImage: Transferable {
+    let pngData: Data
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .png) { $0.pngData }
+    }
 }

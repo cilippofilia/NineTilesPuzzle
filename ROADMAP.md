@@ -183,21 +183,18 @@ StoreKit 2. Nothing in the current architecture blocks this; the power-up econom
 packs are designed to make it bolt-on.
 
 ### Smaller polish — **S each**
-- Pause timers when the app is backgrounded (streak countdown currently runs on wall clock).
-- Share a completed puzzle as an image via `ImageRenderer`.
-- First-launch tutorial overlay explaining drag-to-swap and locking.
-- Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
+- [X] Pause timers when the app is backgrounded — `PuzzleView` monitors `scenePhase` and
+  calls `session.pauseTimers()` / `session.resumeTimers()` (shipped June 2026).
+- [ ] Share a completed puzzle as an image via `ShareLink`.
+- [ ] First-launch tutorial overlay explaining drag-to-swap and locking.
+- [ ] Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
   select-then-place via accessibility actions).
 
-### Menu stats card — **S** *(removed June 2026, needs a mode-aware rebuild)*
-The streak/best-moves card on `MenuView` was removed because it only had real data for
-Swap and Slide — `GameSession.currentStreakForCurrentSize`/`allTimeHighStreakForCurrentSize`
-are never incremented for Zen, Time Trial, or Limited Moves (they track games-played or
-score instead, see `registerMove` in `GameSession.swift`), so the card showed dead zeros for
-those modes. Re-add only with per-mode-appropriate content: streak + best moves for
-Swap/Slide, best score for Time Trial, best moves for Limited Moves, and likely nothing (or
-games-played) for Zen — gated behind a small `GameMode` capability check rather than always
-rendering the same `StreakStatsView`.
+### [X] Menu stats card — **S** *(shipped June 2026 as `MenuStatsCardView`)*
+Re-added with per-mode content: three-stat card (streak / best streak / best moves) for
+Swap/Slide/Haze/Chaos; two-stat card (best score / best moves) for Time Trial; two-stat card
+(best moves / best time) for Limited Moves; two-stat card (best score / best stage) for
+Gauntlet Ladder; hidden entirely for Zen. Lives in `Views/Streak/MenuStatsCardView.swift`.
 
 ---
 
@@ -209,15 +206,17 @@ Today the system is 10 flat achievements with a binary `isUnlocked` flag and a h
 `switch` in `AchievementsStore.checkAchievements(using:)` — most of this section starts
 with making definitions data-driven.
 
-### Data-driven model with progress — **M** *(foundation for everything below)*
-Extend `Achievement` and `achievements.json` so each definition carries a `category`, a
-`metric` (e.g. `totalGames`, `bestStreak`, `personalBestMoves.3`, `gamesPlayed.8`), and a
-`target`. `checkAchievements()` then becomes a generic "metric ≥ target" evaluation instead
-of a per-id `switch`, and **progress is free**: current metric value ÷ target. Also persist
-the unlock *date* alongside the existing UserDefaults flag (Fitness always shows "Earned
-12 Jun 2026"). Existing ids keep working — migration is just leaving the current keys as-is.
+### [X] Data-driven model with progress — **M** *(foundation for everything below)*
+`Achievement` now carries `category: AchievementCategory`, `metric: AchievementMetric`,
+`target: Int`, `comparison: AchievementComparison`, and `unlockedDate: Date?`. The old
+hardcoded `switch` in `checkAchievements` is gone — the generic loop evaluates
+`metric.value(in: stats) comparison target` for every entry. `achievements.json` drives all
+34 achievements across 6 categories; existing UserDefaults keys are unchanged (no migration
+needed). `AchievementMetric` encodes as a dotted string (e.g. `personalBestMoves.3.swap`)
+so the JSON stays hand-editable. `AchievementComparison` is `greaterThanOrEqual` or
+`lessThanOrEqual` — move-count efficiency achievements use the latter.
 
-### Categories — **S** *(after the model work)*
+### [X] Categories — **S** *(after the model work)*
 Group `AchievementsView` into sections, Fitness-style:
 
 | Category | What lives there |
@@ -243,22 +242,19 @@ Optionally a platinum tier as the long-tail goal. The toast (`AchievementToastVi
 which tier was just reached. If Game Center sync (§3) lands, each tier maps to its own GC
 achievement, or to one achievement using `percentComplete`.
 
-### Progress bars — **S** *(falls out of the data-driven model)*
+### [X] Progress bars — **S** *(falls out of the data-driven model)*
 Show progress toward the next locked tier wherever an achievement appears:
 `AchievementRowView` gets a `ProgressView(value:)` or circular `Gauge` ("37/50 puzzles"),
 and locked badges render greyed-out with the bar underneath — exactly how Fitness shows
 unearned awards. One-shot achievements (e.g. "solve an 8×8") stay binary, no bar.
 
-### New achievements — **S each** *(once the model is data-driven, these are JSON entries)*
-- **Perfectionist**: solve a puzzle where every move locks a tile (zero wasted moves)
-- **Marathon**: solve 5 puzzles in one day
-- **Night Owl / Early Bird**: solve between midnight–5am / before 7am
-- **Personal Touch**: solve a puzzle using a photo-library image
-- **Comeback**: rebuild a streak to 10+ right after one breaks
-- **Full House**: complete every grid size at least once
-- **Sharpshooter**: beat your own personal best three times on the same grid size
-- Future-mode hooks: daily-challenge calendar streaks (7 / 30 days — see §1), Zen and
-  Time Attack first-clears, power-up-free solve on 6×6+
+### [X] New achievements — **S each** *(once the model is data-driven, these are JSON entries)*
+All roadmap achievements shipped as JSON entries (June 2026): Perfectionist, Marathon,
+Night Owl, Early Bird, Personal Touch, Comeback, Full House, plus Zen/Time Trial/Limited
+Moves/Haze/Chaos/Ladder first-clears. Still deferred:
+- **Sharpshooter** (beat personal best 3× on same grid size) — needs a new `StatsStore`
+  counter; deferred until §3 leaderboard work makes per-grid-size tracking richer.
+- Daily-challenge calendar streaks (7 / 30 days) — blocked on §1 Daily Challenge.
 
 ### Fitness-style extras — **M** *(later, once the above ships)*
 - **Limited-edition awards**: seasonal badges (New Year solve, app anniversary) — this is
