@@ -133,6 +133,45 @@ Still to decide: whether to use a discrete threshold (snap to the dominant axis)
 continuous tilt that lets tiles slide diagonally. Discrete is simpler to implement and
 likely more fun to play.
 
+### Quick Snap — **S/M**
+Point the camera at whatever's in front of you right now and the shutter fires on a
+countdown — no retakes, no framing it just right. Whatever the camera sees when the timer
+hits zero becomes the puzzle. Not a new engine or rule set: it plays exactly like Swap
+underneath (same pattern as Chaos/Haze), the only new thing is *where the image comes from*
+and the pressure of "this very second" replacing "pick something."
+
+The shot timer is `max(settingsStore.previewDuration, 3)` seconds — it rides the same
+preview-duration setting used for "memorize the image" (default 3s already satisfies the
+floor), but never drops below 3s even if the player has set previews to "Off" (0) or
+something shorter, since under 3s there isn't enough time to aim the camera at all. Once the
+timer hits zero the frame is captured automatically; there is no shutter button and no retake
+— committing to whatever's in frame is the point of the mode.
+
+Architecture hooks:
+- The existing `ImageSource` protocol's `fetchImage() async throws -> CGImage` assumes a
+  headless fetch (network call, photo library query). Camera capture needs a presented UI
+  step first, so it doesn't fit as a drop-in fourth conformer the way `PhotoLibraryImageSource`
+  does — instead, add a live camera preview (`AVCaptureSession` wrapped in a
+  `UIViewControllerRepresentable`, since `UIImagePickerController` has no way to suppress its
+  own shutter button/retake screen) with a countdown ring overlay; on zero it grabs the
+  current frame as a `CGImage` and hands it to `GameSession` directly, bypassing
+  `ImageService`'s primary/fallback source pair entirely for this one mode.
+- `GameSession.enterQuickSnapMode()` (mirrors `enterDailyMode()`'s transient-flag pattern)
+  presents the camera sheet with the countdown already running; auto-capture at zero calls
+  `startNewGame()` with that frame, then resets the flag in `leaveGame()` like Daily
+  Challenge does.
+- The countdown overlay reuses the existing countdown visual language (the streak/Time Trial
+  countdown's text recoloring under pressure) rather than introducing a new timer style.
+- Skips `ImagePreviewView`'s "memorize the image" step entirely — the player just watched the
+  scene through the countdown, so a second memorize phase would be redundant; shuffle starts
+  immediately after capture.
+- Needs a new `NSCameraUsageDescription` entry in `Info.plist` — today only
+  `NSPhotoLibraryUsageDescription` exists. Camera access can be denied or the device may have
+  no camera (Simulator); fall back to `ImageSourceError`-style messaging and grey the mode out
+  in the menu the same way `.numbers` is only shown conditionally in `MediaSourcePickerView`.
+- Runs on `ClassicEngine` (Swap) — no new `GameMode` rules, no fail state, no stats/streak
+  exemption.
+
 ---
 
 ## 2. Power-ups & Twists
