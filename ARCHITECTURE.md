@@ -61,8 +61,9 @@ NineTilesPuzzle/
 │   ├── MenuView.swift               — root NavigationStack, routes via GameRoute enum
 │   ├── StatsView.swift              — sheet: streaks, personal bests, games played
 │   ├── AchievementsView.swift       — sheet: achievement list
-│   ├── GameMode/GameModeView.swift  — mode picker + media source picker
-│   ├── Settings/                    — SettingsView, GridSizePickerView, PreviewTimePickerView
+│   ├── GameMode/GameModeView.swift  — mode picker only (media source moved to MenuView)
+│   ├── Settings/                    — SettingsView, GridSizePickerView, PreviewTimePickerView,
+│   │                                  MediaSourcePickerView (moved here from GameModeView)
 │   ├── Streak/                      — StreakCounterView, StreakStatsView, StreakCountdownPickerView
 │   ├── Puzzle/
 │   │   ├── PuzzleView.swift                 — game screen orchestrator (mostly rendering now;
@@ -70,12 +71,15 @@ NineTilesPuzzle/
 │   │   ├── PuzzleCompletionViewModel.swift  — completion banner, new-record badge timing,
 │   │   │                                      drag-to-dismiss, Zen's breathe/sparkle sequence
 │   │   ├── PuzzleGridView.swift     — tile layout, drag handling, slide/swap dispatch
-│   │   ├── TileView.swift           — single draggable tile; owns the three Fog Mode visual
+│   │   ├── TileView.swift           — single draggable tile; owns the three Haze visual
 │   │   │                              states (fogged / frosted-glass-while-dragging / revealed)
 │   │   ├── FogTileOverlay.swift     — Canvas+TimelineView animated star-field particle system,
 │   │   │                              per-tile seed so each tile's field is unique
-│   │   ├── ImagePreviewView.swift   — pre-shuffle reveal; fog overlay + shake-to-reveal in
-│   │   │                              Fog Mode (ShakeDetector + LoudBounceModifier hint badge)
+│   │   ├── ImagePreviewView.swift   — pre-shuffle reveal; takes `isFogMode` param — fog
+│   │   │                              overlay, shake badge, and shake gesture are gated so
+│   │   │                              they only activate in Haze mode; badge sits in a top
+│   │   │                              overlay (not the layout flow) so image position matches
+│   │   │                              the in-game grid across all modes
 │   │   ├── PuzzleStatusBarView.swift, MoveCounterView.swift, TimeCounterView.swift
 │   │   ├── TimeTrialTimerView.swift, TimeTrialScoreView.swift — Time Trial's HUD
 │   │   ├── TimeTrialDeltaIndicatorView.swift — transient "+1s"/"-2s" combo indicator
@@ -102,7 +106,7 @@ NineTilesPuzzleApp.init()
    injects all four + SoundService into the environment (app-wide singletons)
         │
         ▼
-MenuView ── NavigationStack(GameRoute) ──▶ PuzzleView / GameModeView / StatsView / ...
+MenuView ── NavigationStack(GameRoute) ──▶ PuzzleView / GameModeView / MediaSourcePickerView / StatsView / ...
         (each view reads only the store(s) it actually needs from the environment)
         │
         ▼
@@ -153,10 +157,12 @@ puzzle. Takes no store dependencies — callers pass live values and closures pe
 it's constructible and testable with zero environment setup.
 
 **Game modes today**: `GameMode` is 7 cases; all 7 are now live (`.classic`, `.slide`,
-`.zen`, `.timeTrial`, `.limitedMoves`, `.chaos`, `.fog`). Mode-specific behavior is still
-expressed as scattered conditionals (`isZenMode`, `isTimeTrialMode`, `isLimitedMovesMode`,
-`isFogMode`, `selectedGameMode == .slide`, `settingsStore.debugOverlayEnabled`) inside
-`GameSession` and `PuzzleView`/`PuzzleGridView` — see the §6 resolution below for why this
+`.zen`, `.timeTrial`, `.limitedMoves`, `.chaos`, `.fog`). The `.fog` case displays as
+**Haze** (renamed June 2026 — raw value kept as `"fog"` to preserve persisted user
+preferences). Mode-specific behavior is still expressed as scattered conditionals
+(`isZenMode`, `isTimeTrialMode`, `isLimitedMovesMode`, `isFogMode`,
+`selectedGameMode == .slide`, `settingsStore.debugOverlayEnabled`) inside `GameSession` and
+`PuzzleView`/`PuzzleGridView` — see the §6 resolution below for why this
 stayed conditionals-based even with Time Trial and Limited Moves as two structurally similar
 real modes.
 
@@ -178,9 +184,11 @@ a `showTimeTrialFail` flag (driving a dedicated `TimeTrialFailView` "Out of Time
 mutually exclusive with the regular completion banner) alongside the existing record-badge
 and Zen-sequence state.
 
-**Gauntlet Ladder** (Time Trial sub-mode, shipped June 2026): a toggleable 10-stage
-progression inside Time Trial — `GameSession.isLadderMode`, surfaced as a `Toggle` in
-`GameModeView` only when `.timeTrial` is selected, not a separate `GameMode` case (it's the
+**Gauntlet Ladder** (Time Trial sub-mode, shipped June 2026; time limits nerfed June 2026
+after playtesting — roughly +20–35% per stage, larger grids scaled more generously):
+a toggleable 10-stage progression inside Time Trial — `GameSession.isLadderMode`, surfaced
+as a `Toggle` in `GameModeView` only when `.timeTrial` is selected, not a separate `GameMode`
+case (it's the
 same countdown/combo loop, just chained across stages with an escalating grid
 size/time-limit/difficulty-multiplier table). `isGauntletLadderMode` (`isTimeTrialMode &&
 isLadderMode`) gates every ladder-specific branch, so non-ladder Time Trial is provably
@@ -242,10 +250,10 @@ on the edge. Chaos has no new `GameEngine`, no fail state, and no stats/streak e
 runs on `ClassicEngine` like Swap and feeds the same completion/streak/personal-best path,
 since the transform is purely visual noise on top of an otherwise-ordinary Swap game.
 
-**Fog Mode** (shipped June 2026): a tile-level reveal mode — the second visual-twist mode
-after Chaos, but implemented at the tile rendering layer rather than as a whole-image bake.
-Three visual states per tile, driven by `TileModel` fields and `TileView`'s local
-`isDragging` state:
+**Haze** (shipped June 2026, originally "Fog Mode" — display name updated June 2026, raw
+value `"fog"` preserved): a tile-level reveal mode — the second visual-twist mode after
+Chaos, implemented at the tile rendering layer rather than as a whole-image bake. Three
+visual states per tile, driven by `TileModel` fields and `TileView`'s local `isDragging`:
 
 - **Fogged** (`isFogMode && !tile.isLocked && !isDragging`): `TileContentView` blurred at
   18pt + `Color.black.opacity(0.45)` tint + `FogTileOverlay` sparkles.
@@ -264,15 +272,15 @@ sourced from `timeline.date.timeIntervalSince1970` (large absolute value — acc
 
 `ShakeDetector` (`Views/Helpers/`) is a lightweight `UIViewControllerRepresentable` that
 overrides `motionBegan(_:with:)` and fires a closure on `.motionShake` — the UIKit bridge
-needed because SwiftUI has no shake API. Used exclusively in `ImagePreviewView` for Fog Mode's
-preview phase; the in-game shake-to-peek was removed in favour of the preview-only reveal.
+needed because SwiftUI has no shake API. Active only during the preview phase.
 
-`ImagePreviewView` gained a `duration: Double` parameter (fed from
-`GameSession.currentPreviewDuration`, which returns `settingsStore.previewDuration` for all
-modes) so its countdown bar always matches the actual preview duration. In Fog Mode the preview
-image starts fogged (blur + overlay + `FogTileOverlay(seed: 99)`) and shaking lifts the fog
-with a 1.2s easeInOut; a `Label` badge above the image animates with `LoudBounceModifier`
-("Shake to reveal") until revealed.
+`ImagePreviewView` takes an `isFogMode: Bool` parameter; the fog overlay, "Shake to reveal"
+badge, and shake gesture are all gated on it so other modes get a plain "Memorize the image"
+preview with no fog or shake. The badge lives in a top `.overlay` (not the VStack layout
+flow), so the preview image sits at the same vertical position as the in-game grid regardless
+of whether the badge is visible. The countdown bar is driven by a `duration: Double`
+parameter (fed from `GameSession.currentPreviewDuration` = `settingsStore.previewDuration`)
+so it always matches the actual preview length.
 
 `LoudBounceModifier` (`Views/Helpers/`) is a repeating `keyframeAnimator` modifier: a
 scale spring pop (1.0 → 1.25, `Spring(response: 0.25, dampingRatio: 0.48)` for natural
@@ -280,8 +288,8 @@ overshoot, then back via `Spring(response: 0.42, dampingRatio: 0.66)`), a `brigh
 flash at pop peak, and a horizontal offsetX rattle — iMessage Loud+Shake style. Factored
 into its own file and exposed as `.loudBounce()` so it's reusable anywhere.
 
-Fog Mode has no new `GameEngine`, no new fail state, and no stats/streak exemption — it runs
-on `ClassicEngine` (SwapEngine) and feeds the same completion/streak/personal-best path as
+Haze has no new `GameEngine`, no new fail state, and no stats/streak exemption — it runs on
+`ClassicEngine` (SwapEngine) and feeds the same completion/streak/personal-best path as
 Swap. `GameSession.isFogMode` is the single gate (`selectedGameMode == .fog`);
 `currentPreviewDuration` is the only new computed property added to `GameSession`.
 

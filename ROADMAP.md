@@ -28,6 +28,8 @@ per correct move" to "time per puzzle" — see `ARCHITECTURE.md` for the impleme
 
 The full 10-stage **Gauntlet Ladder** progression also shipped (June 2026), as a toggle
 inside Time Trial rather than a new mode — see `ARCHITECTURE.md` for the implementation.
+Time limits were nerfed in June 2026 (roughly +20–35% across all stages, scaling more
+generously for larger grids) after playtesting showed completion was too difficult.
 Still deferred to follow-up work, from the original feature spec:
 - The Endless "Ghost Mode" (stage 11+), racing the player's own personal best pace.
 - Time-banking: carrying over a percentage of leftover time between ladder stages.
@@ -56,7 +58,7 @@ and a solvability parity check on shuffle — half of random permutations are un
 reuses the entire image-slicing and grid-rendering pipeline. Effectively a second game in
 the same app.
 
-[X] ### Fog / Reveal Mode — **M**
+[X] ### Haze — **M** *(shipped as "Haze", case `.fog` in `GameMode`)*
 Shipped June 2026. Tiles start hidden behind an animated sparkle overlay (`FogTileOverlay`,
 a `Canvas`+`TimelineView` particle system seeded per tile so each tile's star field is
 unique). Three tile states driven purely by `TileModel` fields and local `isDragging`:
@@ -66,14 +68,14 @@ unique). Three tile states driven purely by `TileModel` fields and local `isDrag
   placing but just barely.
 - **Revealed** (locked/correct): full-color image, slow 1.2s easeInOut fade from fog.
 
-A dedicated 8-second preview phase (now using `settingsStore.previewDuration` like every
-other mode) replaces the standard preview — the image starts fogged and a `ShakeDetector`
-(UIKit bridge in `Views/Helpers/`) lets the player shake to lift the fog and study the image
-before tiles shuffle. The shake hint is animated with `LoudBounceModifier` (scale pop,
-brightness flash, horizontal rattle — iMessage Loud+Shake style). The gameplay shake-to-peek
-from earlier prototypes was removed; the shake gesture is preview-only. Still visual-twist,
-not budget-based — runs on `ClassicEngine` (SwapEngine) and feeds the same
-completion/streak/personal-best path as Swap. No new `GameEngine`, no fail state.
+A dedicated preview phase (duration matches `settingsStore.previewDuration`) shows the image
+fogged by default; a `ShakeDetector` (UIKit bridge in `Views/Helpers/`) lets the player shake
+to lift the fog before tiles shuffle. The shake hint badge uses `LoudBounceModifier` (scale
+pop, brightness flash, horizontal rattle — iMessage Loud+Shake style). The fog overlay and
+shake gesture are gated on `isFogMode` inside `ImagePreviewView` so other modes see a plain
+"Memorize the image" preview with no fog. Still visual-twist, not budget-based — runs on
+`ClassicEngine` (SwapEngine) and feeds the same completion/streak/personal-best path as Swap.
+No new `GameEngine`, no fail state.
 
 [X] ### Chaos Mode — **S**
 Shipped June 2026, as a whole-image transform rather than the originally-sketched per-tile
