@@ -81,11 +81,16 @@ NineTilesPuzzle/
 │   ├── SlideSolver.swift           — BFS solver, debug-only "Solve" button
 │   ├── ImageService.swift          — primary/fallback source orchestration
 │   ├── ImageSlicer.swift           — center-crop + slice CGImage into tile images
-│   ├── MotionManager.swift         — @Observable, @MainActor; wraps CMMotionManager at 30 Hz;
-│   │                                  captures first attitude as reference (multiply(byInverseOf:))
-│   │                                  so neutral = whatever orientation the phone is in when
-│   │                                  updates start; exposes pitch/roll normalized to −1…1,
-│   │                                  clamped at ±0.14 rad; startUpdates()/stopUpdates()
+│   ├── MotionManager.swift         — @Observable, @MainActor; wraps CMMotionManager at 60 Hz
+│   │                                  (pull model: no callback queue, just polls the latest sample).
+│   │                                  Derives pitch/roll on-demand from `CMDeviceMotion.gravity`
+│   │                                  (absolute, accelerometer-fused, drift-free "down") rather than
+│   │                                  calibrating to a reference attitude. Maps to −1…1 normalized,
+│   │                                  clamped at ±0.14 rad (≈ 8°); includes a near-flat guard
+│   │                                  (minPlanarGravity = 0.05) so settled cards don't jitter.
+│   │                                  Exposes computed properties `pitch`/`roll` and static functions
+│   │                                  `normalizedPitch(...)` / `normalizedRoll(...)` for unit testing.
+│   │                                  startUpdates()/stopUpdates()
 │   ├── SoundService.swift          — @Observable, AVAudioPlayer-backed SFX
 │   ├── AchievementService.swift    — bundled JSON + remote fetch + on-disk cache
 │   └── GameCenterService.swift     — @Observable, handles GKLocalPlayer authentication;
@@ -136,8 +141,19 @@ NineTilesPuzzle/
 │   │   ├── WallOfFameView.swift     — root ZStack: ScrollView(cork board) + backdrop +
 │   │   │                              zoom overlay as three siblings so each can carry its
 │   │   │                              own SwiftUI transition independently; sections: Best
-│   │   │                              Moves, Fastest Solve, Daily Challenge, Streaks
-│   │   ├── WallOfFamePinnedCard.swift — 160×192 pt polaroid + pendulum physics (see below)
+│   │   │                              Moves, Fastest Solve, Daily Challenge, Streaks; owns
+│   │   │                              WallOfFameSwingEngine and mounts WallOfFameSwingDriver
+│   │   ├── WallOfFamePinnedCard.swift — 160×192 pt polaroid; reads its own CardSwing angle
+│   │   │                              and applies it to rotationEffect; registers/unregisters
+│   │   │                              with the shared engine on appear/disappear
+│   │   ├── CardSwing.swift          — @Observable per-card pendulum state: observed `angle`,
+│   │   │                              @ObservationIgnored `velocity`; stepped by the engine
+│   │   ├── WallOfFameSwingEngine.swift — @Observable shared physics engine; steps all
+│   │   │                              registered CardSwing instances each frame, only writing
+│   │   │                              `angle` when motion exceeds rest threshold; 1/60 Hz
+│   │   ├── WallOfFameSwingDriver.swift — invisible view with the single `TimelineView`
+│   │   │                              (.animation 60 fps); ticks engine.step(roll:) from
+│   │   │                              motionManager.roll; replaces 15 per-card timelines
 │   │   └── WallOfFameEmptySlot.swift — dashed rounded-rect placeholder for unfilled slots
 │   └── Helpers/                     — grab-bag of small reusable views (toast, banners,
 │                                       loading/splash, brand mark, badges, zen sparkle,
@@ -403,26 +419,34 @@ scales, both driven by a shared `.animation(..., value: zoomedCardImage == nil)`
 on top via `.overlay` with `.allowsHitTesting(false)` so taps pass through to the button;
 the dark backdrop sibling also has `.allowsHitTesting(false)` so neither intercepts.
 
-**Pendulum physics** (`WallOfFamePinnedCard`): `TimelineView(.animation(minimumInterval: 1/60))`
-runs a spring-damper loop per frame:
+**Pendulum physics** (`WallOfFameSwingEngine`): a single `WallOfFameSwingDriver` mounts one
+shared `TimelineView(.animation(minimumInterval: 1/60))` in the `WallOfFameView`. Each frame
+it calls `engine.step(roll:)`, which iterates all registered `CardSwing` instances and applies
+the spring-damper loop:
 ```
-let springForce  = (targetAngle − swingAngle) × stiffness   // stiffness = 0.025
-let dampingForce = −angularVelocity × damping                // damping   = 0.11
-angularVelocity += springForce + dampingForce
-swingAngle      += angularVelocity
+let springForce  = (targetAngle − velocity) × stiffness   // stiffness = 0.025
+let dampingForce = −velocity × damping                     // damping   = 0.11
+newVelocity      = velocity + springForce + dampingForce
+newAngle         = angle + newVelocity
 ```
-`targetAngle = −motionManager.roll × 6.0` (negated: tilt right → cards swing left).
-Each card has a seeded `baseAngle` (±6°) additive with `swingAngle`, so cards rest at
-unique angles at rest and the whole board sways together.
+`targetAngle = −motionManager.roll × 6.0` (negated: tilt right → cards swing left). The
+engine only writes a card's observed `angle` if it exceeds the rest threshold (motion > 0.01°
+and distance-to-target > 0.01°), so settled cards stop re-rendering until the next tilt.
+Cards register with the engine on `.onAppear` and unregister on `.onDisappear`, so only
+visible cards incur physics cost. Each card has a seeded `baseAngle` (±6°) additive with
+`swingAngle`, so cards rest at unique angles and the whole board sways together.
 
 **`MotionManager`** (`Services/MotionManager.swift`): `@MainActor @Observable`, starts
-`CMMotionManager.startDeviceMotionUpdates` at 30 Hz. The first `CMDeviceMotion` reading is
-stored as `referenceAttitude`; every subsequent reading is multiplied by its inverse
-(`attitude.multiply(byInverseOf: ref)`) so the attitude is always relative to how the phone
-was held at the moment the view opened, not the device's absolute orientation. Roll and pitch
-are divided by the clamp radius (0.14 rad ≈ 8°) and clamped to −1…1. `stopUpdates()` resets
-`referenceAttitude` and zeroes both values, so the cards snap back to their base angles when
-the view disappears.
+`CMMotionManager.startDeviceMotionUpdates` at 60 Hz (pull model: no callback queue). Derives
+`pitch`/`roll` on-demand as computed properties from `CMDeviceMotion.gravity`, the
+accelerometer-fused, drift-free measurement of real-world "down" — not calibrated to a
+reference attitude. Maps gravity angles to −1…1 normalized, clamped at ±0.14 rad (≈ 8°).
+Includes a near-flat guard (`minPlanarGravity = 0.05`) so that when the device lies flat and
+screen-plane gravity vanishes, cards rest level instead of slamming to one side (a real-sensor
+edge case where `atan2(0, -0)` returns π). `stopUpdates()` zeroes the motion sample, so
+computed properties return 0, and the cards snap to their base angles when the view
+disappears. Static functions `normalizedRoll(gravityX:gravityY:)` and
+`normalizedPitch(gravityX:gravityY:gravityZ:)` are `CoreMotion`-free and unit-testable.
 
 **§6 resolution**: with both Time Trial and Limited Moves now shipped, the question of
 whether mode-specific behavior deserves a generic `GameModeRules` abstraction was

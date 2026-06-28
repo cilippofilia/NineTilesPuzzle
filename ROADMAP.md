@@ -112,6 +112,11 @@ fundamentally different from Slide (where you drag one tile into the adjacent bl
 because every tile moves at once — the empty space(s) collect at the "high" side of the
 board, and the order in which you make moves matters at a whole-board level.
 
+**Status:** Core gravity detection infra is already in place (June 2026+). `MotionManager`
+derives `pitch`/`roll` from `CMDeviceMotion.gravity` (real-world "down", drift-free) at
+60 Hz pull-based updates. The gravity-feel system is used by Wall of Fame's card physics and
+is unit-tested without CoreMotion.
+
 Architecture hooks:
 - Add `.gravity` to the `GameMode` enum and a `GravityEngine: GameEngine` in `Services/`.
   `shuffle()` can delegate to `SwapEngine`'s derangement shuffle since any state is
@@ -119,10 +124,11 @@ Architecture hooks:
   `slide(direction:)` method that iterates columns/rows and cascades tiles toward the wall.
 - `GameSession` gets a `gravitateBoard(direction: GravityDirection)` entry point (analogous
   to `slideTile(from:)`) that calls the engine and then `registerMove()`.
-- Motion input via a `MotionManager` service (`@Observable @MainActor` wrapping
-  `CMMotionManager.startDeviceMotionUpdates`). Gravity vector from `CMDeviceMotion.gravity`
-  maps to a discrete direction once a tilt threshold is crossed; a cooldown prevents
-  repeated triggers on a single deliberate tilt.
+- Motion input hooks into the existing `MotionManager` service (already `@Observable
+  @MainActor` wrapping `CMMotionManager` with gravity-fused tilt output at 60 Hz).
+  Gravity vector from `motionManager.roll`/`motionManager.pitch` maps to a discrete
+  direction once a tilt threshold is crossed; a cooldown prevents repeated triggers on
+  a single deliberate tilt.
 - `PuzzleGridView` embeds a tilt listener (similar to the existing `ShakeDetector` pattern
   in `Views/Helpers/`) that calls `session.gravitateBoard(direction:)` on threshold
   crossings. Drag gestures can be disabled entirely for this mode.
@@ -290,14 +296,22 @@ Visual design:
 - `WallOfFamePinnedCard`: 160 × 192 pt image, clipped at 3pt corner radius,
   seeded base rotation ±6° (derived from `slot.seedValue × 1_000_003 % 13`),
   📍 emoji pin at top edge, shadow offset tracks live swing angle.
-- **Pendulum physics**: `TimelineView(.animation(minimumInterval: 1/60))` drives a
-  spring-damper loop — `angularVelocity += (target − angle) × stiffness + −velocity × damping`
-  — at 60 fps. `MotionManager.roll` sets the equilibrium angle; stiffness = 0.025,
-  damping = 0.11 gives the lazy, heavy swing of a real card on a pin.
-- **Gyroscope**: `Services/MotionManager.swift` wraps `CMMotionManager.startDeviceMotionUpdates`
-  at 30 Hz. The first attitude reading is captured as a reference
-  (`CMAttitude.multiply(byInverseOf:)`), so cards hang vertically regardless of how the
-  phone is held when the view opens. Roll is clamped to ±0.14 rad and normalized to −1…1.
+- **Pendulum physics** (June 2026+): a single shared `WallOfFameSwingEngine` steps all
+  visible cards' springs from one `TimelineView(.animation(minimumInterval: 1/60))` rather
+  than 15 independent timelines. Spring-damper loop per card:
+  `velocity += (target − angle) × stiffness − velocity × damping` (stiffness = 0.025,
+  damping = 0.11 gives lazy, heavy swing). Only writes `angle` when motion > 0.01° and
+  distance-to-target > 0.01°, so settled cards stop re-rendering entirely until the next
+  tilt. Cards register on `.onAppear` / unregister on `.onDisappear`, so off-screen cards
+  incur no physics cost. `MotionManager.roll` sets the equilibrium angle.
+- **Gyroscope** (June 2026+): `Services/MotionManager.swift` wraps
+  `CMMotionManager.startDeviceMotionUpdates` at 60 Hz (pull model: no callback queue,
+  samples poll on-demand). Derives roll/pitch from `CMDeviceMotion.gravity` (absolute,
+  accelerometer-fused, drift-free) rather than calibrating to a reference attitude, so
+  cards hang toward real "down" regardless of starting orientation. Near-flat guard
+  (minPlanarGravity = 0.05) prevents jitter when device is flat. Roll/pitch clamped to
+  ±0.14 rad and normalized to −1…1. Static functions `normalizedRoll(...)` /
+  `normalizedPitch(...)` are CoreMotion-free and unit-testable.
 - **Cork texture**: `CorkTextureView` is a multi-layer `Canvas` drawing using a seeded LCG
   PRNG (`SeededRNG`) for per-pixel noise — ochre base, diagonal grain streaks, scattered
   darker specks — no bundled asset, renders once and never redraws.
