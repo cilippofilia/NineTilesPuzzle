@@ -52,13 +52,13 @@ final class MotionManager {
         // Near-flat: screen-plane gravity is tiny, so atan2 is ill-defined and
         // jittery (and atan2(0, -0) == π). Rest level instead of slamming sideways.
         guard hypot(x, y) > minPlanarGravity else { return 0 }
-        return (atan2(x, -y) / clampRadians).clamped(to: -1...1)
+        return max(-1, min(1, atan2(x, -y) / clampRadians))
     }
 
     /// Maps the gravity vector to a normalized, clamped front-back pitch. Pure and
     /// `CoreMotion`-free so it can be unit-tested without a device.
     nonisolated static func normalizedPitch(gravityX x: Double, gravityY y: Double, gravityZ z: Double) -> Double {
-        (atan2(-z, hypot(x, y)) / clampRadians).clamped(to: -1...1)
+        max(-1, min(1, atan2(-z, hypot(x, y)) / clampRadians))
     }
 
     func startUpdates() {
@@ -71,11 +71,5 @@ final class MotionManager {
 
     func stopUpdates() {
         manager.stopDeviceMotionUpdates()
-    }
-}
-
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
     }
 }
