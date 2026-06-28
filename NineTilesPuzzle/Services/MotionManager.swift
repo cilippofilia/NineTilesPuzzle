@@ -7,55 +7,70 @@
 
 import CoreMotion
 
-/// Streams device attitude (pitch and roll) from `CMMotionManager`, normalized
-/// to a −1…1 range clamped at ±0.14 rad (≈ ±8°). Used by the Wall of Fame tilt
-/// effect and will also drive Gravity Mode when that feature ships.
+/// Exposes device tilt relative to real-world gravity as normalized pitch and
+/// roll (−1…1, clamped at ±0.14 rad ≈ ±8°). Used by the Wall of Fame tilt effect
+/// and will also drive Gravity Mode when that feature ships.
 ///
-/// Calibration: the first attitude reading after `startUpdates()` is captured as
-/// the neutral reference via `multiply(byInverseOf:)`. This means whatever
-/// orientation the device is in when the view appears is treated as "zero" — cards
-/// sit straight regardless of the absolute device attitude.
+/// Gravity-referenced, pull model: `roll`/`pitch` are derived on demand from
+/// `CMDeviceMotion.gravity`, the accelerometer-fused vector that always points at
+/// true "down" (and, unlike integrated attitude, does not drift). Updates are
+/// pulled from `manager.deviceMotion` inside the caller's render loop rather than
+/// pushed on an operation queue, so heavy UI work (the Wall of Fame runs many
+/// 60 fps `TimelineView`s at once) can never starve delivery and freeze the tilt.
 @MainActor
 @Observable
 final class MotionManager {
     private let manager = CMMotionManager()
-    /// Normalized pitch (front-back tilt), −1…1.
-    private(set) var pitch: Double = 0
-    /// Normalized roll (left-right tilt), −1…1.
-    private(set) var roll: Double = 0
 
-    private var referenceAttitude: CMAttitude?
-
-    private let clampRadians = 0.14  // ≈ 8°
-    private let updateInterval = 1.0 / 30.0
+    /// Tilt magnitude (radians) mapped to the full ±1 normalized range. ≈ 8°.
+    nonisolated static let clampRadians = 0.14
+    private let updateInterval = 1.0 / 60.0
 
     var isAvailable: Bool { manager.isDeviceMotionAvailable }
 
+    /// Normalized roll (left-right tilt vs. vertical), −1…1. Zero when the device
+    /// is held upright in portrait; swings toward whichever side faces real down.
+    var roll: Double {
+        guard let gravity = manager.deviceMotion?.gravity else { return 0 }
+        return Self.normalizedRoll(gravityX: gravity.x, gravityY: gravity.y)
+    }
+
+    /// Normalized pitch (front-back lean vs. vertical), −1…1. Kept for parity and
+    /// future parallax use; the pinned-card effect only consumes `roll`.
+    var pitch: Double {
+        guard let gravity = manager.deviceMotion?.gravity else { return 0 }
+        return Self.normalizedPitch(gravityX: gravity.x, gravityY: gravity.y, gravityZ: gravity.z)
+    }
+
+    /// Below this much screen-plane gravity the device is essentially flat, where
+    /// the left-right roll angle is undefined and noise-dominated. Treat as level.
+    private nonisolated static let minPlanarGravity = 0.05
+
+    /// Maps the screen-plane gravity components to a normalized, clamped roll.
+    /// Pure and `CoreMotion`-free so the gravity-feel mapping stays unit-testable.
+    nonisolated static func normalizedRoll(gravityX x: Double, gravityY y: Double) -> Double {
+        // Near-flat: screen-plane gravity is tiny, so atan2 is ill-defined and
+        // jittery (and atan2(0, -0) == π). Rest level instead of slamming sideways.
+        guard hypot(x, y) > minPlanarGravity else { return 0 }
+        return (atan2(x, -y) / clampRadians).clamped(to: -1...1)
+    }
+
+    /// Maps the gravity vector to a normalized, clamped front-back pitch. Pure and
+    /// `CoreMotion`-free so it can be unit-tested without a device.
+    nonisolated static func normalizedPitch(gravityX x: Double, gravityY y: Double, gravityZ z: Double) -> Double {
+        (atan2(-z, hypot(x, y)) / clampRadians).clamped(to: -1...1)
+    }
+
     func startUpdates() {
         guard isAvailable, !manager.isDeviceMotionActive else { return }
-        referenceAttitude = nil
         manager.deviceMotionUpdateInterval = updateInterval
-        manager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
-            guard let self, let motion else { return }
-            // First reading becomes the neutral reference — all subsequent deltas
-            // are measured relative to it so the starting orientation = roll/pitch 0.
-            if self.referenceAttitude == nil {
-                self.referenceAttitude = motion.attitude.copy() as? CMAttitude
-            }
-            if let ref = self.referenceAttitude {
-                motion.attitude.multiply(byInverseOf: ref)
-            }
-            let clamp = self.clampRadians
-            self.pitch = (motion.attitude.pitch / clamp).clamped(to: -1...1)
-            self.roll  = (motion.attitude.roll  / clamp).clamped(to: -1...1)
-        }
+        // Pull model: no handler. Samples accumulate in `manager.deviceMotion`,
+        // read on demand by `roll`/`pitch` from the main-thread render loop.
+        manager.startDeviceMotionUpdates()
     }
 
     func stopUpdates() {
         manager.stopDeviceMotionUpdates()
-        referenceAttitude = nil
-        pitch = 0
-        roll = 0
     }
 }
 

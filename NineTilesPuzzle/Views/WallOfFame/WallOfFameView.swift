@@ -11,6 +11,7 @@ struct WallOfFameView: View {
     @Environment(WallOfFameStore.self) private var wallOfFameStore
     @Environment(MotionManager.self) private var motionManager
 
+    @State private var swingEngine = WallOfFameSwingEngine()
     @State private var zoomedCardImage: CGImage?
     @State private var zoomedShareURL: URL?
 
@@ -43,6 +44,8 @@ struct WallOfFameView: View {
                 .padding(20)
             }
             .background(CorkTextureView().ignoresSafeArea())
+
+            WallOfFameSwingDriver(engine: swingEngine, motionManager: motionManager)
 
             if zoomedCardImage != nil && zoomedShareURL != nil {
                 Rectangle()
@@ -110,7 +113,7 @@ struct WallOfFameView: View {
                     zoomedShareURL = wallOfFameStore.fileURL(for: slot)
                 }
             } label: {
-                WallOfFamePinnedCard(slot: slot, cardImage: image, motionManager: motionManager)
+                WallOfFamePinnedCard(slot: slot, cardImage: image, engine: swingEngine)
             }
             .buttonStyle(.plain)
         } else {

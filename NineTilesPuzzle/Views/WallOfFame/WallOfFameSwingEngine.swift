@@ -1,0 +1,58 @@
+//
+//  WallOfFameSwingEngine.swift
+//  NineTilesPuzzle
+//
+//  Created by Filippo Cilia on 6/28/26.
+//
+
+import Observation
+
+/// Advances every visible Wall of Fame card's pendulum from a single 60 fps tick,
+/// replacing the previous per-card `TimelineView`s. Cards register their
+/// `CardSwing` while on screen; `step(roll:)` advances all of them at once and
+/// writes each card's `angle` only when it actually moves, so settled cards stop
+/// re-rendering until the next tilt.
+@MainActor
+@Observable
+final class WallOfFameSwingEngine {
+    @ObservationIgnored private var swings: [ObjectIdentifier: CardSwing] = [:]
+
+    @ObservationIgnored private let stiffness = 0.025
+    @ObservationIgnored private let damping = 0.11
+    /// Below this much motion (degrees) a card is settled and skips its state write.
+    @ObservationIgnored private let restThreshold = 0.01
+    /// Device roll (−1…1) maps to this many degrees of equilibrium swing.
+    @ObservationIgnored private let rollToDegrees = 6.0
+
+    /// Starts advancing `swing` on each `step`. Keyed by identity, so calling it
+    /// more than once for the same instance is a harmless no-op.
+    func register(_ swing: CardSwing) {
+        swings[ObjectIdentifier(swing)] = swing
+    }
+
+    /// Stops advancing `swing` (call when its card scrolls off or disappears).
+    func unregister(_ swing: CardSwing) {
+        swings[ObjectIdentifier(swing)] = nil
+    }
+
+    /// Advances every registered card one frame toward the gravity-driven target.
+    func step(roll: Double) {
+        let target = -roll * rollToDegrees
+        for swing in swings.values {
+            let springForce  = (target - swing.angle) * stiffness
+            let dampingForce = -swing.velocity * damping
+            let newVelocity  = swing.velocity + springForce + dampingForce
+            let newAngle     = swing.angle + newVelocity
+
+            // Settled: skip the observed `angle` write so the card isn't
+            // re-rendered. Checking distance-to-target (not just velocity) avoids
+            // freezing at a swing's apex, where velocity is momentarily zero.
+            if abs(newVelocity) < restThreshold && abs(target - newAngle) < restThreshold {
+                if swing.velocity != 0 { swing.velocity = 0 }
+                continue
+            }
+            swing.velocity = newVelocity
+            swing.angle = newAngle
+        }
+    }
+}
