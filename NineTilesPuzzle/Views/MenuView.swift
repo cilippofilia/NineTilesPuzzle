@@ -21,7 +21,6 @@ struct MenuView: View {
     @Environment(GameSession.self) private var session
     @Environment(AchievementsStore.self) private var achievementsStore
     @Environment(DailyChallengeStore.self) private var dailyChallengeStore
-    @Environment(GameCenterService.self) private var gameCenterService
     @Environment(\.openURL) private var openURL
     @State private var path: [GameRoute] = []
     @State private var showSettings = false
@@ -45,12 +44,15 @@ struct MenuView: View {
 
                 VStack(spacing: 12) {
                     MenuStatsCardView()
+                        .frame(height: 55)
 
                     Button {
                         path.append(.gameModes)
                     } label: {
                         HStack {
-                            LabeledContent("Game Mode", value: session.selectedGameMode.title)
+                            Label("Game Mode", systemImage: "gamecontroller")
+                            Spacer()
+                            Text(session.selectedGameMode.title)
                             Image(systemName: "chevron.forward")
                                 .imageScale(.small)
                                 .foregroundStyle(.secondary)
@@ -65,7 +67,9 @@ struct MenuView: View {
                         path.append(.mediaPicker)
                     } label: {
                         HStack {
-                            LabeledContent("Media", value: session.mediaSourceType.label)
+                            Label("Media", systemImage: "photo.tv")
+                            Spacer()
+                            Text(session.mediaSourceType.label)
                             Image(systemName: "chevron.forward")
                                 .imageScale(.small)
                                 .foregroundStyle(.secondary)
@@ -81,12 +85,12 @@ struct MenuView: View {
                         path.append(.gridSizePicker)
                     } label: {
                         HStack {
-                            LabeledContent(
-                                "Grid Size",
-                                value: session.isGauntletLadderMode
-                                    ? "Stage \(session.currentLadderStage) of \(GauntletLadderRules.stageCount)"
-                                    : session.difficultyDisplayValue
-                            )
+                            Label("Grid Size", systemImage: "square.grid.3x3.square")
+                            Spacer()
+                            Text(session.isGauntletLadderMode
+                                 ? "Stage \(session.currentLadderStage) of \(GauntletLadderRules.stageCount)"
+                                 : session.difficultyDisplayValue)
+                                .foregroundStyle(.secondary)
                             if !session.isGauntletLadderMode {
                                 Image(systemName: "chevron.forward")
                                     .imageScale(.small)
@@ -94,6 +98,7 @@ struct MenuView: View {
                             }
                         }
                         .padding()
+                        .contentShape(.rect(cornerRadius: 20))
                     }
                     .foregroundStyle(session.isGauntletLadderMode ? .secondary : .primary)
                     .background(.quaternary, in: .rect(cornerRadius: 20))
@@ -121,7 +126,7 @@ struct MenuView: View {
                         path.append(.wallOfFame)
                     } label: {
                         HStack {
-                            Label("Wall of Fame", systemImage: "photo.on.rectangle.angled")
+                            Label("Wall of Fame", systemImage: "photo.artframe")
                             Spacer()
                             Image(systemName: "chevron.forward")
                                 .imageScale(.small)
@@ -133,18 +138,6 @@ struct MenuView: View {
                     .foregroundStyle(.primary)
                     .background(.quaternary, in: .rect(cornerRadius: 20))
 
-                    Button {
-                        showSettings = true
-                    } label: {
-                        HStack {
-                            Label("Settings", systemImage: "gearshape.fill")
-                            Spacer()
-                        }
-                        .padding()
-                        .contentShape(.rect(cornerRadius: 20))
-                    }
-                    .foregroundStyle(.primary)
-                    .background(.quaternary, in: .rect(cornerRadius: 20))
                 }
                 .padding(.horizontal)
 
@@ -184,13 +177,11 @@ struct MenuView: View {
                 }
             }
             .toolbar {
-                if gameCenterService.isAuthenticated {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Game Center", systemImage: "gamecontroller") {
-                            gameCenterService.showDashboard()
-                        }
-                        .labelStyle(.iconOnly)
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Settings", systemImage: "gearshape.fill") {
+                        showSettings = true
                     }
+                    .labelStyle(.iconOnly)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Tips", systemImage: "lightbulb.max") {

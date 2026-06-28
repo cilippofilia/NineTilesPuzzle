@@ -13,6 +13,7 @@ struct SettingsView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(DailyChallengeStore.self) private var dailyStore
     @Environment(SoundService.self) private var soundService
+    @Environment(GameCenterService.self) private var gameCenterService
     @Environment(\.dismiss) private var dismiss
 
     @State private var showResetStatsAlert = false
@@ -89,7 +90,20 @@ struct SettingsView: View {
                     NavigationLink {
                         StatsView()
                     } label: {
-                        Label("Stats", systemImage: "chart.bar.fill")
+                        Label {
+                            Text("Stats")
+                        } icon: {
+                            Image(systemName: "chart.bar.fill")
+                                .foregroundStyle(.white)
+                        }
+                    }
+                }
+
+                if gameCenterService.isAuthenticated {
+                    Section("Game Center") {
+                        Button("Open Game Center") {
+                            gameCenterService.showDashboard()
+                        }
                     }
                 }
 
@@ -149,5 +163,6 @@ struct SettingsView: View {
                 .environment(settings)
                 .environment(daily)
                 .environment(SoundService())
+                .environment(GameCenterService())
         }
 }

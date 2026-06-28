@@ -38,6 +38,7 @@ struct DailyChallengeCardView: View {
                 Label("Done", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                     .font(.subheadline)
+                    .labelStyle(.iconOnly)
             } else {
                 Button("Play", action: onPlay)
                     .buttonStyle(.borderedProminent)
