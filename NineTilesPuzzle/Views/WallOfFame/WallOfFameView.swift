@@ -10,6 +10,7 @@ import SwiftUI
 struct WallOfFameView: View {
     @Environment(WallOfFameStore.self) private var wallOfFameStore
     @Environment(MotionManager.self) private var motionManager
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var zoomedCardImage: CGImage?
     @State private var zoomedShareURL: URL?
@@ -78,6 +79,21 @@ struct WallOfFameView: View {
         }
         .onAppear { motionManager.startUpdates() }
         .onDisappear { motionManager.stopUpdates() }
+        .onChange(of: scenePhase) { _, newPhase in
+            // CMMotionManager suspends delivery while backgrounded but doesn't
+            // reset `isDeviceMotionActive`, so without this the tilt effect
+            // never resumes after the app returns from the background.
+            switch newPhase {
+            case .active:
+                motionManager.startUpdates()
+            case .background:
+                motionManager.stopUpdates()
+            case .inactive:
+                break
+            @unknown default:
+                break
+            }
+        }
     }
 
     // MARK: - Section builder
