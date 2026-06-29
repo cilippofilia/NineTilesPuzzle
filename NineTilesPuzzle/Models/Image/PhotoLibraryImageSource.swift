@@ -18,7 +18,14 @@ struct PhotoLibraryImageSource: ImageSource {
             throw ImageSourceError.notAuthorized
         }
 
-        let result = PHAsset.fetchAssets(with: .image, options: nil)
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.predicate = NSPredicate(
+            format: "NOT ((mediaSubtype & %d) == %d)",
+            PHAssetMediaSubtype.photoScreenshot.rawValue,
+            PHAssetMediaSubtype.photoScreenshot.rawValue
+        )
+
+        let result = PHAsset.fetchAssets(with: .image, options: fetchOptions)
         guard result.count > 0 else {
             throw ImageSourceError.noPhotosAvailable
         }
