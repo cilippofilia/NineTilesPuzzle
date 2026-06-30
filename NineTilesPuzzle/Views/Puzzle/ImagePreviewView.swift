@@ -11,6 +11,8 @@ struct ImagePreviewView: View {
     let image: CGImage
     let duration: Double
     let isFogMode: Bool
+    let isDailyChallenge: Bool
+    let gameMode: GameMode
     let onSkip: () -> Void
 
     @State private var progress: Double = 1.0
@@ -56,17 +58,11 @@ struct ImagePreviewView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.9)))
                         .padding(.top)
                 } else {
-                    Text("Memorize the image")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+                    memorizeHeader
                         .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                        .padding(.top)
                 }
             } else {
-                Text("Memorize the image")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .padding(.top)
+                memorizeHeader
             }
         }
         .animation(.easeInOut(duration: 0.4), value: isRevealed)
@@ -88,6 +84,23 @@ struct ImagePreviewView: View {
         .onAppear {
             progress = 0
         }
+    }
+
+    private var memorizeHeader: some View {
+        VStack(spacing: 8) {
+            Text("Memorize the image")
+                .font(.headline)
+                .foregroundStyle(.primary)
+            if isDailyChallenge {
+                Label(gameMode.title, systemImage: gameMode.icon)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(.ultraThinMaterial, in: .capsule)
+            }
+        }
+        .padding(.top)
     }
 }
 
