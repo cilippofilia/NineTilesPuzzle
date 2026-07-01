@@ -15,6 +15,7 @@ struct WallOfFameView: View {
     @State private var swingEngine = WallOfFameSwingEngine()
     @State private var zoomedCardImage: CGImage?
     @State private var zoomedShareURL: URL?
+    @State private var zoomedSlot: WallOfFameSlot?
 
     private let columns = [GridItem(.adaptive(minimum: 160), spacing: 20)]
 
@@ -57,11 +58,12 @@ struct WallOfFameView: View {
                     .transition(.opacity)
             }
 
-            if let image = zoomedCardImage, zoomedShareURL != nil {
-                ZoomedCardOverlay(cardImage: image) {
+            if let image = zoomedCardImage, zoomedShareURL != nil, let slot = zoomedSlot {
+                ZoomedCardOverlay(cardImage: image, slot: slot) {
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.85)) {
                         zoomedCardImage = nil
                         zoomedShareURL = nil
+                        zoomedSlot = nil
                     }
                 }
                 .transition(.scale(scale: 0.88).combined(with: .opacity))
@@ -127,6 +129,7 @@ struct WallOfFameView: View {
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.85)) {
                     zoomedCardImage = image
                     zoomedShareURL = wallOfFameStore.fileURL(for: slot)
+                    zoomedSlot = slot
                 }
             } label: {
                 WallOfFamePinnedCard(slot: slot, cardImage: image, engine: swingEngine)
@@ -142,6 +145,7 @@ struct WallOfFameView: View {
 
 private struct ZoomedCardOverlay: View {
     let cardImage: CGImage
+    let slot: WallOfFameSlot
     let onDismiss: () -> Void
 
     var body: some View {
@@ -152,13 +156,22 @@ private struct ZoomedCardOverlay: View {
         .ignoresSafeArea()
         .buttonStyle(.plain)
         .overlay {
-            Image(decorative: cardImage, scale: 1)
-                .resizable()
-                .scaledToFit()
-                .clipShape(.rect(cornerRadius: 10))
-                .shadow(color: .black.opacity(0.45), radius: 30, x: 0, y: 18)
-                .padding(.horizontal, 28)
-                .allowsHitTesting(false)
+            VStack(spacing: 14) {
+                Text(slot.displayTitle)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(.ultraThinMaterial, in: .capsule)
+
+                Image(decorative: cardImage, scale: 1)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(.rect(cornerRadius: 10))
+                    .shadow(color: .black.opacity(0.45), radius: 30, x: 0, y: 18)
+            }
+            .padding(.horizontal, 28)
+            .allowsHitTesting(false)
         }
     }
 }
