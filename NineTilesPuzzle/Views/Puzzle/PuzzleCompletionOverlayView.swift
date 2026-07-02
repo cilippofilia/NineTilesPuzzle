@@ -13,6 +13,7 @@ struct PuzzleCompletionOverlayView: View {
 
     let completion: PuzzleCompletionViewModel
     let continueAction: () -> Void
+    let dismissAction: () -> Void
 
     private var continueButtonLabel: String {
         guard session.isGauntletLadderMode else { return "Continue" }
@@ -71,7 +72,14 @@ struct PuzzleCompletionOverlayView: View {
 
             Spacer()
 
-            if !session.isDailyGameActive {
+            if session.isDailyGameActive {
+                Button("Back to Menu", action: dismissAction)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.bottom)
+                    .offset(y: completion.showCompletion ? 0 : 300)
+                    .opacity(completion.showCompletion ? 1 : 0)
+            } else {
                 Button(continueButtonLabel, action: continueAction)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
