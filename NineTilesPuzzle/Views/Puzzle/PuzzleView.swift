@@ -39,7 +39,7 @@ struct PuzzleView: View {
             // Zen mode, which shows nothing but the puzzle itself.
             if !session.isZenMode {
                 PuzzleStatusOverlayLayer(completion: completion, showTimeTrialDelta: showTimeTrialDelta)
-                PuzzleCompletionOverlayView(completion: completion, continueAction: startNewGame)
+                PuzzleCompletionOverlayView(completion: completion, continueAction: startNewGame, dismissAction: leaveDailyChallenge)
             }
 
             // Layer 3b: Time Trial fail overlay — shown instead of the completion banner
@@ -261,6 +261,11 @@ struct PuzzleView: View {
                 await session.startNewGame()
             }
         }
+    }
+
+    private func leaveDailyChallenge() {
+        session.leaveGame()
+        dismiss()
     }
 
     private func captureWallOfFameCard(for slot: WallOfFameSlot) {
