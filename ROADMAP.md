@@ -282,6 +282,31 @@ packs are designed to make it bolt-on.
 - [ ] Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
   select-then-place via accessibility actions).
 
+[X] ### Performance pass — **S/M** *(shipped July 2026)*
+A profiling-driven pass targeting the main-actor hot paths that showed up during gameplay,
+not asset bloat (the asset catalog is ~108 KB). Five changes, no behavior change:
+- **Per-move image re-encode removed** — `GameSession.registerMove()` used to call a full
+  save that JPEG-re-encoded the entire source image on *every* tile tap, even though the
+  image never changes mid-game. Split into `saveDynamicState()` (cheap, per-move) vs
+  `saveToUserDefaults()` (full, once per new game), with shared JSON coders. See
+  `ARCHITECTURE.md` §Persistence.
+- **Fog Mode consolidated** — up to ~63 independent per-tile `TimelineView`+`Canvas` particle
+  loops at 60 fps collapsed into a single board-level `PuzzleFogLayer` at 30 fps
+  (`FogField` + `PuzzleFogLayer`). See the Haze section in `ARCHITECTURE.md`.
+- **`ImageRenderer` off the render path** — the solved-share PNG is now rendered once in a
+  `Task` and cached in `@State` instead of re-rendering on every body pass; the Wall of Fame
+  capture is likewise deferred.
+- **View-body work precomputed** — achievement counts/grouping (`unlockedCount`,
+  `achievementsByCategory`) and the stats mode list are computed once instead of filtered
+  per render.
+- **Cork texture cached** — `CorkTextureView` is now `Equatable`/`.equatable()` so its
+  generation loop runs once (see §4 Wall of Fame → Cork texture).
+
+Verification: full unit suite green (169 `@Test` functions), plus new
+`GameSessionPersistenceTests` pinning the save split and a true save→restore round-trip.
+Still deferred: Instruments before/after captures on a Release build (Time Profiler around
+`registerMove`, Animation Hitches on an 8×8 Fog board) to quantify the wins.
+
 [X] ### Wall of Fame — **M** *(shipped June 2026)*
 A cork-board view where every personal record is automatically pinned as a polaroid card.
 15 slots in four sections, defined by `Models/WallOfFameSlot.swift`:
@@ -314,7 +339,9 @@ Visual design:
   `normalizedPitch(...)` are CoreMotion-free and unit-testable.
 - **Cork texture**: `CorkTextureView` is a multi-layer `Canvas` drawing using a seeded LCG
   PRNG (`SeededRNG`) for per-pixel noise — ochre base, diagonal grain streaks, scattered
-  darker specks — no bundled asset, renders once and never redraws.
+  darker specks — no bundled asset. It conforms to `Equatable` (always equal) and is applied
+  via `.equatable()`, so SwiftUI renders it once and never re-runs the generation loop on
+  later parent updates (e.g. card zoom/unzoom) — a July 2026 perf fix.
 - **Empty slots**: dashed rounded-rect outline (`WallOfFameEmptySlot`) so the board reads
   as something to fill in.
 - **Tap to zoom**: tapping a pinned card sets `zoomedSlot`/`zoomedCardImage` state in the

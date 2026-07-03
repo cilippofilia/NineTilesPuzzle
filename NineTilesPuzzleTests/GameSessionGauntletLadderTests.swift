@@ -145,10 +145,10 @@ struct GameSessionGauntletLadderTests {
         let scoreAfterStage1 = session.ladderCumulativeScore
         #expect(scoreAfterStage1 > 0)
 
-        // Stage 2 is also a 3×3 (40s limit, 2s penalty/move): a full derangement that
-        // never locks a tile, repeated until the clock empties. ceil(40 / 2) = 20 moves.
+        // Stage 2 is also a 3×3 (50s limit, 2s penalty/move): a full derangement that
+        // never locks a tile, repeated until the clock empties. ceil(50 / 2) = 25 moves.
         setBoard(session, idsAtIndex: [5, 6, 7, 8, 0, 1, 2, 3, 4])
-        for _ in 0..<20 {
+        for _ in 0..<25 {
             session.swapTiles(from: 0, to: 1)
         }
 
@@ -162,7 +162,7 @@ struct GameSessionGauntletLadderTests {
     @Test func restartingAfterAFailedRunResetsToStageOne() async {
         let session = await makeSession()
         setBoard(session, idsAtIndex: [5, 6, 7, 8, 0, 1, 2, 3, 4])
-        for _ in 0..<23 { session.swapTiles(from: 0, to: 1) } // fail Stage 1 (45s / 2s)
+        for _ in 0..<30 { session.swapTiles(from: 0, to: 1) } // fail Stage 1 (60s / 2s)
         #expect(session.isLadderRunFailed)
 
         await session.startNewLadderRun()

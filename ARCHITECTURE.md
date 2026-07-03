@@ -1,6 +1,6 @@
 # NineTilesPuzzle — Architecture Overview
 
-Snapshot of the current codebase structure, as of 2026-06-27 (updated for Wall of Fame + Stats→Settings). This is a descriptive
+Snapshot of the current codebase structure, as of 2026-07-03 (updated for Wall of Fame + Stats→Settings, then a July 2026 performance pass). This is a descriptive
 document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in sync with
 it) for how the "does mode-specific behavior need a shared abstraction" question was
 revisited once Time Trial and Limited Moves both existed, and what would justify
@@ -119,9 +119,16 @@ NineTilesPuzzle/
 │   │   │                                      drag-to-dismiss, Zen's breathe/sparkle sequence
 │   │   ├── PuzzleGridView.swift     — tile layout, drag handling, slide/swap dispatch
 │   │   ├── TileView.swift           — single draggable tile; owns the three Haze visual
-│   │   │                              states (fogged / frosted-glass-while-dragging / revealed)
-│   │   ├── FogTileOverlay.swift     — Canvas+TimelineView animated star-field particle system,
-│   │   │                              per-tile seed so each tile's field is unique
+│   │   │                              states (fogged / frosted-glass-while-dragging / revealed).
+│   │   │                              Renders only the fog blur + dark scrim; the animated
+│   │   │                              sparkles are drawn board-wide by PuzzleFogLayer
+│   │   ├── FogField.swift           — pure particle-drawing routine (twinkling ellipse field for
+│   │   │                              a given rect/seed/time); shared by the two fog views below
+│   │   ├── PuzzleFogLayer.swift     — single board-level Canvas+TimelineView (30 fps) that draws
+│   │   │                              the sparkle field over every unrevealed tile at once,
+│   │   │                              replacing the previous per-tile FogTileOverlay timelines
+│   │   ├── FogTileOverlay.swift     — standalone star-field overlay (via FogField); now used
+│   │   │                              only by the Fog Mode preview card in ImagePreviewView
 │   │   ├── ImagePreviewView.swift   — pre-shuffle reveal; takes `isFogMode` param — fog
 │   │   │                              overlay, shake badge, and shake gesture are gated so
 │   │   │                              they only activate in Haze mode; badge sits in a top
@@ -218,9 +225,12 @@ they did:
   compares against `target` using `comparison` — no hardcoded per-id `switch`. The
   Completionist achievement is the one exception: it's skipped in the generic loop and handled
   by `updateCompletionistAchievement`, since "all others unlocked" depends on the list itself.
-  `AchievementsView` groups rows into sections by `AchievementCategory`; `AchievementRowView`
-  reads `StatsStore` from the environment to render inline progress for count-based
-  achievements (≥, target > 1) and a best-moves hint for efficiency achievements (≤).
+  `AchievementsView` groups rows into sections by `AchievementCategory` — reading the
+  precomputed `AchievementsStore.achievementsByCategory` (one O(n) grouping) and
+  `unlockedCount` rather than re-filtering the array per category on every render, a July 2026
+  perf tidy-up. `AchievementRowView` reads `StatsStore` from the environment to render inline
+  progress for count-based achievements (≥, target > 1) and a best-moves hint for efficiency
+  achievements (≤).
 
 **`PersistenceStore`** (`Models/PersistenceStore.swift`) — a minimal protocol mirroring the
 handful of `UserDefaults` methods the four stores actually use (`set`/`object`/`string`/
@@ -338,19 +348,29 @@ Chaos, implemented at the tile rendering layer rather than as a whole-image bake
 visual states per tile, driven by `TileModel` fields and `TileView`'s local `isDragging`:
 
 - **Fogged** (`isFogMode && !tile.isLocked && !isDragging`): `TileContentView` blurred at
-  18pt + `Color.black.opacity(0.45)` tint + `FogTileOverlay` sparkles.
+  18pt + `Color.black.opacity(0.45)` tint; the twinkling sparkles are drawn on top by the
+  board-level `PuzzleFogLayer` (see below), not per tile.
 - **Frosted glass** (`isFogMode && !tile.isLocked && isDragging`): blur drops to 3pt, tint
   and sparkles hidden — the image is barely readable while a tile is in motion.
 - **Revealed** (`tile.isLocked`): no blur, no overlay; transitions from fog over 1.2s
   easeInOut.
 
-`FogTileOverlay` (`Views/Puzzle/`) is a `Canvas`+`TimelineView` particle system: each frame
-draws N twinkling ellipses whose brightness oscillates via `sin(time * freq + phase)`. A
-`seed: Float` parameter (passed as `Float(tile.id)`) offsets the particle index sequence by
-`seed × 1000`, making each tile's star field visually distinct without any per-instance
-state. Particle count scales with tile area (`max(640, Int(area / 6.875))`); `time` is
-sourced from `timeline.date.timeIntervalSince1970` (large absolute value — acceptable since
+The sparkle field is a `Canvas` particle routine (`FogField.draw(in:context:seed:time:)`):
+each frame it draws N twinkling ellipses inside a rect whose brightness oscillates via
+`sin(time * freq + phase)`. A `seed` (passed as `Float(tile.id)`) offsets the particle index
+sequence by `seed × 1000`, making each tile's star field visually distinct without any
+per-instance state; particle count scales with rect area (`max(640, Int(area / 6.875))`) and
+`time` comes from `timeline.date.timeIntervalSince1970` (large absolute value — fine since
 `sin()` is periodic and only brightness oscillates, not position).
+
+**Performance (July 2026 pass):** the board originally mounted one `FogTileOverlay` — its own
+`TimelineView(.animation)` + `Canvas` — *per unrevealed tile*, i.e. up to ~63 independent
+60 fps particle loops on an 8×8 board. That collapsed into a single board-level
+`PuzzleFogLayer`: one `TimelineView` capped at **30 fps** drives one `Canvas` that iterates
+every unrevealed, non-dragging tile and calls `FogField.draw` per cell — the same
+one-shared-timeline shape the Wall of Fame swing engine already uses (`WallOfFameSwingDriver`).
+`TileView` keeps only the per-tile blur + dark scrim (which correctly track the transient drag
+state); `FogTileOverlay` survives as a standalone overlay for the Fog Mode preview card.
 
 `ShakeDetector` (`Views/Helpers/`) is a lightweight `UIViewControllerRepresentable` that
 overrides `motionBegan(_:with:)` and fires a closure on `.motionShake` — the UIKit bridge
@@ -398,7 +418,11 @@ just restarts the same daily puzzle on next launch.
 **Wall of Fame** (shipped June 2026): a cork-board view where every personal best is
 automatically captured and pinned as a polaroid card. `PuzzleView` renders `ShareCardView`
 via `ImageRenderer` at 3× scale at the moment a record is set, converts the result to a
-`CGImage`, and calls `WallOfFameStore.save(_:for:)`. `WallOfFameStore` writes a PNG to
+`CGImage`, and calls `WallOfFameStore.save(_:for:)`. As of the July 2026 perf pass this render
+(and the solved-puzzle share PNG) runs inside a `Task` rather than synchronously in the
+`.onChange` handler, and `PuzzleView` caches the share PNG in `@State` rather than re-running
+`ImageRenderer` on every body pass while the completion banner is on screen. `WallOfFameStore`
+writes a PNG to
 `Documents/wall_of_fame/<slot>.png` using `CGImageDestinationCreateWithData` / ImageIO
 (no UIKit, compatible with `ShareLink`'s `URL`-based `Transferable` requirement); the
 in-memory `[WallOfFameSlot: CGImage]` cache avoids repeated disk reads within a session.
@@ -474,13 +498,18 @@ stored in `GameSession.tileImages`).
 
 **Persistence**: still `UserDefaults` only, but behind `PersistenceStore` now (see above),
 and each store owns and persists only its own keys. `StatsStore`'s per-`(gridSize,
-gameMode)` stats use string-keyed lookups built from a `3...8 × GameMode.allCases` loop. No
-SwiftData yet (flagged in `ROADMAP.md` §4 as the natural next step once stats history/charts
-are wanted).
+gameMode)` stats use string-keyed lookups built from a `3...8 × GameMode.allCases` loop.
+`GameSession` splits its save path in two (July 2026 perf pass): `saveDynamicState()` writes
+only the per-move state (tiles JSON + counters/flags) and is what `registerMove()` calls after
+every move, while `saveToUserDefaults()` layers the expensive source-image JPEG re-encode on
+top and runs only when the image actually changes — once per new game. Previously every tile
+tap re-encoded the full image; now that cost is paid once. Both reuse one shared
+`JSONEncoder`/`JSONDecoder`. No SwiftData yet (flagged in `ROADMAP.md` §4 as the natural next
+step once stats history/charts are wanted).
 
 **Testing**: `NineTilesPuzzleTests` is a real Unit Testing Bundle target (added manually in
 Xcode in June 2026 — it existed as a folder of source files for a while before that without
-ever actually being wired up or compiled). 123 tests currently pass, covering: both engines
+ever actually being wired up or compiled). 169 `@Test` functions currently pass, covering: both engines
 and `SlideSolver`, `ImageService`/`ImageSlicer` (including a fallback test for non-network
 decode failures), all four stores (`StatsStore` and `AchievementsStore` via
 `InMemoryPersistenceStore`), `PuzzleCompletionViewModel`, `TimeTrialRules`,
@@ -503,7 +532,11 @@ reconstruct a second `GameSession` and read back) isn't practical for a session 
 is Slide-only" guard resets `mediaSourceType` away from `.numbers` on restore — correct
 production behavior, but it trips the tile-restore guard chain for this test shape, so the
 Gauntlet Ladder's persistence test instead asserts directly against the in-memory
-`PersistenceStore` fake. Getting the target wired up surfaced three real,
+`PersistenceStore` fake. `GameSessionPersistenceTests` (added in the July 2026 perf pass) does
+get a true write→reconstruct round-trip by using `.random` (image-backed) media instead of
+`.numbers`, which sidesteps that guard and lets it assert the sliced `tileImages` are rebuilt
+on restore; it also pins the new static/dynamic save split (`saveDynamicState()` never touches
+the image key, `saveToUserDefaults()` does). Getting the target wired up surfaced three real,
 previously-undetected bugs that had been sitting in untested code paths — two missing
 imports and one test with a geometrically-invalid fixture (asserted a slide between two
 non-adjacent grid cells) — all fixed once the target could finally compile and run them.
