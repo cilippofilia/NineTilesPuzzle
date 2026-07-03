@@ -22,6 +22,10 @@ struct PuzzleView: View {
     @State private var isSolving = false
     @State private var showTimeTrialDelta = false
     @State private var newGameTask: Task<Void, Never>?
+    /// The share image, rendered once when the puzzle is solved and cached here — rather than
+    /// re-run through `ImageRenderer` on every toolbar/body re-evaluation while the completion
+    /// banner is on screen.
+    @State private var solvedPNG: SolvedPuzzleImage?
 
     var body: some View {
         // Split into two independently type-checked expressions to avoid the compiler's
@@ -119,6 +123,13 @@ struct PuzzleView: View {
         }
         .onChange(of: session.isSolved) { _, solved in
             completion.handleSolvedChange(solved, onSolved: soundService.playCompletion)
+            // Render the share card once, off the synchronous body pass. Cleared on the next
+            // new game via `startNewGame()`.
+            if solved {
+                Task { solvedPNG = renderSolvedPNG() }
+            } else {
+                solvedPNG = nil
+            }
         }
         // One handler mirrors every per-solve record flag in a single update; see `recordFlags`.
         .onChange(of: recordFlags) { _, flags in
@@ -203,7 +214,7 @@ struct PuzzleView: View {
         }
     }
 
-    private var solvedPNG: SolvedPuzzleImage? {
+    private func renderSolvedPNG() -> SolvedPuzzleImage? {
         guard let cgImage = session.croppedSourceImage else { return nil }
         let card = ShareCardView(
             image: cgImage,
@@ -248,6 +259,7 @@ struct PuzzleView: View {
     private func startNewGame() {
         newGameTask?.cancel()
 
+        solvedPNG = nil
         completion.prepareForNewGame()
         // Same reasoning as the `.onAppear` sync clear below: a `Task` body doesn't start
         // executing the instant it's scheduled, leaving the previous round's image and
@@ -280,10 +292,14 @@ struct PuzzleView: View {
             dailyDate: session.dailyEffectiveDate,
             calendarStreak: session.dailyCalendarStreak
         )
-        let renderer = ImageRenderer(content: card)
-        renderer.scale = 3.0
-        guard let captured = renderer.cgImage else { return }
-        wallOfFameStore.save(captured, for: slot)
+        // Rendering is deferred to a Task so the `.onChange(of: recordFlags)` handler that
+        // triggers this returns immediately instead of blocking on an ImageRenderer pass.
+        Task {
+            let renderer = ImageRenderer(content: card)
+            renderer.scale = 3.0
+            guard let captured = renderer.cgImage else { return }
+            wallOfFameStore.save(captured, for: slot)
+        }
     }
 
     private func switchToPhotosAndRetry() {

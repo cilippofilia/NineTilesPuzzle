@@ -24,6 +24,11 @@ final class GameSession {
     private let slideEngine = SlideEngine()
     private var previewSleepTask: Task<Void, Never>?
 
+    /// Reused across every save/restore so we don't pay a fresh coder allocation on each
+    /// move. Both are stateless for our value types, so sharing them is safe on the actor.
+    private let jsonEncoder = JSONEncoder()
+    private let jsonDecoder = JSONDecoder()
+
     var gridSize: Int = 3
     var useRandomSize: Bool = false
     var mediaSourceType: MediaSourceType = .numbers
@@ -629,7 +634,9 @@ final class GameSession {
         if !debugOverlayEnabled {
             achievementsStore.checkAchievements(using: statsStore, justSolved: isSolved)
         }
-        saveToUserDefaults()
+        // The source image can't change mid-game, so only the cheap dynamic state needs
+        // rewriting here — re-encoding the image JPEG on every tap was the old hot path.
+        saveDynamicState()
     }
 
     /// Applies the flat combo bonus/misplay penalty to the running Time Trial countdown and
@@ -805,14 +812,17 @@ extension GameSession {
     }
 }
 
-private extension GameSession {
-    func saveToUserDefaults() {
-        guard let tilesData = try? JSONEncoder().encode(tiles) else { return }
+// The two save entry points are `internal` (not `private`) so tests can assert the
+// static/dynamic persistence split directly; the restore/codec helpers below stay private.
+extension GameSession {
+    /// Persists everything that changes during play — tiles, counters, mode/size, and the
+    /// fail/ladder flags — but deliberately NOT the source image. The image is fixed for the
+    /// life of a game, so re-encoding it to JPEG on every move (the previous behavior) was
+    /// pure waste; this is the cheap save called after each move. `saveToUserDefaults()`
+    /// layers the one-time image write on top for game start / restore-critical points.
+    func saveDynamicState() {
+        guard let tilesData = try? jsonEncoder.encode(tiles) else { return }
         defaults.set(tilesData, forKey: Keys.tiles)
-
-        if let image = sourceImage, let jpegData = jpeg(from: image) {
-            defaults.set(jpegData, forKey: Keys.sourceImage)
-        }
 
         defaults.set(gridSize, forKey: Keys.gridSize)
         defaults.set(useRandomSize, forKey: Keys.useRandomSize)
@@ -829,6 +839,19 @@ private extension GameSession {
         defaults.set(hasHadWastedMoveThisGame, forKey: Keys.hasHadWastedMoveThisGame)
     }
 
+    /// Full persist: the dynamic state plus the expensive source-image JPEG encode. Only
+    /// needed when the image itself changes — i.e. once per new game — so it stays out of
+    /// the per-move path. See `saveDynamicState()`.
+    func saveToUserDefaults() {
+        saveDynamicState()
+
+        if let image = sourceImage, let jpegData = jpeg(from: image) {
+            defaults.set(jpegData, forKey: Keys.sourceImage)
+        }
+    }
+}
+
+private extension GameSession {
     func restoreFromUserDefaults() {
         let savedSize = defaults.integer(forKey: Keys.gridSize)
         if (3...8).contains(savedSize) { gridSize = savedSize }
@@ -849,7 +872,7 @@ private extension GameSession {
 
         guard
             let tilesData = defaults.data(forKey: Keys.tiles),
-            let restoredTiles = try? JSONDecoder().decode([TileModel].self, from: tilesData)
+            let restoredTiles = try? jsonDecoder.decode([TileModel].self, from: tilesData)
         else { return }
 
         guard restoredTiles.count == gridSize * gridSize else { return }

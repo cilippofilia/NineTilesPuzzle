@@ -12,6 +12,10 @@ struct StatsView: View {
     @Environment(GameSession.self) private var session
     @Environment(StatsStore.self) private var statsStore
 
+    /// The modes shown in the personal-bests breakdown — a constant, so it's computed once
+    /// rather than re-filtering `GameMode.allCases` on every render.
+    private static let displayedModes = GameMode.allCases.filter { $0.isAvailable && $0 != .zen }
+
     var body: some View {
         List {
             Section("Streaks") {
@@ -25,7 +29,7 @@ struct StatsView: View {
                 }
             }
 
-            ForEach(GameMode.allCases.filter { $0.isAvailable && $0 != .zen }) { mode in
+            ForEach(Self.displayedModes) { mode in
                 Section("Personal Bests · \(mode.title)") {
                     ForEach(3...8, id: \.self) { size in
                         let key = StatsKey(gridSize: size, gameMode: mode)

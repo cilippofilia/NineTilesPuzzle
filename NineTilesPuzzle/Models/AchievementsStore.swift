@@ -22,6 +22,16 @@ final class AchievementsStore {
     var achievements: [Achievement] = []
     var newlyUnlockedAchievement: Achievement?
 
+    /// Number of unlocked achievements. Exposed here so views can show the "x / y" tally
+    /// without re-running `filter(\.isUnlocked)` in their body on every render.
+    var unlockedCount: Int { achievements.count(where: \.isUnlocked) }
+
+    /// Achievements grouped by category — computed in one O(n) pass instead of the view
+    /// filtering the whole array once per category (O(categories × n)) on every render.
+    var achievementsByCategory: [AchievementCategory: [Achievement]] {
+        Dictionary(grouping: achievements, by: \.category)
+    }
+
     init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
         loadAchievements()

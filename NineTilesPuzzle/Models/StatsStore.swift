@@ -46,7 +46,7 @@ final class StatsStore {
 
     /// Total games played at `size`, summed across every game mode.
     func gamesPlayedCount(forSize size: Int) -> Int {
-        gamesPlayed.filter { $0.key.gridSize == size }.values.reduce(0, +)
+        gamesPlayed.reduce(0) { $0 + ($1.key.gridSize == size ? $1.value : 0) }
     }
 
     /// Distinct grid sizes completed at least once, across every mode — the "Full House" metric.

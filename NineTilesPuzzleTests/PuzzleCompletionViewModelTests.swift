@@ -33,22 +33,22 @@ struct PuzzleCompletionViewModelTests {
 
     @Test func recordChangeHandlersSetTheirOwnFlags() {
         let vm = PuzzleCompletionViewModel()
-        vm.handleNewRecordChange(true)
-        vm.handleNewMovesRecordChange(true)
-        vm.handleNewBestTimeChange(true)
+        vm.showNewRecord = true
+        vm.showNewMovesRecord = true
+        vm.showNewBestTime = true
         #expect(vm.showNewRecord)
         #expect(vm.showNewMovesRecord)
         #expect(vm.showNewBestTime)
 
-        vm.handleNewRecordChange(false)
+        vm.showNewRecord = false
         #expect(!vm.showNewRecord)
         #expect(vm.showNewMovesRecord)
     }
 
     @Test func clearRecordFlagsIsANoOpWhenNotSolved() async {
         let vm = PuzzleCompletionViewModel()
-        vm.handleNewRecordChange(true)
-        vm.handleNewMovesRecordChange(true)
+        vm.showNewRecord = true
+        vm.showNewMovesRecord = true
 
         await vm.clearRecordFlagsAfterDelay(isSolved: false)
 
@@ -58,9 +58,9 @@ struct PuzzleCompletionViewModelTests {
 
     @Test func clearRecordFlagsAfterDelayClearsAllThreeFlags() async {
         let vm = PuzzleCompletionViewModel()
-        vm.handleNewRecordChange(true)
-        vm.handleNewMovesRecordChange(true)
-        vm.handleNewBestTimeChange(true)
+        vm.showNewRecord = true
+        vm.showNewMovesRecord = true
+        vm.showNewBestTime = true
 
         await vm.clearRecordFlagsAfterDelay(isSolved: true)
 
@@ -71,16 +71,16 @@ struct PuzzleCompletionViewModelTests {
 
     @Test func hasNewBestBadgeForNonSlideModesIgnoresTime() {
         let vm = PuzzleCompletionViewModel()
-        vm.handleNewBestTimeChange(true)
+        vm.showNewBestTime = true
         #expect(!vm.hasNewBestBadge(selectedGameMode: .swap))
 
-        vm.handleNewMovesRecordChange(true)
+        vm.showNewMovesRecord = true
         #expect(vm.hasNewBestBadge(selectedGameMode: .swap))
     }
 
     @Test func hasNewBestBadgeForSlideModeIncludesTime() {
         let vm = PuzzleCompletionViewModel()
-        vm.handleNewBestTimeChange(true)
+        vm.showNewBestTime = true
         #expect(vm.hasNewBestBadge(selectedGameMode: .slide))
     }
 
@@ -88,7 +88,7 @@ struct PuzzleCompletionViewModelTests {
         let vm = PuzzleCompletionViewModel()
         #expect(!vm.hasNewBestBadge(selectedGameMode: .timeTrial))
 
-        vm.handleNewTimeTrialScoreRecordChange(true)
+        vm.showNewTimeTrialScoreRecord = true
         #expect(vm.hasNewBestBadge(selectedGameMode: .timeTrial))
         // A Time Trial score record shouldn't leak into other modes' badge visibility.
         #expect(!vm.hasNewBestBadge(selectedGameMode: .swap))
@@ -96,7 +96,7 @@ struct PuzzleCompletionViewModelTests {
 
     @Test func clearRecordFlagsAfterDelayAlsoClearsTimeTrialScoreRecord() async {
         let vm = PuzzleCompletionViewModel()
-        vm.handleNewTimeTrialScoreRecordChange(true)
+        vm.showNewTimeTrialScoreRecord = true
 
         await vm.clearRecordFlagsAfterDelay(isSolved: true)
 
@@ -107,19 +107,19 @@ struct PuzzleCompletionViewModelTests {
         let vm = PuzzleCompletionViewModel()
         #expect(!vm.hasNewBestBadge(selectedGameMode: .timeTrial))
 
-        vm.handleNewLadderScoreRecordChange(true)
+        vm.showNewLadderScoreRecord = true
         #expect(vm.hasNewBestBadge(selectedGameMode: .timeTrial))
         #expect(!vm.hasNewBestBadge(selectedGameMode: .swap))
 
-        vm.handleNewLadderScoreRecordChange(false)
-        vm.handleNewLadderStageRecordChange(true)
+        vm.showNewLadderScoreRecord = false
+        vm.showNewLadderStageRecord = true
         #expect(vm.hasNewBestBadge(selectedGameMode: .timeTrial))
     }
 
     @Test func clearRecordFlagsAfterDelayAlsoClearsLadderRecords() async {
         let vm = PuzzleCompletionViewModel()
-        vm.handleNewLadderScoreRecordChange(true)
-        vm.handleNewLadderStageRecordChange(true)
+        vm.showNewLadderScoreRecord = true
+        vm.showNewLadderStageRecord = true
 
         await vm.clearRecordFlagsAfterDelay(isSolved: true)
 

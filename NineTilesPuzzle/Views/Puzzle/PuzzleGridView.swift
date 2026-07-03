@@ -59,6 +59,17 @@ struct PuzzleGridView: View {
                             }
                         }
 
+                        if session.isFogMode {
+                            PuzzleFogLayer(
+                                tiles: session.tiles,
+                                gridSize: session.gridSize,
+                                tileSize: calculatedTileSize,
+                                draggingTileID: draggingTileID
+                            )
+                            .frame(width: geoWidth, height: geoWidth)
+                            .zIndex(1)
+                        }
+
                         if let revealImage = session.croppedSourceImage {
                             Image(decorative: revealImage, scale: 1.0)
                                 .resizable()

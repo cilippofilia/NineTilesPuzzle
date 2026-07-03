@@ -112,7 +112,7 @@ struct MenuView: View {
                         HStack {
                             Label("Achievements", systemImage: "trophy.fill")
                             Spacer()
-                            Text("\(achievementsStore.achievements.filter(\.isUnlocked).count)/\(achievementsStore.achievements.count)")
+                            Text("\(achievementsStore.unlockedCount)/\(achievementsStore.achievements.count)")
                                 .foregroundStyle(.secondary)
                             Image(systemName: "chevron.forward")
                                 .imageScale(.small)

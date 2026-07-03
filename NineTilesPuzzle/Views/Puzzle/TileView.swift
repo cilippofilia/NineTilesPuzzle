@@ -34,8 +34,9 @@ struct TileView: View {
                 .animation(.easeInOut(duration: 1.2), value: tile.isLocked)
 
             if showFog {
+                // Just the darkening scrim here; the animated sparkles for every unrevealed
+                // tile are painted together by the board-level `PuzzleFogLayer`.
                 Color.black.opacity(0.45)
-                FogTileOverlay(seed: Float(tile.id))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: isDragging)

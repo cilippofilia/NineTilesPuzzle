@@ -45,7 +45,7 @@ struct WallOfFameView: View {
                 }
                 .padding(20)
             }
-            .background(CorkTextureView().ignoresSafeArea())
+            .background(CorkTextureView().equatable().ignoresSafeArea())
 
             WallOfFameSwingDriver(engine: swingEngine, motionManager: motionManager)
 
@@ -178,7 +178,13 @@ private struct ZoomedCardOverlay: View {
 
 // MARK: - Cork texture
 
-private struct CorkTextureView: View {
+private struct CorkTextureView: View, Equatable {
+    // The texture is a fixed, seeded noise pattern with no inputs, so every instance is
+    // interchangeable. Conforming to Equatable (always equal) lets `.equatable()` tell
+    // SwiftUI to render it exactly once instead of re-running the generation loop each time
+    // the parent `WallOfFameView` body re-evaluates (e.g. on every card zoom/unzoom).
+    nonisolated static func == (lhs: CorkTextureView, rhs: CorkTextureView) -> Bool { true }
+
     var body: some View {
         Canvas { context, size in
             context.fill(
