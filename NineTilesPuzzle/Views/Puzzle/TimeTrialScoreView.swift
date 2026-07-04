@@ -17,12 +17,12 @@ struct TimeTrialScoreView: View {
         HStack(spacing: 4) {
             Image(systemName: "bolt.fill")
                 .foregroundStyle(.secondary)
-            Text("\(score)")
+            Text(score.formattedScore)
                 .bold()
                 .monospacedDigit()
                 .contentTransition(.numericText())
             if let best = personalBest {
-                Text("/ \(best)")
+                Text("/ \(best.formattedScore)")
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .contentTransition(.numericText())

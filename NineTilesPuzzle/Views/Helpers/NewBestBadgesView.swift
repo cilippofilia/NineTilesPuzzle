@@ -47,7 +47,7 @@ struct NewBestBadgesView: View {
                     .glassEffect(.regular, in: .rect(cornerRadius: 24))
             }
             if isNewTimeTrialScoreRecord {
-                Label("New Best Score! \(timeTrialScore)", systemImage: "medal.fill")
+                Label("New Best Score! \(timeTrialScore.formattedScore)", systemImage: "medal.fill")
                     .font(.subheadline)
                     .bold()
                     .foregroundStyle(Self.goldColor)
@@ -57,7 +57,7 @@ struct NewBestBadgesView: View {
                     .glassEffect(.regular, in: .rect(cornerRadius: 24))
             }
             if isNewLadderScoreRecord {
-                Label("New Best Run Score! \(ladderCumulativeScore)", systemImage: "medal.fill")
+                Label("New Best Run Score! \(ladderCumulativeScore.formattedScore)", systemImage: "medal.fill")
                     .font(.subheadline)
                     .bold()
                     .foregroundStyle(Self.goldColor)
