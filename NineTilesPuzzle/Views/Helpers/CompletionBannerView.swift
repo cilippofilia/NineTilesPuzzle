@@ -63,11 +63,11 @@ struct CompletionBannerView: View {
                             .foregroundStyle(.orange)
                             .bold()
                     } else if showsLadderScore {
-                        Label("\(ladderCumulativeScore)", systemImage: "bolt.fill")
+                        Label(ladderCumulativeScore.formattedScore, systemImage: "bolt.fill")
                             .foregroundStyle(.orange)
                             .bold()
                     } else if showsScore {
-                        Label("\(timeTrialScore)", systemImage: "bolt.fill")
+                        Label(timeTrialScore.formattedScore, systemImage: "bolt.fill")
                             .foregroundStyle(.orange)
                             .bold()
                     } else {
@@ -86,13 +86,13 @@ struct CompletionBannerView: View {
                     }
                 } else if showsLadderScore {
                     if bestLadderScoreOverall > 0 && bestLadderScoreOverall != ladderCumulativeScore {
-                        Text("Best: \(bestLadderScoreOverall)")
+                        Text("Best: \(bestLadderScoreOverall.formattedScore)")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
                 } else if showsScore {
                     if let best = personalBestScore, best != timeTrialScore {
-                        Text("Best: \(best)")
+                        Text("Best: \(best.formattedScore)")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }

@@ -17,7 +17,7 @@ struct MenuStatsCardView: View {
             EmptyView()
         } else if session.isGauntletLadderMode {
             twoStatCard(
-                leftValue: session.bestLadderScoreOverall > 0 ? "\(session.bestLadderScoreOverall)" : "--",
+                leftValue: session.bestLadderScoreOverall > 0 ? session.bestLadderScoreOverall.formattedScore : "--",
                 leftLabel: "Best Score",
                 leftIcon: "star.fill",
                 leftColor: .yellow,
@@ -30,7 +30,7 @@ struct MenuStatsCardView: View {
             )
         } else if session.isTimeTrialMode {
             twoStatCard(
-                leftValue: session.personalBestScoreForCurrentSize.map { "\($0)" } ?? "--",
+                leftValue: session.personalBestScoreForCurrentSize.map { $0.formattedScore } ?? "--",
                 leftLabel: "Best Score",
                 leftIcon: "star.fill",
                 leftColor: .yellow,
