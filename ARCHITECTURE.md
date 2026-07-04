@@ -316,7 +316,21 @@ stage's own entry, alongside `lastLadderStageScore`; `PuzzleView` captures a Wal
 `.ladderStage(n)` card at that moment (`ShareCardView`'s optional `ladderStage`/
 `ladderStageScore` parameters swap in a "Gauntlet · Stage N" chip and a score badge in place
 of the daily-streak ones), backing the Wall of Fame's "Gauntlet Ladder" section — one card
-per stage, showing the player's best-ever clear of it.
+per stage, showing the player's best-ever clear of it. Since stages are sequential,
+`WallOfFameEmptySlot` (also July 2026) distinguishes an unreached ladder stage — dimmer
+border, a small lock glyph, "Locked" — from every other empty slot's plain "not yet earned"
+placeholder, using `stage > StatsStore.bestLadderStageReached + 1` as the locked test (`+ 1`
+so the very next stage in reach still reads as ordinarily unearned, not locked).
+
+`WallOfFameStore.heroSlot(forGridSize:)` (added July 2026) backs the "Difficulty Highlights"
+section: one card per grid size (3…8), rather than duplicating the Best Moves/Fastest Solve
+split. It picks whichever of `.bestMoves(size)`/`.bestTime(size)` was captured more
+recently — an in-memory `lastModified: [WallOfFameSlot: Date]` set optimistically in
+`save()` (so a fresh capture immediately outranks the other before the async PNG write
+lands), falling back to the on-disk PNG's modification date for slots this session hasn't
+touched, memoized back into `lastModified` once read. `WallOfFameView.heroCardSlot(forGridSize:)`
+renders that slot like any other card, or a `.bestMoves(size)`-labeled empty slot if neither
+record has ever been set.
 
 **Limited Moves mode** (shipped June 2026): a flat per-grid-size move budget — every move
 costs exactly 1 toward the budget, regardless of whether it locks a tile correctly (unlike
@@ -467,8 +481,8 @@ writes a PNG to
 in-memory `[WallOfFameSlot: CGImage]` cache avoids repeated disk reads within a session.
 
 `WallOfFameView` is a `ZStack` containing three sibling layers:
-1. `ScrollView` — the cork board with five `LazyVGrid` sections (Best Moves, Fastest Solve,
-   Daily Challenge, Streaks, Gauntlet Ladder).
+1. `ScrollView` — the cork board with six `LazyVGrid` sections (Difficulty Highlights, Best
+   Moves, Fastest Solve, Daily Challenge, Streaks, Gauntlet Ladder).
 2. `Color.black.opacity(0.78)` backdrop — conditional on `zoomedCardImage != nil`,
    transition `.opacity`.
 3. `ZoomedCardOverlay` (card + transparent dismiss button) — conditional on `let image =
