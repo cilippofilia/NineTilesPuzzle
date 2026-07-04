@@ -19,6 +19,9 @@ struct PuzzleView: View {
 
     @State private var completion = PuzzleCompletionViewModel()
     @State private var showQuitAlert = false
+    /// Drives the Quick Snap re-capture sheet shown when the player taps "Play Again" after
+    /// solving a Quick Snap puzzle — every round starts on a freshly snapped frame.
+    @State private var showQuickSnapRecapture = false
     @State private var isSolving = false
     @State private var showTimeTrialDelta = false
     @State private var newGameTask: Task<Void, Never>?
@@ -43,7 +46,7 @@ struct PuzzleView: View {
             // Zen mode, which shows nothing but the puzzle itself.
             if !session.isZenMode {
                 PuzzleStatusOverlayLayer(completion: completion, showTimeTrialDelta: showTimeTrialDelta)
-                PuzzleCompletionOverlayView(completion: completion, continueAction: startNewGame, dismissAction: leaveDailyChallenge)
+                PuzzleCompletionOverlayView(completion: completion, continueAction: handleContinue, dismissAction: leaveDailyChallenge)
             }
 
             // Layer 3b: Time Trial fail overlay — shown instead of the completion banner
@@ -193,6 +196,22 @@ struct PuzzleView: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $showQuickSnapRecapture) {
+            QuickSnapCameraView(
+                shotDuration: session.currentQuickSnapDuration,
+                onCapture: { image in
+                    showQuickSnapRecapture = false
+                    session.refreshQuickSnapImage(with: image)
+                    startNewGame()
+                },
+                // Backing out of the re-capture means the player is done — the puzzle they
+                // just solved is already recorded, so leave Quick Snap and return to the menu.
+                onCancel: {
+                    showQuickSnapRecapture = false
+                    leaveDailyChallenge()
+                }
+            )
+        }
         .alert("Quit this run?", isPresented: $showQuitAlert) {
             Button("Quit", role: .destructive) {
                 session.leaveGame()
@@ -254,6 +273,17 @@ struct PuzzleView: View {
             && session.selectedGameMode == .slide
             && !session.tiles.isEmpty
             && !session.isSolved
+    }
+
+    /// "Continue"/"Play Again" from the completion banner. Quick Snap re-opens the camera so the
+    /// next round plays a freshly snapped scene rather than reshuffling the shot just solved;
+    /// every other mode simply starts a new game in place.
+    private func handleContinue() {
+        if session.isQuickSnapActive {
+            showQuickSnapRecapture = true
+        } else {
+            startNewGame()
+        }
     }
 
     private func startNewGame() {

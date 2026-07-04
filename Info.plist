@@ -22,6 +22,8 @@
 	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.puzzle-games</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Quick Snap uses the camera to turn whatever's in front of you into a puzzle.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app uses a random photo from your library as the puzzle image.</string>
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>

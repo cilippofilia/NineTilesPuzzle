@@ -35,6 +35,16 @@ struct SettingsView: View {
                     } label: {
                         LabeledContent("Streak Countdown", value: settings.streakCountdownLabel)
                     }
+
+                    // Only relevant on hardware that can actually shoot — hidden alongside the
+                    // rest of Quick Snap on camera-less devices and the Simulator.
+                    if QuickSnapCameraSession.isCameraAvailable {
+                        NavigationLink {
+                            QuickSnapDurationPickerView()
+                        } label: {
+                            LabeledContent("Quick Snap Timer", value: settings.quickSnapDurationLabel)
+                        }
+                    }
                 }
 
                 Section("Audio") {
@@ -137,7 +147,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Media source, preview time, streak countdown, and difficulty will be restored to their default values.")
+                Text("Media source, preview time, streak countdown, Quick Snap timer, and difficulty will be restored to their default values.")
             }
             .alert("Turn On Tile Indices?", isPresented: $showDebugOverlayAlert) {
                 Button("Turn On") { settings.setDebugOverlayEnabled(true) }

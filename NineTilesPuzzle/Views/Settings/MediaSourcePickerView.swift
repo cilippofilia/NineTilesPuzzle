@@ -53,6 +53,18 @@ struct MediaSourcePickerView: View {
                 }
             }
 
+            // Only offered when the device actually has a camera — greyed out entirely on
+            // hardware (or the Simulator) that can't shoot, the same way Numbers is Slide-only.
+            if QuickSnapCameraSession.isCameraAvailable {
+                MediaSourceRowView(
+                    title: MediaSourceType.camera.label,
+                    subtitle: "Snap whatever's in front of you on a countdown — no retakes",
+                    isSelected: session.mediaSourceType == .camera
+                ) {
+                    session.setMediaSourceType(.camera)
+                }
+            }
+
             if authStatus == .limited {
                 Button("Update Photo Access in Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {

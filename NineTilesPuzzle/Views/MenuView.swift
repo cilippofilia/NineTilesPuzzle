@@ -25,6 +25,7 @@ struct MenuView: View {
     @State private var path: [GameRoute] = []
     @State private var showSettings = false
     @State private var showTipsAlert = false
+    @State private var showQuickSnapCamera = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -144,9 +145,15 @@ struct MenuView: View {
                 .padding(.horizontal)
 
                 Button {
-                    session.tiles = []
-                    session.isLoading = true
-                    path.append(.game)
+                    // Quick Snap needs the camera capture step before there's an image to
+                    // play with, so it opens the capture sheet instead of pushing the puzzle.
+                    if session.mediaSourceType == .camera {
+                        showQuickSnapCamera = true
+                    } else {
+                        session.tiles = []
+                        session.isLoading = true
+                        path.append(.game)
+                    }
                 } label: {
                     Label("Play", systemImage: "play.fill")
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -161,6 +168,19 @@ struct MenuView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
+            }
+            .fullScreenCover(isPresented: $showQuickSnapCamera) {
+                QuickSnapCameraView(
+                    shotDuration: session.currentQuickSnapDuration,
+                    onCapture: { image in
+                        showQuickSnapCamera = false
+                        session.enterQuickSnapMode(with: image)
+                        session.tiles = []
+                        session.isLoading = true
+                        path.append(.game)
+                    },
+                    onCancel: { showQuickSnapCamera = false }
+                )
             }
             .navigationDestination(for: GameRoute.self) { route in
                 switch route {

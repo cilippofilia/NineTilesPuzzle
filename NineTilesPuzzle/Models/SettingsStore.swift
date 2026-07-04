@@ -17,6 +17,8 @@ final class SettingsStore {
 
     var previewDuration: Double = 3
     var streakCountdownDuration: Double = 30
+    /// Seconds on the Quick Snap capture countdown before the frame is auto-snapped.
+    var quickSnapDuration: Double = 3
     var hapticsEnabled: Bool = true
     var debugOverlayEnabled: Bool = false
 
@@ -33,6 +35,10 @@ final class SettingsStore {
         streakCountdownDuration == 0 ? "Off" : streakCountdownDuration < 60 ? "\(Int(streakCountdownDuration))s" : "\(Int(streakCountdownDuration / 60))m"
     }
 
+    var quickSnapDurationLabel: String {
+        "\(Int(quickSnapDuration))s"
+    }
+
     func setPreviewDuration(_ duration: Double) {
         guard duration != previewDuration else { return }
         previewDuration = duration
@@ -43,6 +49,12 @@ final class SettingsStore {
         guard duration != streakCountdownDuration else { return }
         streakCountdownDuration = duration
         defaults.set(duration, forKey: Keys.streakCountdownDuration)
+    }
+
+    func setQuickSnapDuration(_ duration: Double) {
+        guard duration != quickSnapDuration else { return }
+        quickSnapDuration = duration
+        defaults.set(duration, forKey: Keys.quickSnapDuration)
     }
 
     func setHapticsEnabled(_ value: Bool) {
@@ -58,6 +70,7 @@ final class SettingsStore {
     func resetSettings() {
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
+        setQuickSnapDuration(3)
         setHapticsEnabled(true)
     }
 }
@@ -66,6 +79,7 @@ private extension SettingsStore {
     enum Keys {
         static let previewDuration = "puzzle.previewDuration"
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
+        static let quickSnapDuration = "puzzle.quickSnapDuration"
         static let hapticsEnabled = "puzzle.hapticsEnabled"
         static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
     }
@@ -76,6 +90,9 @@ private extension SettingsStore {
         }
         if defaults.object(forKey: Keys.streakCountdownDuration) != nil {
             streakCountdownDuration = defaults.double(forKey: Keys.streakCountdownDuration)
+        }
+        if defaults.object(forKey: Keys.quickSnapDuration) != nil {
+            quickSnapDuration = defaults.double(forKey: Keys.quickSnapDuration)
         }
         if defaults.object(forKey: Keys.hapticsEnabled) != nil {
             hapticsEnabled = defaults.bool(forKey: Keys.hapticsEnabled)

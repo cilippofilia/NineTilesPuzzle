@@ -65,6 +65,17 @@ final class GameSession {
     /// The user's `selectedGameMode` before entering a daily game, restored in `leaveGame()`.
     private var preDailyGameMode: GameMode? = nil
 
+    /// True while the player is in a Quick Snap game — a plain Swap puzzle whose image was
+    /// just captured by the camera. Transient like `isDailyGameActive`, so a force-quit
+    /// resumes the puzzle as an ordinary Swap game rather than re-routing through capture.
+    private(set) var isQuickSnapActive: Bool = false
+    /// The user's `selectedGameMode` before entering Quick Snap, restored in `leaveGame()`.
+    private var preQuickSnapGameMode: GameMode? = nil
+    /// The frame captured for the current Quick Snap game, consumed by `startNewGame()` in
+    /// place of a network/photo-library fetch. Kept until `leaveGame()` so "Continue" reshuffles
+    /// the same shot rather than falling through to a source that doesn't exist for this mode.
+    private var quickSnapImage: CGImage?
+
     /// The "Single Puzzle vs Ladder" toggle for Time Trial — a sticky preference, like
     /// `mediaSourceType` generally is, rather than something that resets when the player
     /// switches away from Time Trial and back.
@@ -110,6 +121,8 @@ final class GameSession {
     var isLimitedMovesMode: Bool { selectedGameMode == .limitedMoves }
     var isFogMode: Bool { selectedGameMode == .fog }
     var currentPreviewDuration: Double { settingsStore.previewDuration }
+    /// Seconds on the Quick Snap capture countdown, chosen by the player in Settings.
+    var currentQuickSnapDuration: Double { settingsStore.quickSnapDuration }
 
     // MARK: - Daily Challenge
 
@@ -129,6 +142,27 @@ final class GameSession {
         preDailyGameMode = selectedGameMode
         selectedGameMode = DailyChallengeSeeder.gameMode(for: dailyChallengeStore.effectiveDate)
         isDailyGameActive = true
+    }
+
+    /// Marks this session as a Quick Snap game using the just-captured camera `image`. Must be
+    /// called before navigating to `PuzzleView` — `startNewGame()` checks `isQuickSnapActive`
+    /// to slice this frame directly instead of fetching from a headless image source. Forces
+    /// Swap play (the mode Quick Snap runs on) and saves the user's mode for `leaveGame()` to
+    /// restore, mirroring `enterDailyMode()`.
+    func enterQuickSnapMode(with image: CGImage) {
+        preQuickSnapGameMode = selectedGameMode
+        selectedGameMode = .swap
+        quickSnapImage = image
+        isQuickSnapActive = true
+    }
+
+    /// Replaces the captured frame for an already-active Quick Snap game with a freshly snapped
+    /// `image`, so "Play Again" starts on a brand-new shot rather than reshuffling the old one.
+    /// Unlike `enterQuickSnapMode(with:)` this leaves the saved pre-Quick-Snap mode untouched —
+    /// the player is still inside the same Quick Snap session, so `leaveGame()` must restore the
+    /// mode they had before the *first* capture, not `.swap`.
+    func refreshQuickSnapImage(with image: CGImage) {
+        quickSnapImage = image
     }
 
     /// Total moves allowed this game; Limited Moves' flat budget per grid size.
@@ -373,9 +407,9 @@ final class GameSession {
             TileModel(id: $0, currentIndex: $0, isLocked: false)
         }
 
-        // Daily mode always fetches a remote image regardless of the user's media
-        // source preference, so bypass the numbers-only fast path entirely.
-        guard mediaSourceType != .numbers || isDailyGameActive else {
+        // Daily and Quick Snap always play with a real image (seeded remote / camera frame)
+        // regardless of the user's media preference, so bypass the numbers-only fast path.
+        guard mediaSourceType != .numbers || isDailyGameActive || isQuickSnapActive else {
             isLoading = false
             tiles = activeEngine.shuffle(initial, gridSize: gridSize)
             if currentStreakForCurrentSize > 0 { startCountdown() }
@@ -386,7 +420,14 @@ final class GameSession {
 
         do {
             let image: CGImage
-            if isDailyGameActive {
+            if isQuickSnapActive {
+                // The frame was already captured through the camera sheet; there is no
+                // headless source to fetch from, so use it directly.
+                guard let captured = quickSnapImage else {
+                    throw ImageSourceError.providerUnavailable
+                }
+                image = captured
+            } else if isDailyGameActive {
                 do {
                     image = try await DailyImageSource(date: dailyChallengeStore.effectiveDate).fetchImage()
                 } catch {
@@ -441,8 +482,11 @@ final class GameSession {
 
             isLoading = false
 
+            // Quick Snap skips the "memorize the image" phase entirely — the player just
+            // watched the scene through the capture countdown, so a second memorize step
+            // would be redundant; shuffle starts immediately.
             let previewDuration = settingsStore.previewDuration
-            if previewDuration > 0 {
+            if previewDuration > 0 && !isQuickSnapActive {
                 isPreviewing = true
                 previewSleepTask = Task { try? await Task.sleep(for: .seconds(previewDuration)) }
                 await previewSleepTask?.value
@@ -678,7 +722,13 @@ final class GameSession {
             selectedGameMode = backup
             preDailyGameMode = nil
         }
+        if let backup = preQuickSnapGameMode {
+            selectedGameMode = backup
+            preQuickSnapGameMode = nil
+        }
         isDailyGameActive = false
+        isQuickSnapActive = false
+        quickSnapImage = nil
         stopCountdown()
         stopTimeTrialCountdown()
         stopStopwatch()

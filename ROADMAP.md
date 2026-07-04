@@ -139,7 +139,36 @@ Still to decide: whether to use a discrete threshold (snap to the dominant axis)
 continuous tilt that lets tiles slide diagonally. Discrete is simpler to implement and
 likely more fun to play.
 
-### Quick Snap — **S/M**
+[X] ### Quick Snap — **S/M** *(shipped July 2026)*
+Shipped as a new `.camera` media source (label "Quick Snap"), offered in
+`MediaSourcePickerView` only when `QuickSnapCameraSession.isCameraAvailable` (hardware
+present) — greyed out entirely on the Simulator, the same way Numbers is Slide-only. Tapping
+"Play" with camera media selected opens a full-screen `QuickSnapCameraView`
+(`AVCaptureSession` bridged through `CameraPreviewView`) with a countdown ring that recolors
+under pressure like `StreakCounterView`. There is no shutter *button* and no retake, but the
+whole viewfinder is tappable — tapping snaps the current frame immediately (like the Fitness
+app's skippable pre-workout countdown); otherwise the frame is captured automatically at zero.
+Each second down fires a `.selection` haptic and the capture fires a firmer `.impact`, both
+gated by `SettingsStore.hapticsEnabled`. On capture `MenuView` calls
+`session.enterQuickSnapMode(with:)` — a transient-flag entry point (mirroring `enterDailyMode()`)
+that forces Swap play, remembers the player's mode, and hands the captured `CGImage` to
+`startNewGame()`, which slices it directly — bypassing `ImageService` — and skips the
+"memorize the image" preview. Counts toward Swap stats/streaks (no exemption); `leaveGame()`
+restores the prior mode and clears the flag.
+
+The shot timer is its own setting now (`SettingsStore.quickSnapDuration`, default 3s, chosen
+between 3/5/10s via `QuickSnapDurationPickerView`, surfaced under Settings › Game only when a
+camera is present) rather than riding `previewDuration`. "Play Again" from the completion
+banner re-opens the camera (`PuzzleView` presents `QuickSnapCameraView`) so every round starts
+on a freshly snapped scene; `GameSession.refreshQuickSnapImage(with:)` swaps in the new frame
+without disturbing the saved pre-Quick-Snap mode, and backing out of the re-capture returns to
+the menu. Still deferred:
+- Landscape capture / orientation-locked framing UI (the frame is normalized upright on
+  capture, but the countdown UI assumes portrait).
+
+Original spec below.
+
+### Quick Snap (original spec) — **S/M**
 Point the camera at whatever's in front of you right now and the shutter fires on a
 countdown — no retakes, no framing it just right. Whatever the camera sees when the timer
 hits zero becomes the puzzle. Not a new engine or rule set: it plays exactly like Swap

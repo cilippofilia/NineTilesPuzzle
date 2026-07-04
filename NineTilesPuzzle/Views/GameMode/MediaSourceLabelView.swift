@@ -13,18 +13,20 @@ struct MediaSourceLabelView: View {
     let isSelected: Bool
 
     var body: some View {
-        LabeledContent {
-            if isSelected {
-                Image(systemName: "checkmark")
-                    .foregroundStyle(.tint)
-            }
-        } label: {
+        HStack {
             VStack(alignment: .leading) {
                 Text(title)
                 Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Spacer()
+
+            Image(systemName: "checkmark")
+                .foregroundStyle(.tint)
+                .opacity(isSelected ? 1 : 0)
+                .animation(nil, value: isSelected)
         }
     }
 }

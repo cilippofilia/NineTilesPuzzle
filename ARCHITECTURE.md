@@ -34,7 +34,7 @@ NineTilesPuzzle/
 │   │                                  (/seed/ntp-YYYY-MM-DD/1024/1024), deterministic
 │   │                                  derangement shuffle via xorshift64 PRNG (SeededGenerator)
 │   ├── SettingsStore.swift         — app prefs unrelated to "which game": preview/streak
-│   │                                  countdown durations, haptics, debug overlay
+│   │                                  countdown durations, Quick Snap timer, haptics, debug overlay
 │   ├── AchievementsStore.swift     — achievement definitions, unlock checks, remote refresh
 │   ├── PersistenceStore.swift      — protocol seam over UserDefaults (see below)
 │   ├── StatsKey.swift              — Hashable(gridSize, gameMode) used by GameSession/StatsStore
@@ -81,6 +81,9 @@ NineTilesPuzzle/
 │   ├── SlideSolver.swift           — BFS solver, debug-only "Solve" button
 │   ├── ImageService.swift          — primary/fallback source orchestration
 │   ├── ImageSlicer.swift           — center-crop + slice CGImage into tile images
+│   ├── QuickSnapCameraSession.swift — @MainActor @Observable AVCaptureSession wrapper for the
+│   │                                  Quick Snap camera; configure()/capture()/stop() + the
+│   │                                  isCameraAvailable gate used to hide the mode/setting
 │   ├── MotionManager.swift         — @Observable, @MainActor; wraps CMMotionManager at 60 Hz
 │   │                                  (pull model: no callback queue, just polls the latest sample).
 │   │                                  Derives pitch/roll on-demand from `CMDeviceMotion.gravity`
@@ -107,7 +110,8 @@ NineTilesPuzzle/
 │   ├── AchievementsView.swift       — sheet: achievement list
 │   ├── GameMode/GameModeView.swift  — mode picker only (media source moved to MenuView)
 │   ├── Settings/                    — SettingsView, GridSizePickerView, PreviewTimePickerView,
-│   │                                  MediaSourcePickerView (moved here from GameModeView)
+│   │                                  QuickSnapDurationPickerView, MediaSourcePickerView
+│   │                                  (moved here from GameModeView)
 │   ├── Streak/                      — StreakCounterView, StreakStatsView, StreakCountdownPickerView,
 │   │                                  MenuStatsCardView (mode-aware menu card: 3-stat for
 │   │                                  Swap/Slide/Haze/Chaos, 2-stat for Time Trial / Limited
@@ -140,6 +144,11 @@ NineTilesPuzzle/
 │   │   ├── GauntletStageIndicatorView.swift — "Stage N of 10" HUD pill
 │   │   ├── LimitedMovesCounterView.swift — Limited Moves' "N left" HUD pill, color-coded
 │   │   │                                   by fraction of budget remaining
+│   │   ├── QuickSnapCameraView.swift — full-screen Quick Snap capture: live feed + countdown
+│   │   │                              ring; whole viewfinder is a tap-to-snap shutter, per-second
+│   │   │                              + capture haptics; auto-captures at zero. Presented from
+│   │   │                              MenuView (first shot) and PuzzleView ("Play Again" re-capture)
+│   │   ├── CameraPreviewView.swift  — UIViewRepresentable bridging the AVCaptureVideoPreviewLayer
 │   │   └── PuzzleErrorView.swift
 │   ├── Daily/
 │   │   └── DailyChallengeCardView.swift — menu card: today's date, calendar streak,
@@ -414,6 +423,26 @@ purposes). `leaveGame()` resets the flag. The card `DailyChallengeCardView` on t
 reads `DailyChallengeStore` directly from the environment and shows a "Done ✓" indicator
 once `isDailyCompletedToday`; the flag is not persisted (transient) so a force-quit mid-game
 just restarts the same daily puzzle on next launch.
+
+**Quick Snap** (shipped July 2026): a new `.camera` `MediaSourceType` rather than a new
+`GameMode` — underneath it plays plain Swap. Selecting it in `MediaSourcePickerView` (only
+offered when `QuickSnapCameraSession.isCameraAvailable`) makes "Play" open a full-screen
+`QuickSnapCameraView` instead of pushing the puzzle. That view wraps a `@MainActor @Observable`
+`QuickSnapCameraSession` (an `AVCaptureSession`) bridged to SwiftUI through `CameraPreviewView`,
+overlaid with a countdown ring that recolors under pressure like the streak timer. The whole
+viewfinder is a tap-to-snap shutter (skips the countdown, Fitness-app style); otherwise the
+frame is captured automatically at zero. Each second down fires a `.selection` haptic and the
+capture a firmer `.impact`, both gated on `SettingsStore.hapticsEnabled`. The countdown length
+is its own preference — `SettingsStore.quickSnapDuration` (3/5/10s via
+`QuickSnapDurationPickerView`, read through `GameSession.currentQuickSnapDuration`) — no longer
+piggybacking on `previewDuration`. On capture, `GameSession.enterQuickSnapMode(with:)` follows
+the same transient-flag pattern as Daily: it forces `.swap`, saves the player's prior mode, and
+stores the `CGImage` so `startNewGame()` slices it directly (bypassing `ImageService`) and skips
+the "memorize the image" preview. Quick Snap counts toward Swap stats/streaks with no exemption.
+"Play Again" from the completion banner re-opens `QuickSnapCameraView` (presented by `PuzzleView`
+this time) so each round is a fresh shot; `refreshQuickSnapImage(with:)` swaps in the new frame
+without disturbing the saved pre-Quick-Snap mode. `leaveGame()` restores that mode and clears
+the flag, so a force-quit mid-game resumes as an ordinary Swap game.
 
 **Wall of Fame** (shipped June 2026): a cork-board view where every personal best is
 automatically captured and pinned as a polaroid card. `PuzzleView` renders `ShareCardView`

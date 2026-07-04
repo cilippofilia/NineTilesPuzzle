@@ -12,6 +12,7 @@ enum MediaSourceType: String, Codable {
     case local
     case mixed
     case numbers
+    case camera
 
     var label: String {
         switch self {
@@ -19,6 +20,7 @@ enum MediaSourceType: String, Codable {
         case .local: "From Photos"
         case .mixed: "Mixed Pics"
         case .numbers: "Numbers"
+        case .camera: "Quick Snap"
         }
     }
 }
