@@ -21,6 +21,12 @@ struct LiveActivityBoardInput {
     var gameModeIcon: String
     var moveCount: Int
     var elapsedTime: TimeInterval
+    /// Current win streak for this grid size / mode; 0 when there's no active streak.
+    var currentStreak: Int
+    /// All-time best streak for this grid size / mode; 0 when none exists yet.
+    var bestStreak: Int
+    /// Fraction of tiles in their correct position, 0...1, for the compact/minimal ring.
+    var progress: Double
 }
 
 /// Owns the lifecycle of the "puzzle in progress" Live Activity: starting it when a game begins,
@@ -29,6 +35,12 @@ struct LiveActivityBoardInput {
 /// unit tests), so callers can wire it in unconditionally.
 @MainActor
 final class LiveActivityController {
+    /// How long a snapshot stays "fresh" before the system marks the activity stale. The board is
+    /// frozen while the app is backgrounded, so after this long the reminder is showing stale info —
+    /// flagging it lets the widget dim to a "paused" look and, crucially, lets the system reclaim an
+    /// activity orphaned by a force-quit sooner than its multi-hour maximum lifetime.
+    private static let staleInterval: TimeInterval = 60 * 60
+
     private var activity: Activity<PuzzleActivityAttributes>?
     /// The snapshot file currently referenced by the activity, tracked so it can be cleaned up
     /// once superseded or when the activity ends.
@@ -53,7 +65,8 @@ final class LiveActivityController {
             gameModeIcon: input.gameModeIcon,
             gridSize: input.gridSize
         )
-        let content = ActivityContent(state: state(imageName: imageName, input: input), staleDate: nil)
+        let content = ActivityContent(state: state(imageName: imageName, input: input),
+                                      staleDate: Date.now.addingTimeInterval(Self.staleInterval))
 
         do {
             let requested = try Activity.request(attributes: attributes, content: content)
@@ -88,7 +101,8 @@ final class LiveActivityController {
 
         let previous = currentImageName
         currentImageName = imageName
-        let content = ActivityContent(state: state(imageName: imageName, input: input), staleDate: nil)
+        let content = ActivityContent(state: state(imageName: imageName, input: input),
+                                      staleDate: Date.now.addingTimeInterval(Self.staleInterval))
 
         Task {
             await activity.update(content)
@@ -119,7 +133,10 @@ final class LiveActivityController {
         PuzzleActivityAttributes.ContentState(
             boardImageName: imageName,
             moveCount: input.moveCount,
-            elapsedTime: input.elapsedTime
+            elapsedTime: input.elapsedTime,
+            currentStreak: input.currentStreak,
+            bestStreak: input.bestStreak,
+            progress: input.progress
         )
     }
 

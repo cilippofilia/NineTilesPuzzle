@@ -29,6 +29,16 @@ struct PuzzleActivityAttributes: ActivityAttributes {
         /// Elapsed solve time, frozen at the moment of each update. The puzzle clock pauses
         /// while the app is backgrounded, so a static value is consistent with the game itself.
         var elapsedTime: TimeInterval
+        /// The player's current win streak for this grid size / mode, or 0 when there's no
+        /// active streak — also 0 in modes that don't track streaks (Zen, Time Trial, Daily,
+        /// Limited Moves). The Lock Screen shows a flame badge only when this is above 0.
+        var currentStreak: Int = 0
+        /// The all-time best streak for this grid size / mode, or 0 when none exists yet.
+        /// Rendered as a trophy badge alongside the flame when there's an ongoing streak.
+        var bestStreak: Int = 0
+        /// Fraction of tiles currently in their correct position, 0...1. Drives the Dynamic
+        /// Island's compact/minimal progress ring — the at-a-glance "how close am I" cue.
+        var progress: Double = 0
     }
 
     /// Display title of the mode being played (e.g. "Slide", "Daily Challenge").

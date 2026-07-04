@@ -196,6 +196,7 @@ final class GameSession {
         self.dailyChallengeStore = dailyChallengeStore
         self.defaults = defaults
         restoreFromUserDefaults()
+        reconcileLiveActivityOnLaunch()
         achievementsStore.checkAchievements(using: statsStore)
         Task {
             await achievementsStore.refreshAchievementsFromRemote()
@@ -761,7 +762,13 @@ final class GameSession {
             gameModeTitle: liveActivityTitle,
             gameModeIcon: liveActivityIcon,
             moveCount: currentMoveCount,
-            elapsedTime: elapsedTime
+            elapsedTime: elapsedTime,
+            // 0 in modes that don't track streaks (Zen, Time Trial, Daily, Limited Moves),
+            // so the widget naturally hides the flame/trophy badges there.
+            currentStreak: currentStreakForCurrentSize,
+            bestStreak: allTimeHighStreakForCurrentSize,
+            // Fraction of tiles already home, for the Dynamic Island progress ring.
+            progress: tiles.isEmpty ? 0 : Double(tiles.filter(\.isCorrect).count) / Double(tiles.count)
         )
     }
 
@@ -770,6 +777,19 @@ final class GameSession {
     func refreshLiveActivity() {
         guard let input = makeLiveActivityInput() else { return }
         liveActivity.refresh(input)
+    }
+
+    /// Reconciles the Live Activity with persisted state at launch. ActivityKit keeps a Live
+    /// Activity on the Lock Screen even after the app is force-quit — the app can't run code to
+    /// end it while it's dead — so the next launch is our first chance to clean up. This ends any
+    /// stale activity the system is still showing, then restarts a fresh one only when there's
+    /// genuinely an in-progress puzzle to resume.
+    private func reconcileLiveActivityOnLaunch() {
+        if !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed, let input = makeLiveActivityInput() {
+            liveActivity.start(input)
+        } else {
+            liveActivity.end()
+        }
     }
 
     /// Stops the countdown when the user quits mid-game; streak is preserved.
