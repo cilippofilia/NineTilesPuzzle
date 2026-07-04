@@ -82,7 +82,6 @@ private extension MenuStatsCardView {
         }
         .padding(.vertical, 10)
         .padding(.horizontal)
-        .background(.quaternary, in: .rect(cornerRadius: 20))
     }
 
     func threeStatCard(
@@ -99,7 +98,6 @@ private extension MenuStatsCardView {
         }
         .padding(.vertical, 10)
         .padding(.horizontal)
-        .background(.quaternary, in: .rect(cornerRadius: 20))
     }
 
     func statItem(value: String, label: String, icon: String, color: Color) -> some View {

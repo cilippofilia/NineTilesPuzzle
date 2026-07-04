@@ -43,9 +43,13 @@ struct MenuView: View {
                 }
                 .padding([.horizontal, .bottom])
 
-                VStack(spacing: 12) {
-                    MenuStatsCardView()
-                        .frame(height: 55)
+                VStack(spacing: 0) {
+                    if session.selectedGameMode != .zen {
+                        MenuStatsCardView()
+                            .frame(height: 55)
+
+                        Divider()
+                    }
 
                     Button {
                         path.append(.gameModes)
@@ -60,10 +64,11 @@ struct MenuView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .padding()
-                        .contentShape(.rect(cornerRadius: 20))
+                        .contentShape(.rect)
                     }
                     .foregroundStyle(.primary)
-                    .background(.quaternary, in: .rect(cornerRadius: 20))
+
+                    Divider()
 
                     Button {
                         path.append(.mediaPicker)
@@ -78,10 +83,11 @@ struct MenuView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .padding()
-                        .contentShape(.rect(cornerRadius: 20))
+                        .contentShape(.rect)
                     }
                     .foregroundStyle(.primary)
-                    .background(.quaternary, in: .rect(cornerRadius: 20))
+
+                    Divider()
 
                     Button {
                         guard !session.isGauntletLadderMode else { return }
@@ -101,11 +107,12 @@ struct MenuView: View {
                             }
                         }
                         .padding()
-                        .contentShape(.rect(cornerRadius: 20))
+                        .contentShape(.rect)
                     }
                     .foregroundStyle(session.isGauntletLadderMode ? .secondary : .primary)
-                    .background(.quaternary, in: .rect(cornerRadius: 20))
                     .disabled(session.isGauntletLadderMode)
+
+                    Divider()
 
                     Button {
                         path.append(.achievements)
@@ -120,10 +127,11 @@ struct MenuView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .padding()
-                        .contentShape(.rect(cornerRadius: 20))
+                        .contentShape(.rect)
                     }
                     .foregroundStyle(.primary)
-                    .background(.quaternary, in: .rect(cornerRadius: 20))
+
+                    Divider()
 
                     Button {
                         path.append(.wallOfFame)
@@ -136,12 +144,11 @@ struct MenuView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .padding()
-                        .contentShape(.rect(cornerRadius: 20))
+                        .contentShape(.rect)
                     }
                     .foregroundStyle(.primary)
-                    .background(.quaternary, in: .rect(cornerRadius: 20))
-
                 }
+                .background(.quaternary, in: .rect(cornerRadius: 20))
                 .padding(.horizontal)
 
                 Button {
