@@ -739,6 +739,14 @@ final class GameSession {
         return selectedGameMode.title
     }
 
+    /// SF Symbol representing the active game for the Live Activity — the special sessions get
+    /// their own imagery, everything else uses the mode's own icon.
+    private var liveActivityIcon: String {
+        if isDailyGameActive { return "calendar" }
+        if isQuickSnapActive { return "camera.fill" }
+        return selectedGameMode.icon
+    }
+
     /// Snapshots the current board into the value the Live Activity controller needs. Returns
     /// `nil` for games without a picture to show (numbers mode, or before tiles/images exist),
     /// which is also the controller's cue to do nothing.
@@ -751,6 +759,7 @@ final class GameSession {
             // Slide's empty cell is the highest-id tile; every other mode fills every cell.
             blankTileID: selectedGameMode == .slide ? tiles.count - 1 : nil,
             gameModeTitle: liveActivityTitle,
+            gameModeIcon: liveActivityIcon,
             moveCount: currentMoveCount,
             elapsedTime: elapsedTime
         )

@@ -6,13 +6,14 @@
 //
 
 import CoreGraphics
-import Foundation
 import ImageIO
+import SwiftUI
 import UniformTypeIdentifiers
 
-/// Composites the current arrangement of tile slices into a single PNG for the Live Activity's
-/// board preview. Works straight off the tile `CGImage`s rather than rendering a SwiftUI view,
-/// so it stays cheap enough to call when a game begins and when the app is backgrounded.
+/// Renders the current arrangement of tile slices into a PNG for the Live Activity's board
+/// preview. Uses `ImageRenderer` over a real SwiftUI board so the snapshot matches exactly what
+/// the player sees in-game — rounded tiles, small gaps, and Slide's empty cell left dark.
+@MainActor
 enum PuzzleBoardSnapshot {
     /// One tile's placement: its identity (which slice) and the grid position it currently occupies.
     struct Placement {
@@ -20,9 +21,7 @@ enum PuzzleBoardSnapshot {
         var position: Int
     }
 
-    /// Renders `placements` into a square PNG. Cells whose tile id matches `blankTileID` are left
-    /// as backdrop, so Slide mode's empty cell reads correctly. Returns `nil` if a drawing context
-    /// or the PNG encode can't be created.
+    /// Renders `placements` into a square PNG, or `nil` if the render/encode fails.
     static func pngData(
         placements: [Placement],
         images: [Int: CGImage],
@@ -31,42 +30,67 @@ enum PuzzleBoardSnapshot {
     ) -> Data? {
         guard gridSize > 0 else { return nil }
 
-        // Cap the composite at a Lock-Screen-friendly size; the context scales each slice to fit.
-        let targetDimension = 600
-        let cell = max(1, targetDimension / gridSize)
-        let dimension = cell * gridSize
-
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let context = CGContext(
-            data: nil,
-            width: dimension,
-            height: dimension,
-            bitsPerComponent: 8,
-            bytesPerRow: 0,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return nil }
-
-        // Dark backdrop so gaps and the blank cell read as background rather than transparent.
-        context.setFillColor(CGColor(red: 0.08, green: 0.08, blue: 0.10, alpha: 1))
-        context.fill(CGRect(x: 0, y: 0, width: dimension, height: dimension))
-
-        for placement in placements {
-            guard placement.id != blankTileID, let image = images[placement.id] else { continue }
-            let row = placement.position / gridSize
-            let col = placement.position % gridSize
-            // CGContext's origin is bottom-left; flip the row so grid position 0 lands top-left.
-            let y = (gridSize - 1 - row) * cell
-            context.draw(image, in: CGRect(x: col * cell, y: y, width: cell, height: cell))
-        }
-
-        guard let composited = context.makeImage() else { return nil }
+        let view = SnapshotBoardView(
+            placements: placements,
+            images: images,
+            gridSize: gridSize,
+            blankTileID: blankTileID
+        )
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let cgImage = renderer.cgImage else { return nil }
 
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(
             data, UTType.png.identifier as CFString, 1, nil
         ) else { return nil }
-        CGImageDestinationAddImage(destination, composited, nil)
+        CGImageDestinationAddImage(destination, cgImage, nil)
         return CGImageDestinationFinalize(destination) ? (data as Data) : nil
+    }
+}
+
+/// The board laid out for the snapshot: a grid of tile slices in their current positions.
+private struct SnapshotBoardView: View {
+    let placements: [PuzzleBoardSnapshot.Placement]
+    let images: [Int: CGImage]
+    let gridSize: Int
+    let blankTileID: Int?
+
+    /// Rendered side length in points (scaled ×2 by the renderer). Kept modest — this is only
+    /// ever shown as a thumbnail on the Lock Screen and in the Dynamic Island.
+    private let side: CGFloat = 240
+
+    var body: some View {
+        let tileByPosition = Dictionary(placements.map { ($0.position, $0.id) }) { first, _ in first }
+        let spacing: CGFloat = gridSize > 5 ? 1 : 2
+
+        VStack(spacing: spacing) {
+            ForEach(0..<gridSize, id: \.self) { row in
+                HStack(spacing: spacing) {
+                    ForEach(0..<gridSize, id: \.self) { column in
+                        tile(for: tileByPosition[row * gridSize + column])
+                    }
+                }
+            }
+        }
+        .padding(spacing)
+        .frame(width: side, height: side)
+        .background(.black)
+    }
+
+    @ViewBuilder
+    private func tile(for id: Int?) -> some View {
+        Group {
+            if let id, id != blankTileID, let cgImage = images[id] {
+                Image(decorative: cgImage, scale: 1)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                // Slide's empty cell (or any gap) reads as a subtle recessed square.
+                Color.white.opacity(0.05)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(.rect(cornerRadius: gridSize > 5 ? 2 : 4))
     }
 }

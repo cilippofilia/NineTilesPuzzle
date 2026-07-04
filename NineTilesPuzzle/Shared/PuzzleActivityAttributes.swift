@@ -33,6 +33,9 @@ struct PuzzleActivityAttributes: ActivityAttributes {
 
     /// Display title of the mode being played (e.g. "Slide", "Daily Challenge").
     var gameModeTitle: String
+    /// SF Symbol name representing the mode being played — a meaningful, at-a-glance cue
+    /// (e.g. the Swap arrows, the Daily calendar) shown throughout the activity.
+    var gameModeIcon: String
     /// Board dimension, for the "N × N" label.
     var gridSize: Int
 }

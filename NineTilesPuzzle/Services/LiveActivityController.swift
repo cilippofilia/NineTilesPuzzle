@@ -18,6 +18,7 @@ struct LiveActivityBoardInput {
     /// Slide mode's empty cell (tile id to leave undrawn), or `nil` for modes without one.
     var blankTileID: Int?
     var gameModeTitle: String
+    var gameModeIcon: String
     var moveCount: Int
     var elapsedTime: TimeInterval
 }
@@ -41,22 +42,41 @@ final class LiveActivityController {
     /// the snapshot can't be written to the shared container.
     func start(_ input: LiveActivityBoardInput) {
         guard isEnabled else { return }
-        end()
 
         guard let imageName = writeSnapshot(input) else { return }
+        // Deliberately don't call `end()` here: it ends *all* activities on a detached task, which
+        // could race ahead and kill the one we're about to request. Instead we request first, then
+        // reap the strays by id below.
+        let staleImage = currentImageName
         let attributes = PuzzleActivityAttributes(
             gameModeTitle: input.gameModeTitle,
+            gameModeIcon: input.gameModeIcon,
             gridSize: input.gridSize
         )
         let content = ActivityContent(state: state(imageName: imageName, input: input), staleDate: nil)
 
         do {
-            activity = try Activity.request(attributes: attributes, content: content)
+            let requested = try Activity.request(attributes: attributes, content: content)
+            activity = requested
             currentImageName = imageName
+            if let staleImage, staleImage != imageName { removeSnapshot(named: staleImage) }
+            // Reap any older puzzle activities the system is still showing (e.g. left over from a
+            // force-quit, or a previous game that didn't end cleanly) so only the newest survives.
+            endStrayActivities(keeping: requested.id)
         } catch {
             // Requesting can fail (system limits, permission races). Nothing else to do — the
             // game plays on regardless; we just don't get the reminder this time.
             removeSnapshot(named: imageName)
+        }
+    }
+
+    /// Ends every live puzzle activity except the one we just started, guaranteeing the Lock
+    /// Screen never accumulates a stack of stale puzzles.
+    private func endStrayActivities(keeping id: String) {
+        Task {
+            for stray in Activity<PuzzleActivityAttributes>.activities where stray.id != id {
+                await stray.end(nil, dismissalPolicy: .immediate)
+            }
         }
     }
 
@@ -81,13 +101,16 @@ final class LiveActivityController {
     /// Ends the running activity immediately and cleans up its snapshot file. Safe to call when
     /// nothing is running.
     func end() {
-        guard let finishing = activity else { return }
         let imageName = currentImageName
         activity = nil
         currentImageName = nil
 
         Task {
-            await finishing.end(nil, dismissalPolicy: .immediate)
+            // End every puzzle activity, not just the tracked one, so a leftover stack can never
+            // outlive the game that spawned it.
+            for live in Activity<PuzzleActivityAttributes>.activities {
+                await live.end(nil, dismissalPolicy: .immediate)
+            }
             if let imageName { removeSnapshot(named: imageName) }
         }
     }
@@ -113,7 +136,12 @@ final class LiveActivityController {
         guard let container = LiveActivityStore.containerURL else { return nil }
         let name = "board-\(UUID().uuidString).png"
         do {
-            try data.write(to: container.appending(path: name), options: .atomic)
+            // The Lock Screen renders the widget while the device is locked; the default
+            // `.complete` protection would make the file unreadable there and the board would
+            // silently fall back to a placeholder. `...untilFirstUserAuthentication` keeps it
+            // readable after the first unlock since boot while still encrypting at rest.
+            try data.write(to: container.appending(path: name),
+                           options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             return name
         } catch {
             return nil
