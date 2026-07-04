@@ -56,7 +56,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				NineTilesPuzzleWidgetsExtension.entitlements,
 			);
 			target = 1826D79E2FF9192400927433 /* NineTilesPuzzleWidgetsExtension */;
 		};
