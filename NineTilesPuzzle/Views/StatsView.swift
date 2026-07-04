@@ -36,7 +36,7 @@ struct StatsView: View {
                         LabeledContent(difficultyLabel(for: size)) {
                             if mode == .timeTrial {
                                 let best = statsStore.personalBestScore[key]
-                                Text(best.map { "\($0) pts" } ?? "--")
+                                Text(best.map { "\($0.formattedScore) pts" } ?? "--")
                                     .foregroundStyle(best != nil ? .primary : .secondary)
                             } else {
                                 let best = statsStore.personalBestMoves[key]

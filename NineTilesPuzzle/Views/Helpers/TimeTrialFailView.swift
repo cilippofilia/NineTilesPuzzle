@@ -29,7 +29,7 @@ struct TimeTrialFailView: View {
             if isLadderMode {
                 Label("Reached Stage \(ladderStageReached) of \(GauntletLadderRules.stageCount)", systemImage: "flag.checkered")
                     .bold()
-                Label("\(ladderCumulativeScore) pts", systemImage: "bolt.fill")
+                Label("\(ladderCumulativeScore.formattedScore) pts", systemImage: "bolt.fill")
                     .bold()
                 if bestLadderStageReachedOverall > 0 {
                     Text("Best: Stage \(bestLadderStageReachedOverall)")
@@ -41,7 +41,7 @@ struct TimeTrialFailView: View {
                     .bold()
 
                 if let best = personalBestScore {
-                    Text("Best Score: \(best)")
+                    Text("Best Score: \(best.formattedScore)")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
