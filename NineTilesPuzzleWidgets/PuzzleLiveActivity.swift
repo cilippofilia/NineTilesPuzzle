@@ -67,6 +67,8 @@ struct PuzzleLiveActivity: Widget {
                                 .font(.caption2.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
+                        // Keep the bar off the island's rounded bottom edge.
+                        .padding([.horizontal, .bottom], 2)
                     }
                 }
             } compactLeading: {
@@ -115,16 +117,18 @@ private struct PuzzleLockScreenView: View {
                 }
 
             VStack(alignment: .leading, spacing: 8) {
-                // Title takes the width, with the streak (and its target) pushed to the
-                // trailing edge — this is what fills the previously-empty right side.
-                HStack(spacing: 8) {
-                    Text("\(context.attributes.gameModeTitle) · \(context.attributes.gridSize)×\(context.attributes.gridSize)")
-                        .font(.headline)
-                        .lineLimit(1)
+                Text("\(context.attributes.gameModeTitle) · \(context.attributes.gridSize)×\(context.attributes.gridSize)")
+                    .font(.headline)
+                    .lineLimit(1)
 
-                    // Only surfaced while a streak is actually running — the flame is the "keep
-                    // it alive" nudge, and the trophy rides along as the target to beat when the
-                    // player has a personal best on the board.
+                // All four stats on one line: moves/clock leading, streak/best pushed to the
+                // trailing edge so the row spans the full card width. Streak and its target
+                // only appear while a streak is actually running.
+                HStack(spacing: 8) {
+                    StatBadge(icon: "arrow.left.arrow.right",
+                              text: "\(context.state.moveCount)", accent: accent)
+                    StatBadge(icon: "clock",
+                              text: elapsed(context.state.elapsedTime), accent: accent)
                     if context.state.currentStreak > 0 {
                         Spacer(minLength: 8)
                         StatBadge(icon: "flame.fill",
@@ -134,13 +138,6 @@ private struct PuzzleLockScreenView: View {
                                       text: "\(context.state.bestStreak)", accent: .yellow)
                         }
                     }
-                }
-
-                HStack(spacing: 8) {
-                    StatBadge(icon: "arrow.left.arrow.right",
-                              text: "\(context.state.moveCount)", accent: accent)
-                    StatBadge(icon: "clock",
-                              text: elapsed(context.state.elapsedTime), accent: accent)
                 }
 
                 // Full-width completion bar spanning the whole card — the horizontal element
@@ -206,15 +203,29 @@ private struct ModeGlyphBadge: View {
 
 /// A slim horizontal fill of the board's completion, spanning the width it's given. The linear
 /// counterpart to `ProgressRing`, used as the Dynamic Island's expanded-view anchor element.
+/// Hand-rolled from capsules with a fixed height rather than a `Gauge` — the gauge's intrinsic
+/// sizing pushed its rounded ends into the Dynamic Island's bottom curve and got clipped.
 private struct ProgressBar: View {
     /// Fraction solved, 0...1.
     let progress: Double
     let accent: Color
+    var height: CGFloat = 8
+
+    private var clamped: Double { min(1, max(0, progress)) }
 
     var body: some View {
-        Gauge(value: min(1, max(0, progress))) { EmptyView() }
-            .gaugeStyle(.linearCapacity)
-            .tint(accent)
+        Capsule()
+            .fill(.white.opacity(0.15))
+            .frame(height: height)
+            .overlay(alignment: .leading) {
+                GeometryReader { proxy in
+                    Capsule()
+                        .fill(accent.gradient)
+                        // Floor at `height` so a nearly-empty board still shows a rounded nub
+                        // rather than an invisible sliver.
+                        .frame(width: max(height, proxy.size.width * clamped))
+                }
+            }
     }
 }
 
