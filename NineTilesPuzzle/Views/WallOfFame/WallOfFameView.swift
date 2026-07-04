@@ -42,6 +42,11 @@ struct WallOfFameView: View {
                     boardSection(title: "Streaks") {
                         cardSlot(for: .calendarStreak)
                     }
+                    boardSection(title: "Gauntlet Ladder") {
+                        ForEach(1...GauntletLadderRules.stageCount, id: \.self) { stage in
+                            cardSlot(for: .ladderStage(stage))
+                        }
+                    }
                 }
                 .padding(20)
             }

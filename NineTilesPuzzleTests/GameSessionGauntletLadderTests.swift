@@ -73,6 +73,35 @@ struct GameSessionGauntletLadderTests {
 
     // MARK: - Clearing stages
 
+    // MARK: - Per-stage best (Wall of Fame)
+
+    @Test func clearingAStageForTheFirstTimeSetsANewStageBestRecord() async {
+        let session = await makeSession()
+        setOneMoveFromSolved(session)
+        session.swapTiles(from: 0, to: 1)
+
+        #expect(session.isNewLadderStageBestRecord)
+        #expect(session.lastLadderStageScore > 0)
+        #expect(session.bestLadderStageScoreOverall(forStage: 1) == session.lastLadderStageScore)
+    }
+
+    @Test func reclearingTheSameStageAtTheSameScoreIsNotANewStageBestRecord() async {
+        let session = await makeSession()
+        setOneMoveFromSolved(session)
+        session.swapTiles(from: 0, to: 1) // clears Stage 1 the first time
+        #expect(session.isNewLadderStageBestRecord)
+        let firstScore = session.bestLadderStageScoreOverall(forStage: 1)
+
+        // Fail the run to reach Stage 2, then restart — Stage 1 is cleared identically
+        // (same win streak of 0, same instant solve), so the score ties rather than beats it.
+        await session.startNewLadderRun()
+        setOneMoveFromSolved(session)
+        session.swapTiles(from: 0, to: 1)
+
+        #expect(!session.isNewLadderStageBestRecord)
+        #expect(session.bestLadderStageScoreOverall(forStage: 1) == firstScore)
+    }
+
     @Test func clearingAStageAdvancesToTheNextStageAndAccumulatesScore() async {
         let session = await makeSession()
         setOneMoveFromSolved(session)

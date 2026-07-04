@@ -148,6 +148,39 @@ struct StatsStoreTests {
         #expect(store.bestLadderStageReached == 7)
     }
 
+    // MARK: - recordLadderStageScore
+
+    @Test func firstScoreForAStageIsAlwaysANewRecord() {
+        let store = makeStore()
+        let isNewRecord = store.recordLadderStageScore(stage: 3, score: 500)
+        #expect(isNewRecord)
+        #expect(store.bestLadderStageScores[3] == 500)
+    }
+
+    @Test func higherScoreForAStageOverwritesItsBest() {
+        let store = makeStore()
+        store.recordLadderStageScore(stage: 3, score: 500)
+        let isNewRecord = store.recordLadderStageScore(stage: 3, score: 900)
+        #expect(isNewRecord)
+        #expect(store.bestLadderStageScores[3] == 900)
+    }
+
+    @Test func lowerOrEqualScoreForAStageDoesNotOverwriteItsBest() {
+        let store = makeStore()
+        store.recordLadderStageScore(stage: 3, score: 500)
+        let isNewRecord = store.recordLadderStageScore(stage: 3, score: 500)
+        #expect(!isNewRecord)
+        #expect(store.bestLadderStageScores[3] == 500)
+    }
+
+    @Test func stageScoresAreTrackedIndependentlyPerStage() {
+        let store = makeStore()
+        store.recordLadderStageScore(stage: 1, score: 200)
+        store.recordLadderStageScore(stage: 2, score: 400)
+        #expect(store.bestLadderStageScores[1] == 200)
+        #expect(store.bestLadderStageScores[2] == 400)
+    }
+
     // MARK: - recordStreakIncrement
 
     @Test func streakIncrementsAndSetsAllTimeHighOnFirstMove() {
@@ -296,6 +329,7 @@ struct StatsStoreTests {
         store.recordTimeTrialScore(for: swap3, score: 500)
         store.recordLadderRunScore(5000)
         store.recordLadderStageReached(5)
+        store.recordLadderStageScore(stage: 5, score: 900)
         store.recordZeroWasteSolve()
         store.recordPhotoLibrarySolve()
         store.resetStreak(for: swap3)
@@ -311,6 +345,7 @@ struct StatsStoreTests {
         #expect(store.allTimeHighStreak.isEmpty)
         #expect(store.bestLadderScore == 0)
         #expect(store.bestLadderStageReached == 0)
+        #expect(store.bestLadderStageScores.isEmpty)
         #expect(!store.hasZeroWasteSolve)
         #expect(!store.hasSolvedWithPhotoLibrary)
         #expect(!store.hasEverBrokenAStreak)
@@ -329,6 +364,7 @@ struct StatsStoreTests {
         first.recordTimeTrialScore(for: swap3, score: 500)
         first.recordLadderRunScore(5000)
         first.recordLadderStageReached(5)
+        first.recordLadderStageScore(stage: 5, score: 900)
         first.recordZeroWasteSolve()
         first.recordPhotoLibrarySolve()
         first.recordGameCompletedToday()
@@ -345,6 +381,7 @@ struct StatsStoreTests {
         #expect(second.personalBestScore[swap3] == 500)
         #expect(second.bestLadderScore == 5000)
         #expect(second.bestLadderStageReached == 5)
+        #expect(second.bestLadderStageScores[5] == 900)
         #expect(second.hasZeroWasteSolve)
         #expect(second.hasSolvedWithPhotoLibrary)
         #expect(second.maxGamesInOneDay == 1)

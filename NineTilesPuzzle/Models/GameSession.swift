@@ -87,10 +87,17 @@ final class GameSession {
     private(set) var lastClearedLadderStage: Int = 0
     private(set) var ladderCumulativeScore: Int = 0
     private(set) var ladderWinStreak: Int = 0
+    /// The score earned by the most recent stage clear — paired with `lastClearedLadderStage`
+    /// so the Wall of Fame capture can show what that clear was worth.
+    private(set) var lastLadderStageScore: Int = 0
     private(set) var isLadderRunComplete = false
     private(set) var isLadderRunFailed = false
     var isNewLadderScoreRecord: Bool = false
     var isNewLadderStageRecord: Bool = false
+    /// True when `lastClearedLadderStage`'s score just beat that stage's own personal best —
+    /// distinct from `isNewLadderStageRecord`, which fires only the first time a run ever
+    /// reaches a given stage. Drives the Wall of Fame's per-stage card capture.
+    var isNewLadderStageBestRecord: Bool = false
 
     private(set) var timerRemaining: Double = 30
     private(set) var isTimerRunning = false
@@ -395,6 +402,7 @@ final class GameSession {
         isLadderRunComplete = false
         isNewLadderScoreRecord = false
         isNewLadderStageRecord = false
+        isNewLadderStageBestRecord = false
         isLimitedMovesFailed = false
         hasHadWastedMoveThisGame = false
         // Otherwise this stays stuck from a previous Time Trial run that ended in failure —
@@ -637,7 +645,9 @@ final class GameSession {
                     ladderCumulativeScore += stageScore
                     ladderWinStreak += 1
                     lastClearedLadderStage = currentLadderStage
+                    lastLadderStageScore = stageScore
                     isNewLadderStageRecord = statsStore.recordLadderStageReached(lastClearedLadderStage)
+                    isNewLadderStageBestRecord = statsStore.recordLadderStageScore(stage: lastClearedLadderStage, score: stageScore)
                     if currentLadderStage == GauntletLadderRules.stageCount {
                         isLadderRunComplete = true
                         isNewLadderScoreRecord = statsStore.recordLadderRunScore(ladderCumulativeScore)
@@ -845,6 +855,7 @@ extension GameSession {
 
     var bestLadderScoreOverall: Int { statsStore.bestLadderScore }
     var bestLadderStageReachedOverall: Int { statsStore.bestLadderStageReached }
+    func bestLadderStageScoreOverall(forStage stage: Int) -> Int { statsStore.bestLadderStageScores[stage] ?? 0 }
 
     /// Sets `gridSize`, clears any in-progress game (it was for a different size), and persists.
     func setGridSize(_ size: Int) {
