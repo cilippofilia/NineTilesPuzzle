@@ -22,6 +22,7 @@ final class GameSession {
 
     private let swapEngine = SwapEngine()
     private let slideEngine = SlideEngine()
+    private let liveActivity = LiveActivityController()
     private var previewSleepTask: Task<Void, Never>?
 
     /// Reused across every save/restore so we don't pay a fresh coder allocation on each
@@ -256,6 +257,7 @@ final class GameSession {
                     isTimeTrialFailed = true
                     if isGauntletLadderMode { isLadderRunFailed = true }
                     stopTimeTrialCountdown()
+                    liveActivity.end()
                     saveToUserDefaults()
                     return
                 }
@@ -353,6 +355,7 @@ final class GameSession {
                     isTimeTrialFailed = true
                     if isGauntletLadderMode { isLadderRunFailed = true }
                     stopTimeTrialCountdown()
+                    liveActivity.end()
                     saveToUserDefaults()
                     return
                 }
@@ -519,6 +522,10 @@ final class GameSession {
                 if isTimeTrialMode { startTimeTrialCountdown() }
             }
             saveToUserDefaults()
+            // Only picture games reach here; numbers mode returned via the fast path above and
+            // has nothing to preview. Starting now (in the foreground) is the reliable moment —
+            // the reminder stays invisible until the player leaves the app, then refreshes.
+            if let input = makeLiveActivityInput() { liveActivity.start(input) }
         } catch {
             self.error = error
             isLoading = false
@@ -599,6 +606,7 @@ final class GameSession {
         if isSolved {
             if isTimeTrialMode { stopTimeTrialCountdown() } else { stopCountdown() }
             stopStopwatch()
+            liveActivity.end()
             if isDailyGameActive {
                 if !debugOverlayEnabled {
                     let result = dailyChallengeStore.recordCompletion(moves: currentMoveCount, time: elapsedTime, date: dailyChallengeStore.effectiveDate)
@@ -648,9 +656,12 @@ final class GameSession {
                 if selectedGameMode != .slide && !hasHadWastedMoveThisGame {
                     statsStore.recordZeroWasteSolve()
                 }
-                // Daily always uses a seeded remote image, not the user's photo library.
-                if !isDailyGameActive && mediaSourceType == .local {
-                    statsStore.recordPhotoLibrarySolve()
+                // Daily always uses a seeded remote image, not the player's chosen media source,
+                // so it never counts toward the per-source explorer achievements. Quick Snap is
+                // its own source even though it captures through the camera.
+                if !isDailyGameActive {
+                    let solvedSource: MediaSourceType = isQuickSnapActive ? .camera : mediaSourceType
+                    statsStore.recordMediaSourceSolve(solvedSource)
                 }
                 statsStore.recordGameCompletedToday()
             }
@@ -700,6 +711,7 @@ final class GameSession {
             isTimeTrialFailed = true
             if isGauntletLadderMode { isLadderRunFailed = true }
             stopTimeTrialCountdown()
+            liveActivity.end()
         }
     }
 
@@ -709,11 +721,46 @@ final class GameSession {
     private func applyLimitedMovesBudgetCheck() {
         guard !isSolved, currentMoveCount >= movesBudgetForCurrentSize else { return }
         isLimitedMovesFailed = true
+        liveActivity.end()
     }
 
     func skipPreview() {
         previewSleepTask?.cancel()
         isPreviewing = false
+    }
+
+    // MARK: - Live Activity
+
+    /// Display title for the in-progress Live Activity, distinguishing the special sessions
+    /// (Daily, Quick Snap) from the plain game modes.
+    private var liveActivityTitle: String {
+        if isDailyGameActive { return "Daily Challenge" }
+        if isQuickSnapActive { return "Quick Snap" }
+        return selectedGameMode.title
+    }
+
+    /// Snapshots the current board into the value the Live Activity controller needs. Returns
+    /// `nil` for games without a picture to show (numbers mode, or before tiles/images exist),
+    /// which is also the controller's cue to do nothing.
+    private func makeLiveActivityInput() -> LiveActivityBoardInput? {
+        guard !tiles.isEmpty, !tileImages.isEmpty else { return nil }
+        return LiveActivityBoardInput(
+            placements: tiles.map { .init(id: $0.id, position: $0.currentIndex) },
+            tileImages: tileImages,
+            gridSize: gridSize,
+            // Slide's empty cell is the highest-id tile; every other mode fills every cell.
+            blankTileID: selectedGameMode == .slide ? tiles.count - 1 : nil,
+            gameModeTitle: liveActivityTitle,
+            moveCount: currentMoveCount,
+            elapsedTime: elapsedTime
+        )
+    }
+
+    /// Refreshes the Live Activity's board snapshot and counters — called when the app is
+    /// backgrounded mid-game, the moment the Lock Screen reminder actually becomes visible.
+    func refreshLiveActivity() {
+        guard let input = makeLiveActivityInput() else { return }
+        liveActivity.refresh(input)
     }
 
     /// Stops the countdown when the user quits mid-game; streak is preserved.
@@ -732,6 +779,7 @@ final class GameSession {
         stopCountdown()
         stopTimeTrialCountdown()
         stopStopwatch()
+        liveActivity.end()
         saveToUserDefaults()
     }
 }

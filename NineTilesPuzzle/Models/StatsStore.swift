@@ -33,6 +33,13 @@ final class StatsStore {
     /// question, not a full history.
     var hasZeroWasteSolve: Bool = false
     var hasSolvedWithPhotoLibrary: Bool = false
+    var hasSolvedWithInternet: Bool = false
+    var hasSolvedWithMixed: Bool = false
+    var hasSolvedWithNumbers: Bool = false
+    var hasSolvedWithQuickSnap: Bool = false
+    /// Lifetime count of puzzles solved from a Quick Snap capture — the one media source with a
+    /// tiered achievement, so it needs a running tally rather than a single boolean.
+    var quickSnapSolveCount: Int = 0
     var hasEverBrokenAStreak: Bool = false
     var hasComebackAfterBreak: Bool = false
     var maxGamesInOneDay: Int = 0
@@ -54,6 +61,18 @@ final class StatsStore {
 
     /// Distinct game modes played at least once — the "Jack of All Trades" metric.
     var distinctGameModesPlayed: Int { Set(gamesPlayed.keys.map(\.gameMode)).count }
+
+    /// How many distinct media sources have produced a solve — the "Media Maven" metric. Counts
+    /// the five selectable sources (Internet, Photos, Mixed, Numbers, Quick Snap).
+    var distinctMediaSourcesSolved: Int {
+        [
+            hasSolvedWithInternet,
+            hasSolvedWithPhotoLibrary,
+            hasSolvedWithMixed,
+            hasSolvedWithNumbers,
+            hasSolvedWithQuickSnap
+        ].count(where: { $0 })
+    }
 
     /// Records a completed game's move count and time against `key`, updating personal
     /// bests and the games-played tally. Returns which records (if any) were just broken.
@@ -165,6 +184,34 @@ final class StatsStore {
         defaults.set(true, forKey: Keys.hasSolvedWithPhotoLibrary)
     }
 
+    /// Records which media source produced a solve, backing the per-source explorer
+    /// achievements. Photo-library delegates to `recordPhotoLibrarySolve()` so the original
+    /// flag/key (and the "Personal Touch" unlock built on it) stays intact. Quick Snap keeps a
+    /// running tally on top of its one-shot flag for the tiered "Shutterbug" achievement.
+    func recordMediaSourceSolve(_ source: MediaSourceType) {
+        switch source {
+        case .local:
+            recordPhotoLibrarySolve()
+        case .random:
+            setSolveFlag(&hasSolvedWithInternet, key: Keys.hasSolvedWithInternet)
+        case .mixed:
+            setSolveFlag(&hasSolvedWithMixed, key: Keys.hasSolvedWithMixed)
+        case .numbers:
+            setSolveFlag(&hasSolvedWithNumbers, key: Keys.hasSolvedWithNumbers)
+        case .camera:
+            setSolveFlag(&hasSolvedWithQuickSnap, key: Keys.hasSolvedWithQuickSnap)
+            quickSnapSolveCount += 1
+            defaults.set(quickSnapSolveCount, forKey: Keys.quickSnapSolveCount)
+        }
+    }
+
+    /// Sets a one-shot media-source solve flag and persists it, no-op once already set.
+    private func setSolveFlag(_ flag: inout Bool, key: String) {
+        guard !flag else { return }
+        flag = true
+        defaults.set(true, forKey: key)
+    }
+
     /// Bumps today's completed-game tally and tracks the all-time daily high, for the
     /// "Marathon" achievement. Call once per completed game, any mode.
     func recordGameCompletedToday(now: Date = Date()) {
@@ -194,6 +241,11 @@ final class StatsStore {
         bestLadderStageReached = 0
         hasZeroWasteSolve = false
         hasSolvedWithPhotoLibrary = false
+        hasSolvedWithInternet = false
+        hasSolvedWithMixed = false
+        hasSolvedWithNumbers = false
+        hasSolvedWithQuickSnap = false
+        quickSnapSolveCount = 0
         hasEverBrokenAStreak = false
         hasComebackAfterBreak = false
         maxGamesInOneDay = 0
@@ -213,6 +265,11 @@ final class StatsStore {
         defaults.removeObject(forKey: Keys.bestLadderStageReached)
         defaults.removeObject(forKey: Keys.hasZeroWasteSolve)
         defaults.removeObject(forKey: Keys.hasSolvedWithPhotoLibrary)
+        defaults.removeObject(forKey: Keys.hasSolvedWithInternet)
+        defaults.removeObject(forKey: Keys.hasSolvedWithMixed)
+        defaults.removeObject(forKey: Keys.hasSolvedWithNumbers)
+        defaults.removeObject(forKey: Keys.hasSolvedWithQuickSnap)
+        defaults.removeObject(forKey: Keys.quickSnapSolveCount)
         defaults.removeObject(forKey: Keys.hasEverBrokenAStreak)
         defaults.removeObject(forKey: Keys.hasComebackAfterBreak)
         defaults.removeObject(forKey: Keys.maxGamesInOneDay)
@@ -233,6 +290,11 @@ private extension StatsStore {
         static let bestLadderStageReached = "puzzle.bestLadderStageReached"
         static let hasZeroWasteSolve = "puzzle.hasZeroWasteSolve"
         static let hasSolvedWithPhotoLibrary = "puzzle.hasSolvedWithPhotoLibrary"
+        static let hasSolvedWithInternet = "puzzle.hasSolvedWithInternet"
+        static let hasSolvedWithMixed = "puzzle.hasSolvedWithMixed"
+        static let hasSolvedWithNumbers = "puzzle.hasSolvedWithNumbers"
+        static let hasSolvedWithQuickSnap = "puzzle.hasSolvedWithQuickSnap"
+        static let quickSnapSolveCount = "puzzle.quickSnapSolveCount"
         static let hasEverBrokenAStreak = "puzzle.hasEverBrokenAStreak"
         static let hasComebackAfterBreak = "puzzle.hasComebackAfterBreak"
         static let maxGamesInOneDay = "puzzle.maxGamesInOneDay"
@@ -266,6 +328,12 @@ private extension StatsStore {
 
         hasZeroWasteSolve = defaults.bool(forKey: Keys.hasZeroWasteSolve)
         hasSolvedWithPhotoLibrary = defaults.bool(forKey: Keys.hasSolvedWithPhotoLibrary)
+        hasSolvedWithInternet = defaults.bool(forKey: Keys.hasSolvedWithInternet)
+        hasSolvedWithMixed = defaults.bool(forKey: Keys.hasSolvedWithMixed)
+        hasSolvedWithNumbers = defaults.bool(forKey: Keys.hasSolvedWithNumbers)
+        hasSolvedWithQuickSnap = defaults.bool(forKey: Keys.hasSolvedWithQuickSnap)
+        let quickSnaps = defaults.integer(forKey: Keys.quickSnapSolveCount)
+        if quickSnaps > 0 { quickSnapSolveCount = quickSnaps }
         hasEverBrokenAStreak = defaults.bool(forKey: Keys.hasEverBrokenAStreak)
         hasComebackAfterBreak = defaults.bool(forKey: Keys.hasComebackAfterBreak)
         let dailyHigh = defaults.integer(forKey: Keys.maxGamesInOneDay)

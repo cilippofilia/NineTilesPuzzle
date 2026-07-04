@@ -40,6 +40,10 @@ struct AchievementMetricTests {
             ("distinctGameModesPlayed", .distinctGameModesPlayed),
             ("zeroWasteSolve", .zeroWasteSolve),
             ("photoLibrarySolve", .photoLibrarySolve),
+            ("quickSnapSolve", .quickSnapSolve),
+            ("quickSnapSolveCount", .quickSnapSolveCount),
+            ("numbersSolve", .numbersSolve),
+            ("distinctMediaSourcesSolved", .distinctMediaSourcesSolved),
             ("comebackAfterBreak", .comebackAfterBreak),
             ("maxGamesInOneDay", .maxGamesInOneDay),
             ("bestLadderStageReached", .bestLadderStageReached),
@@ -101,6 +105,30 @@ struct AchievementMetricTests {
         #expect(AchievementMetric.photoLibrarySolve.value(in: stats, justSolved: false, now: .now) == 0)
         stats.recordPhotoLibrarySolve()
         #expect(AchievementMetric.photoLibrarySolve.value(in: stats, justSolved: false, now: .now) == 1)
+    }
+
+    @Test func quickSnapMetricsTrackFlagAndTally() {
+        let stats = makeStats()
+        #expect(AchievementMetric.quickSnapSolve.value(in: stats, justSolved: false, now: .now) == 0)
+        #expect(AchievementMetric.quickSnapSolveCount.value(in: stats, justSolved: false, now: .now) == 0)
+
+        stats.recordMediaSourceSolve(.camera)
+        stats.recordMediaSourceSolve(.camera)
+        #expect(AchievementMetric.quickSnapSolve.value(in: stats, justSolved: false, now: .now) == 1)
+        #expect(AchievementMetric.quickSnapSolveCount.value(in: stats, justSolved: false, now: .now) == 2)
+    }
+
+    @Test func distinctMediaSourcesSolvedCountsEachSourceOnce() {
+        let stats = makeStats()
+        #expect(AchievementMetric.distinctMediaSourcesSolved.value(in: stats, justSolved: false, now: .now) == 0)
+
+        stats.recordMediaSourceSolve(.random)
+        stats.recordMediaSourceSolve(.random)
+        stats.recordMediaSourceSolve(.local)
+        stats.recordMediaSourceSolve(.mixed)
+        stats.recordMediaSourceSolve(.numbers)
+        stats.recordMediaSourceSolve(.camera)
+        #expect(AchievementMetric.distinctMediaSourcesSolved.value(in: stats, justSolved: false, now: .now) == 5)
     }
 
     @Test func soloedInHourRangeOnlyCountsWhenJustSolvedAndInRange() {

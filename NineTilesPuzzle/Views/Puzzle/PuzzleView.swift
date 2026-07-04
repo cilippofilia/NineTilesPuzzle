@@ -224,6 +224,9 @@ struct PuzzleView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {
                 session.pauseTimers()
+                // Refresh after pausing so the Lock Screen reminder shows the board and elapsed
+                // time exactly as the player left them — the moment the reminder becomes visible.
+                session.refreshLiveActivity()
             } else if newPhase == .active, !session.isLoading, !session.isPreviewing {
                 session.resumeTimers()
             }

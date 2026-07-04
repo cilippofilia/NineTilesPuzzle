@@ -250,6 +250,46 @@
         "comparison": "greaterThanOrEqual"
     },
     {
+        "id": "sayCheese",
+        "title": "Say Cheese",
+        "description": "Solve a puzzle from a Quick Snap photo",
+        "systemImage": "camera.fill",
+        "category": "explorer",
+        "metric": "quickSnapSolve",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "shutterbug",
+        "title": "Shutterbug",
+        "description": "Solve 10 puzzles from Quick Snap photos",
+        "systemImage": "camera.aperture",
+        "category": "explorer",
+        "metric": "quickSnapSolveCount",
+        "target": 10,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "byTheNumbers",
+        "title": "By the Numbers",
+        "description": "Solve a classic numbers puzzle",
+        "systemImage": "textformat.123",
+        "category": "explorer",
+        "metric": "numbersSolve",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "mediaMaven",
+        "title": "Media Maven",
+        "description": "Solve a puzzle with every media source",
+        "systemImage": "photo.on.rectangle.angled",
+        "category": "explorer",
+        "metric": "distinctMediaSourcesSolved",
+        "target": 5,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
         "id": "nightOwl",
         "title": "Night Owl",
         "description": "Solve a puzzle between midnight and 5am",

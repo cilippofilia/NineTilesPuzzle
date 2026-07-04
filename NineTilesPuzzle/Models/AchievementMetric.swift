@@ -22,6 +22,10 @@ enum AchievementMetric: Equatable {
     case distinctGameModesPlayed
     case zeroWasteSolve
     case photoLibrarySolve
+    case quickSnapSolve
+    case quickSnapSolveCount
+    case numbersSolve
+    case distinctMediaSourcesSolved
     case comebackAfterBreak
     case maxGamesInOneDay
     case bestLadderStageReached
@@ -59,6 +63,14 @@ enum AchievementMetric: Equatable {
             return stats.hasZeroWasteSolve ? 1 : 0
         case .photoLibrarySolve:
             return stats.hasSolvedWithPhotoLibrary ? 1 : 0
+        case .quickSnapSolve:
+            return stats.hasSolvedWithQuickSnap ? 1 : 0
+        case .quickSnapSolveCount:
+            return stats.quickSnapSolveCount
+        case .numbersSolve:
+            return stats.hasSolvedWithNumbers ? 1 : 0
+        case .distinctMediaSourcesSolved:
+            return stats.distinctMediaSourcesSolved
         case .comebackAfterBreak:
             return stats.hasComebackAfterBreak ? 1 : 0
         case .maxGamesInOneDay:
@@ -110,6 +122,14 @@ extension AchievementMetric: Codable {
             self = .zeroWasteSolve
         case "photoLibrarySolve":
             self = .photoLibrarySolve
+        case "quickSnapSolve":
+            self = .quickSnapSolve
+        case "quickSnapSolveCount":
+            self = .quickSnapSolveCount
+        case "numbersSolve":
+            self = .numbersSolve
+        case "distinctMediaSourcesSolved":
+            self = .distinctMediaSourcesSolved
         case "comebackAfterBreak":
             self = .comebackAfterBreak
         case "maxGamesInOneDay":
@@ -145,6 +165,10 @@ extension AchievementMetric: Codable {
         case .distinctGameModesPlayed: "distinctGameModesPlayed"
         case .zeroWasteSolve: "zeroWasteSolve"
         case .photoLibrarySolve: "photoLibrarySolve"
+        case .quickSnapSolve: "quickSnapSolve"
+        case .quickSnapSolveCount: "quickSnapSolveCount"
+        case .numbersSolve: "numbersSolve"
+        case .distinctMediaSourcesSolved: "distinctMediaSourcesSolved"
         case .comebackAfterBreak: "comebackAfterBreak"
         case .maxGamesInOneDay: "maxGamesInOneDay"
         case .bestLadderStageReached: "bestLadderStageReached"

@@ -12,7 +12,7 @@ import UIKit
 /// serial queue (the pattern Apple's capture pipeline requires), so the type synchronizes
 /// itself and is safe to hand across actor boundaries. The SwiftUI layer only touches
 /// `previewLayer` (created once, read on the main thread) and the async entry points below.
-final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
+nonisolated final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
     /// The layer the preview view displays. Its `session` is wired up during configuration.
     let previewLayer = AVCaptureVideoPreviewLayer()
 
@@ -165,8 +165,8 @@ final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
     }
 }
 
-extension QuickSnapCameraSession: AVCapturePhotoCaptureDelegate {
-    func photoOutput(
+extension QuickSnapCameraSession: nonisolated AVCapturePhotoCaptureDelegate {
+    nonisolated func photoOutput(
         _ output: AVCapturePhotoOutput,
         didFinishProcessingPhoto photo: AVCapturePhoto,
         error: Error?
@@ -195,7 +195,7 @@ private extension UIImage {
     /// Bakes any orientation metadata into the pixels and returns the resulting `CGImage`, so
     /// the puzzle slicer receives an upright image rather than one that only looks correct once
     /// a `UIImage.Orientation` flag is applied.
-    func uprightCGImage() -> CGImage? {
+    nonisolated func uprightCGImage() -> CGImage? {
         guard imageOrientation != .up else { return cgImage }
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = scale
