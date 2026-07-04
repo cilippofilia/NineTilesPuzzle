@@ -85,10 +85,12 @@ struct PuzzleLiveActivity: Widget {
                 }
             } compactTrailing: {
                 ProgressRing(progress: context.state.progress, accent: accent)
-                    .frame(width: 18, height: 18)
+                    .frame(width: 22, height: 22)
+                    // Keep the ring clear of the pill's rounded trailing edge.
+                    .padding(.trailing, 2)
             } minimal: {
                 ProgressRing(progress: context.state.progress, accent: accent)
-                    .frame(width: 18, height: 18)
+                    .frame(width: 22, height: 22)
             }
             .keylineTint(accent)
         }
@@ -112,23 +114,19 @@ private struct PuzzleLockScreenView: View {
                     ModeGlyphBadge(icon: context.attributes.gameModeIcon, accent: accent, size: 22)
                 }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("\(context.attributes.gameModeTitle) · \(context.attributes.gridSize)×\(context.attributes.gridSize)")
-                    .font(.headline)
-                    .lineLimit(1)
-
+            VStack(alignment: .leading, spacing: 8) {
+                // Title takes the width, with the streak (and its target) pushed to the
+                // trailing edge — this is what fills the previously-empty right side.
                 HStack(spacing: 8) {
-                    StatBadge(icon: "arrow.left.arrow.right",
-                              text: "\(context.state.moveCount)", accent: accent)
-                    StatBadge(icon: "clock",
-                              text: elapsed(context.state.elapsedTime), accent: accent)
-                }
+                    Text("\(context.attributes.gameModeTitle) · \(context.attributes.gridSize)×\(context.attributes.gridSize)")
+                        .font(.headline)
+                        .lineLimit(1)
 
-                // Only surfaced while a streak is actually running — the flame is the "keep
-                // it alive" nudge, and the trophy rides along as the target to beat when the
-                // player has a personal best on the board.
-                if context.state.currentStreak > 0 {
-                    HStack(spacing: 8) {
+                    // Only surfaced while a streak is actually running — the flame is the "keep
+                    // it alive" nudge, and the trophy rides along as the target to beat when the
+                    // player has a personal best on the board.
+                    if context.state.currentStreak > 0 {
+                        Spacer(minLength: 8)
                         StatBadge(icon: "flame.fill",
                                   text: "\(context.state.currentStreak)", accent: accent)
                         if context.state.bestStreak > 0 {
@@ -138,12 +136,27 @@ private struct PuzzleLockScreenView: View {
                     }
                 }
 
+                HStack(spacing: 8) {
+                    StatBadge(icon: "arrow.left.arrow.right",
+                              text: "\(context.state.moveCount)", accent: accent)
+                    StatBadge(icon: "clock",
+                              text: elapsed(context.state.elapsedTime), accent: accent)
+                }
+
+                // Full-width completion bar spanning the whole card — the horizontal element
+                // that keeps the layout from bunching to the leading edge.
+                HStack(spacing: 8) {
+                    ProgressBar(progress: context.state.progress, accent: accent)
+                    Text(context.state.progress, format: .percent.precision(.fractionLength(0)))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+
                 Text(context.isStale ? "Paused · tap to resume" : "Tap to keep solving")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
         .activityBackgroundTint(.black.opacity(0.55))
@@ -211,17 +224,21 @@ private struct ProgressRing: View {
     /// Fraction solved, 0...1.
     let progress: Double
     let accent: Color
+    var lineWidth: CGFloat = 3
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(.white.opacity(0.22), lineWidth: 3)
+                .stroke(.white.opacity(0.22), lineWidth: lineWidth)
             Circle()
                 // A hair of trim so an untouched board still shows a dot rather than nothing.
                 .trim(from: 0, to: max(0.02, min(1, progress)))
-                .stroke(accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(accent, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
+        // The stroke is centered on the circle's path, so half of it sits outside the frame;
+        // without this inset that overflow gets clipped by the Dynamic Island's curved edge.
+        .padding(lineWidth / 2)
     }
 }
 
