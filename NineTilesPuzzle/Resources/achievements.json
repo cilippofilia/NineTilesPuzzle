@@ -372,11 +372,11 @@
     {
         "id": "ladderLegend",
         "title": "Gauntlet Legend",
-        "description": "Reach a cumulative Gauntlet Ladder score of 8000 or higher",
+        "description": "Reach a cumulative Gauntlet Ladder score of 200000 or higher",
         "systemImage": "star.circle.fill",
         "category": "special",
         "metric": "bestLadderScore",
-        "target": 8000,
+        "target": 200000,
         "comparison": "greaterThanOrEqual"
     },
     {
