@@ -5,6 +5,7 @@
 //  Created by Filippo Cilia on 7/4/26.
 //
 
+import AVFoundation
 import SwiftUI
 
 /// Full-screen Quick Snap capture flow: a live camera feed with a countdown ring. There is no
@@ -51,14 +52,19 @@ struct QuickSnapCameraView: View {
                     Task { await fireCapture() }
                 } label: {
                     ZStack {
-                        if isReady {
-                            CameraPreviewView(cameraSession: cameraSession)
-                                .ignoresSafeArea()
-                                .transition(.opacity)
-                        }
-
-                        QuickSnapCountdownOverlay(remaining: remaining, total: shotDuration)
+                        // Mounted up front (not gated on `isReady`) so the preview layer is live
+                        // and laid out before the session starts delivering frames — the first
+                        // frame paints immediately instead of after the view is built. The layer
+                        // shows the black background beneath until frames flow.
+                        CameraPreviewView(cameraSession: cameraSession)
+                            .ignoresSafeArea()
                             .opacity(isReady ? 1 : 0)
+
+                        if isReady {
+                            QuickSnapCountdownOverlay(remaining: remaining, total: shotDuration)
+                        } else {
+                            QuickSnapLoadingView()
+                        }
                     }
                 }
                 .buttonStyle(.plain)
@@ -78,6 +84,19 @@ struct QuickSnapCameraView: View {
                 .padding()
             }
         }
+        .overlay(alignment: .topTrailing) {
+            if errorMessage == nil && isReady && QuickSnapCameraSession.canFlipCamera {
+                Button("Flip camera", systemImage: "arrow.triangle.2.circlepath.camera") {
+                    // Remember the new facing so Quick Snap reopens the same way next time.
+                    settings.setQuickSnapUsesFrontCamera(!settings.quickSnapUsesFrontCamera)
+                    cameraSession.flip()
+                }
+                .labelStyle(.iconOnly)
+                .font(.title2)
+                .foregroundStyle(.white)
+                .padding()
+            }
+        }
         .animation(.easeInOut(duration: 0.3), value: isReady)
         // A tick on each second down, then a firmer beat when the shutter actually fires — the
         // countdown you feel as well as see, like the Fitness app's pre-workout timer.
@@ -89,7 +108,9 @@ struct QuickSnapCameraView: View {
         }
         .task {
             do {
-                try await cameraSession.configure()
+                cameraSession.prepareForDisplay()
+                let startingPosition: AVCaptureDevice.Position = settings.quickSnapUsesFrontCamera ? .front : .back
+                try await cameraSession.configure(startingPosition: startingPosition)
                 isReady = true
                 await runCountdown()
             } catch ImageSourceError.notAuthorized {
@@ -176,6 +197,22 @@ private struct QuickSnapCountdownOverlay: View {
                 .padding(.vertical, 8)
                 .background(.ultraThinMaterial, in: .capsule)
                 .padding(.bottom, 40)
+        }
+    }
+}
+
+/// Bridges the camera warm-up gap. `AVCaptureSession.startRunning()` returns before the sensor
+/// delivers its first frame, so without this the black preview reads as a broken camera rather
+/// than one that's still opening.
+private struct QuickSnapLoadingView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .controlSize(.large)
+                .tint(.white)
+            Text("Starting camera…")
+                .font(.subheadline)
+                .foregroundStyle(.white)
         }
     }
 }

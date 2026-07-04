@@ -19,6 +19,8 @@ final class SettingsStore {
     var streakCountdownDuration: Double = 30
     /// Seconds on the Quick Snap capture countdown before the frame is auto-snapped.
     var quickSnapDuration: Double = 3
+    /// Which camera Quick Snap opens with, remembered across sessions. `false` is the back camera.
+    var quickSnapUsesFrontCamera: Bool = false
     var hapticsEnabled: Bool = true
     var debugOverlayEnabled: Bool = false
 
@@ -57,6 +59,12 @@ final class SettingsStore {
         defaults.set(duration, forKey: Keys.quickSnapDuration)
     }
 
+    func setQuickSnapUsesFrontCamera(_ value: Bool) {
+        guard value != quickSnapUsesFrontCamera else { return }
+        quickSnapUsesFrontCamera = value
+        defaults.set(value, forKey: Keys.quickSnapUsesFrontCamera)
+    }
+
     func setHapticsEnabled(_ value: Bool) {
         hapticsEnabled = value
         defaults.set(value, forKey: Keys.hapticsEnabled)
@@ -71,6 +79,7 @@ final class SettingsStore {
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
         setQuickSnapDuration(3)
+        setQuickSnapUsesFrontCamera(false)
         setHapticsEnabled(true)
     }
 }
@@ -80,6 +89,7 @@ private extension SettingsStore {
         static let previewDuration = "puzzle.previewDuration"
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
         static let quickSnapDuration = "puzzle.quickSnapDuration"
+        static let quickSnapUsesFrontCamera = "puzzle.quickSnapUsesFrontCamera"
         static let hapticsEnabled = "puzzle.hapticsEnabled"
         static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
     }
@@ -93,6 +103,9 @@ private extension SettingsStore {
         }
         if defaults.object(forKey: Keys.quickSnapDuration) != nil {
             quickSnapDuration = defaults.double(forKey: Keys.quickSnapDuration)
+        }
+        if defaults.object(forKey: Keys.quickSnapUsesFrontCamera) != nil {
+            quickSnapUsesFrontCamera = defaults.bool(forKey: Keys.quickSnapUsesFrontCamera)
         }
         if defaults.object(forKey: Keys.hapticsEnabled) != nil {
             hapticsEnabled = defaults.bool(forKey: Keys.hapticsEnabled)

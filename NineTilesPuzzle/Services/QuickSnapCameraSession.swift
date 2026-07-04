@@ -20,6 +20,12 @@ final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
     private let photoOutput = AVCapturePhotoOutput()
     private let sessionQueue = DispatchQueue(label: "com.ninetilespuzzle.quicksnap.camera")
 
+    /// The input currently wired into the session, held so `flip()` can swap it out for the
+    /// opposite-facing camera without tearing the whole graph down.
+    private var videoInput: AVCaptureDeviceInput?
+    /// Which camera the session is currently feeding from. Starts on the back camera.
+    private var currentPosition: AVCaptureDevice.Position = .back
+
     /// Bridges the one-shot `AVCapturePhotoCaptureDelegate` callback back to `capture()`'s
     /// awaiting caller. Set while a capture is in flight, cleared when it resolves.
     private var captureContinuation: CheckedContinuation<CGImage, Error>?
@@ -31,10 +37,30 @@ final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
         AVCaptureDevice.default(for: .video) != nil
     }
 
+    /// Whether both a front and a back camera exist, so offering a flip control makes sense.
+    /// The flip button is hidden entirely when this is false (e.g. a device with one camera).
+    static var canFlipCamera: Bool {
+        AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) != nil
+            && AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) != nil
+    }
+
+    /// Binds the preview layer to the session on the main thread, where `CALayer` mutation
+    /// belongs. Called before `configure()` so the layer is already live and laid out in the
+    /// view hierarchy — the first frame the camera delivers paints immediately instead of
+    /// waiting on the view being mounted only once the session is running.
+    @MainActor
+    func prepareForDisplay() {
+        previewLayer.videoGravity = .resizeAspectFill
+        if previewLayer.session == nil {
+            previewLayer.session = session
+        }
+    }
+
     /// Requests camera authorization (if needed), builds the capture graph, and starts the
-    /// session running. Throws `ImageSourceError.notAuthorized` when access is denied and
-    /// `.providerUnavailable` when no usable camera/input exists (e.g. the Simulator).
-    func configure() async throws {
+    /// session running. `startingPosition` is the camera the player last used, so Quick Snap
+    /// reopens facing the same way. Throws `ImageSourceError.notAuthorized` when access is denied
+    /// and `.providerUnavailable` when no usable camera/input exists (e.g. the Simulator).
+    func configure(startingPosition: AVCaptureDevice.Position = .back) async throws {
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         switch status {
         case .authorized:
@@ -49,7 +75,7 @@ final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             sessionQueue.async { [self] in
                 do {
-                    try configureSession()
+                    try configureSession(preferredPosition: startingPosition)
                     session.startRunning()
                     continuation.resume()
                 } catch {
@@ -74,6 +100,36 @@ final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
         }
     }
 
+    /// Swaps the live feed to the opposite-facing camera, leaving the countdown untouched.
+    /// Falls back to the original input if the other camera can't be added, so a failed flip
+    /// never leaves the session without a feed.
+    func flip() {
+        sessionQueue.async { [self] in
+            let target: AVCaptureDevice.Position = currentPosition == .back ? .front : .back
+            guard
+                let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: target),
+                let newInput = try? AVCaptureDeviceInput(device: device)
+            else {
+                return
+            }
+
+            session.beginConfiguration()
+            defer { session.commitConfiguration() }
+
+            if let videoInput {
+                session.removeInput(videoInput)
+            }
+            if session.canAddInput(newInput) {
+                session.addInput(newInput)
+                videoInput = newInput
+                currentPosition = target
+            } else if let videoInput {
+                // Restore the previous feed rather than ending up with no input at all.
+                session.addInput(videoInput)
+            }
+        }
+    }
+
     /// Stops the running session. Safe to call more than once.
     func stop() {
         sessionQueue.async { [self] in
@@ -83,14 +139,15 @@ final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
 
     // MARK: - Session graph
 
-    private func configureSession() throws {
+    private func configureSession(preferredPosition: AVCaptureDevice.Position) throws {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 
         session.sessionPreset = .photo
 
         guard
-            let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+            let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: preferredPosition)
+                ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
                 ?? AVCaptureDevice.default(for: .video),
             let input = try? AVCaptureDeviceInput(device: device),
             session.canAddInput(input)
@@ -98,14 +155,13 @@ final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
             throw ImageSourceError.providerUnavailable
         }
         session.addInput(input)
+        videoInput = input
+        currentPosition = device.position
 
         guard session.canAddOutput(photoOutput) else {
             throw ImageSourceError.providerUnavailable
         }
         session.addOutput(photoOutput)
-
-        previewLayer.session = session
-        previewLayer.videoGravity = .resizeAspectFill
     }
 }
 
