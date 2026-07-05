@@ -25,6 +25,11 @@ struct WallOfFameView: View {
         ZStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    boardSection(title: "Difficulty Highlights") {
+                        ForEach(3...8, id: \.self) { size in
+                            heroCardSlot(forGridSize: size)
+                        }
+                    }
                     boardSection(title: "Best Moves") {
                         ForEach(3...8, id: \.self) { size in
                             cardSlot(for: .bestMoves(gridSize: size))
@@ -41,6 +46,11 @@ struct WallOfFameView: View {
                     }
                     boardSection(title: "Streaks") {
                         cardSlot(for: .calendarStreak)
+                    }
+                    boardSection(title: "Gauntlet Ladder") {
+                        ForEach(1...GauntletLadderRules.stageCount, id: \.self) { stage in
+                            cardSlot(for: .ladderStage(stage))
+                        }
                     }
                 }
                 .padding(20)
@@ -117,6 +127,20 @@ struct WallOfFameView: View {
             LazyVGrid(columns: columns, spacing: 20) {
                 content()
             }
+        }
+    }
+
+    // MARK: - Hero card slot
+
+    /// The "Difficulty Highlights" section's per-size tile: whichever of `.bestMoves`/`.bestTime` was
+    /// captured most recently for `size`, so each difficulty gets one representative photo
+    /// instead of the full moves/time breakdown shown further down the board.
+    @ViewBuilder
+    private func heroCardSlot(forGridSize size: Int) -> some View {
+        if let hero = wallOfFameStore.heroSlot(forGridSize: size) {
+            cardSlot(for: hero)
+        } else {
+            WallOfFameEmptySlot(slot: .bestMoves(gridSize: size))
         }
     }
 
@@ -290,5 +314,6 @@ private struct SeededRNG {
         WallOfFameView()
             .environment(WallOfFameStore())
             .environment(MotionManager())
+            .environment(StatsStore())
     }
 }

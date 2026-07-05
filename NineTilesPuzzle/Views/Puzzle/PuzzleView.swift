@@ -149,6 +149,9 @@ struct PuzzleView: View {
                     : .bestTime(gridSize: session.gridSize)
                 captureWallOfFameCard(for: slot)
             }
+            if flags.isNewLadderStageBestRecord {
+                captureWallOfFameCard(for: .ladderStage(session.lastClearedLadderStage))
+            }
         }
         .onChange(of: session.isNewCalendarStreakRecord) { _, isNew in
             guard isNew else { return }
@@ -263,7 +266,8 @@ struct PuzzleView: View {
             isNewBestTime: session.isNewBestTime,
             isNewTimeTrialScoreRecord: session.isNewTimeTrialScoreRecord,
             isNewLadderScoreRecord: session.isNewLadderScoreRecord,
-            isNewLadderStageRecord: session.isNewLadderStageRecord
+            isNewLadderStageRecord: session.isNewLadderStageRecord,
+            isNewLadderStageBestRecord: session.isNewLadderStageBestRecord
         )
     }
 
@@ -315,6 +319,7 @@ struct PuzzleView: View {
 
     private func captureWallOfFameCard(for slot: WallOfFameSlot) {
         guard let cgImage = session.croppedSourceImage else { return }
+        let ladderStage: Int? = if case .ladderStage(let stage) = slot { stage } else { nil }
         let card = ShareCardView(
             image: cgImage,
             gridSize: session.gridSize,
@@ -323,7 +328,9 @@ struct PuzzleView: View {
             elapsedTime: session.elapsedTime,
             isDailyChallenge: session.isDailyGameActive,
             dailyDate: session.dailyEffectiveDate,
-            calendarStreak: session.dailyCalendarStreak
+            calendarStreak: session.dailyCalendarStreak,
+            ladderStage: ladderStage,
+            ladderStageScore: ladderStage != nil ? session.lastLadderStageScore : nil
         )
         // Rendering is deferred to a Task so the `.onChange(of: recordFlags)` handler that
         // triggers this returns immediately instead of blocking on an ImageRenderer pass.

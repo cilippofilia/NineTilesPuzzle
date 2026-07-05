@@ -338,9 +338,11 @@ Still deferred: Instruments before/after captures on a Release build (Time Profi
 
 [X] ### Wall of Fame — **M** *(shipped June 2026)*
 A cork-board view where every personal record is automatically pinned as a polaroid card.
-15 slots in four sections, defined by `Models/WallOfFameSlot.swift`:
+25 slots in six sections, defined by `Models/WallOfFameSlot.swift`:
 `bestMoves(gridSize: 3…8)`, `bestTime(gridSize: 3…8)`, `dailyBestMoves`, `dailyBestTime`,
-`calendarStreak`. At the moment any record is set `PuzzleView` renders `ShareCardView` via
+`calendarStreak`, `ladderStage(1…10)` *(Gauntlet Ladder section, added July 2026 — one card
+per stage, capturing whenever a clear beats that stage's own best score)*. At the moment any
+record is set `PuzzleView` renders `ShareCardView` via
 `ImageRenderer` at scale 3, converts the result to a `CGImage`, and calls
 `WallOfFameStore.save(_:for:)` — which writes a PNG to
 `Documents/wall_of_fame/<slot>.png` using ImageIO (no UIKit) and caches the `CGImage`
@@ -372,7 +374,14 @@ Visual design:
   via `.equatable()`, so SwiftUI renders it once and never re-runs the generation loop on
   later parent updates (e.g. card zoom/unzoom) — a July 2026 perf fix.
 - **Empty slots**: dashed rounded-rect outline (`WallOfFameEmptySlot`) so the board reads
-  as something to fill in.
+  as something to fill in. Ladder stages are sequential, so an empty one distinguishes
+  "Locked" (dimmer border, small lock glyph — `stage > bestLadderStageReached + 1`) from
+  the ordinary "not yet earned" placeholder every other slot uses (July 2026).
+- **Difficulty Highlights** (July 2026): a section ahead of Best Moves/Fastest Solve
+  showing one "hero" card per grid size (3…8) — whichever of that size's `.bestMoves`/
+  `.bestTime` card was captured most recently, via `WallOfFameStore.heroSlot(forGridSize:)`.
+  Avoids duplicating the full moves/time breakdown while still giving each difficulty a
+  single representative photo.
 - **Tap to zoom**: tapping a pinned card sets `zoomedSlot`/`zoomedCardImage` state in the
   root `ZStack`. The dark backdrop and card content are sibling views so each can carry
   its own transition — backdrop fades (`.opacity`), card scales + fades

@@ -15,10 +15,12 @@ enum WallOfFameSlot: Hashable {
     case dailyBestMoves
     case dailyBestTime
     case calendarStreak
+    case ladderStage(Int)
 
     static var allCases: [WallOfFameSlot] {
         (3...8).flatMap { [.bestMoves(gridSize: $0), .bestTime(gridSize: $0)] }
             + [.dailyBestMoves, .dailyBestTime, .calendarStreak]
+            + (1...GauntletLadderRules.stageCount).map { .ladderStage($0) }
     }
 
     /// Stable filename used to persist the card PNG to disk.
@@ -29,6 +31,7 @@ enum WallOfFameSlot: Hashable {
         case .dailyBestMoves:      "dailyBestMoves"
         case .dailyBestTime:       "dailyBestTime"
         case .calendarStreak:      "calendarStreak"
+        case .ladderStage(let stage): "ladderStage_\(stage)"
         }
     }
 
@@ -39,6 +42,8 @@ enum WallOfFameSlot: Hashable {
         case .dailyBestMoves:      "Daily Best Moves"
         case .dailyBestTime:       "Daily Best Time"
         case .calendarStreak:      "Calendar Streak"
+        case .ladderStage(let stage):
+            "Gauntlet Stage \(stage) · \(GauntletLadderRules.stage(stage).gridSize)×\(GauntletLadderRules.stage(stage).gridSize)"
         }
     }
 
@@ -50,6 +55,7 @@ enum WallOfFameSlot: Hashable {
         case .dailyBestMoves:      200
         case .dailyBestTime:       201
         case .calendarStreak:      202
+        case .ladderStage(let stage): stage + 300
         }
     }
 }

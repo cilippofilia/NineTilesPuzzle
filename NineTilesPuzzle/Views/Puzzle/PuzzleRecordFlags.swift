@@ -17,4 +17,5 @@ struct PuzzleRecordFlags: Equatable {
     var isNewTimeTrialScoreRecord = false
     var isNewLadderScoreRecord = false
     var isNewLadderStageRecord = false
+    var isNewLadderStageBestRecord = false
 }

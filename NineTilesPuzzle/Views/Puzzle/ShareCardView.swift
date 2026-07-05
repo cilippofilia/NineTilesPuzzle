@@ -19,6 +19,10 @@ struct ShareCardView: View {
     let isDailyChallenge: Bool
     let dailyDate: Date
     let calendarStreak: Int
+    /// Set only when this card captures a Gauntlet Ladder stage clear — drives the mode
+    /// chip, context line, and score badge that replace the daily-streak ones in that case.
+    var ladderStage: Int? = nil
+    var ladderStageScore: Int? = nil
 
     // Fixed light palette — the card always renders light regardless of device color
     // scheme so every share destination sees an identical image.
@@ -93,6 +97,9 @@ struct ShareCardView: View {
                 if isDailyChallenge && calendarStreak > 0 {
                     Spacer()
                     ShareStatBadge(value: "\(calendarStreak)", icon: "flame.fill", tint: .orange)
+                } else if let ladderStageScore {
+                    Spacer()
+                    ShareStatBadge(value: ladderStageScore.formatted(), icon: "star.fill", tint: .orange)
                 }
             }
             .padding(.top, 6)
@@ -105,12 +112,17 @@ struct ShareCardView: View {
     // MARK: - Helpers
 
     private var modeChipLabel: String {
-        isDailyChallenge ? "Daily Challenge" : gameMode.title
+        if let ladderStage {
+            return "Gauntlet · Stage \(ladderStage)"
+        }
+        return isDailyChallenge ? "Daily Challenge" : gameMode.title
     }
 
     private var contextLine: String {
         let grid = "\(gridSize)×\(gridSize)"
-        if isDailyChallenge {
+        if let ladderStage {
+            return "\(grid)  ·  Stage \(ladderStage) of \(GauntletLadderRules.stageCount)"
+        } else if isDailyChallenge {
             let dateStr = dailyDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
             return "\(dateStr)  ·  \(grid)  ·  \(gameMode.title)"
         } else {

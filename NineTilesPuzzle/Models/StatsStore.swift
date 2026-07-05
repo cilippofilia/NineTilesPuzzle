@@ -27,6 +27,11 @@ final class StatsStore {
     /// stage table, so there's no single (gridSize, gameMode) pair to key it by.
     var bestLadderScore: Int = 0
     var bestLadderStageReached: Int = 0
+    /// Best score ever scored while clearing each individual ladder stage, keyed by stage
+    /// number (1...`GauntletLadderRules.stageCount`). Distinct from `bestLadderStageReached`,
+    /// which tracks the furthest stage any run has reached rather than a per-stage best —
+    /// this backs the Wall of Fame's per-stage cards.
+    var bestLadderStageScores: [Int: Int] = [:]
 
     /// Lifetime flags/counters that back the data-driven achievement metrics in
     /// `AchievementMetric` — each is the simplest fact that can answer its achievement's
@@ -128,6 +133,16 @@ final class StatsStore {
         guard stage > bestLadderStageReached else { return false }
         bestLadderStageReached = stage
         defaults.set(stage, forKey: Keys.bestLadderStageReached)
+        return true
+    }
+
+    /// Records a Gauntlet Ladder stage clear's score, updating that stage's own personal
+    /// best if `score` beats it. Returns whether this was a new record.
+    @discardableResult
+    func recordLadderStageScore(stage: Int, score: Int) -> Bool {
+        guard score > (bestLadderStageScores[stage] ?? 0) else { return false }
+        bestLadderStageScores[stage] = score
+        defaults.set(score, forKey: Keys.bestLadderStageScore(for: stage))
         return true
     }
 
@@ -239,6 +254,7 @@ final class StatsStore {
         allTimeHighStreak = [:]
         bestLadderScore = 0
         bestLadderStageReached = 0
+        bestLadderStageScores = [:]
         hasZeroWasteSolve = false
         hasSolvedWithPhotoLibrary = false
         hasSolvedWithInternet = false
@@ -263,6 +279,9 @@ final class StatsStore {
         }
         defaults.removeObject(forKey: Keys.bestLadderScore)
         defaults.removeObject(forKey: Keys.bestLadderStageReached)
+        for stage in 1...GauntletLadderRules.stageCount {
+            defaults.removeObject(forKey: Keys.bestLadderStageScore(for: stage))
+        }
         defaults.removeObject(forKey: Keys.hasZeroWasteSolve)
         defaults.removeObject(forKey: Keys.hasSolvedWithPhotoLibrary)
         defaults.removeObject(forKey: Keys.hasSolvedWithInternet)
@@ -288,6 +307,7 @@ private extension StatsStore {
         static func allTimeHighStreak(for size: Int, mode: GameMode) -> String { "puzzle.allTimeHighStreak.\(mode.rawValue).\(size)" }
         static let bestLadderScore = "puzzle.bestLadderScore"
         static let bestLadderStageReached = "puzzle.bestLadderStageReached"
+        static func bestLadderStageScore(for stage: Int) -> String { "puzzle.bestLadderStageScore.\(stage)" }
         static let hasZeroWasteSolve = "puzzle.hasZeroWasteSolve"
         static let hasSolvedWithPhotoLibrary = "puzzle.hasSolvedWithPhotoLibrary"
         static let hasSolvedWithInternet = "puzzle.hasSolvedWithInternet"
@@ -325,6 +345,10 @@ private extension StatsStore {
         if ladderScore > 0 { bestLadderScore = ladderScore }
         let ladderStage = defaults.integer(forKey: Keys.bestLadderStageReached)
         if ladderStage > 0 { bestLadderStageReached = ladderStage }
+        for stage in 1...GauntletLadderRules.stageCount {
+            let score = defaults.integer(forKey: Keys.bestLadderStageScore(for: stage))
+            if score > 0 { bestLadderStageScores[stage] = score }
+        }
 
         hasZeroWasteSolve = defaults.bool(forKey: Keys.hasZeroWasteSolve)
         hasSolvedWithPhotoLibrary = defaults.bool(forKey: Keys.hasSolvedWithPhotoLibrary)
