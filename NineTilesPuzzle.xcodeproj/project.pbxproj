@@ -62,8 +62,13 @@
 		1826D7C42FF91BEB00927433 /* Exceptions for "NineTilesPuzzle" folder in "NineTilesPuzzleWidgetsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Models/DailyChallengeSeeder.swift,
+				Models/GameMode.swift,
+				"Models/TimeInterval-Formatting-Ext.swift",
+				Shared/DeepLink.swift,
 				Shared/LiveActivityStore.swift,
 				Shared/PuzzleActivityAttributes.swift,
+				Shared/WidgetDataStore.swift,
 			);
 			target = 1826D79E2FF9192400927433 /* NineTilesPuzzleWidgetsExtension */;
 		};

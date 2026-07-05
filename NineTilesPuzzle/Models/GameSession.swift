@@ -23,6 +23,7 @@ final class GameSession {
     private let swapEngine = SwapEngine()
     private let slideEngine = SlideEngine()
     private let liveActivity = LiveActivityController()
+    private let widgetData: WidgetDataController
     private var previewSleepTask: Task<Void, Never>?
 
     /// Reused across every save/restore so we don't pay a fresh coder allocation on each
@@ -202,8 +203,15 @@ final class GameSession {
         self.settingsStore = settingsStore
         self.dailyChallengeStore = dailyChallengeStore
         self.defaults = defaults
+        // Widget syncing writes to the real App Group suite, so it only runs when this
+        // session persists to real UserDefaults too — tests injecting an in-memory store
+        // stay hermetic. (Live Activity needs no such gate: `ActivityAuthorizationInfo`
+        // already no-ops in tests.)
+        self.widgetData = WidgetDataController(defaults: defaults is UserDefaults ? WidgetDataStore.sharedDefaults : nil)
         restoreFromUserDefaults()
         reconcileLiveActivityOnLaunch()
+        syncResumeWidget()
+        widgetData.syncAll(dailyStore: dailyChallengeStore, statsStore: statsStore)
         achievementsStore.checkAchievements(using: statsStore)
         Task {
             await achievementsStore.refreshAchievementsFromRemote()
@@ -266,6 +274,7 @@ final class GameSession {
                     if isGauntletLadderMode { isLadderRunFailed = true }
                     stopTimeTrialCountdown()
                     liveActivity.end()
+                    widgetData.clearResume()
                     saveToUserDefaults()
                     return
                 }
@@ -327,6 +336,18 @@ final class GameSession {
         }
     }
 
+    /// Restarts whichever timers a just-restored game needs: the streak countdown when a
+    /// streak is live, the Time Trial clock (at the full base duration — an accepted MVP
+    /// limitation, see `restoreFromUserDefaults()`), and the stopwatch once a move exists.
+    /// Called from launch restoration and from the resume deep link's `PuzzleView` path.
+    func startTimersForRestoredGameIfNeeded() {
+        if !isSolved && currentStreakForCurrentSize > 0 { startCountdown() }
+        if !isSolved && !isTimeTrialFailed && isTimeTrialMode { startTimeTrialCountdown() }
+        // Resume the stopwatch only if it had actually started (i.e. a move was already
+        // made); otherwise it should still wait for the first move, same as a fresh game.
+        if !isSolved && currentMoveCount > 0 { startStopwatch() }
+    }
+
     /// Restarts the streak countdown from the current `timerRemaining` value.
     private func resumeCountdown() {
         guard settingsStore.streakCountdownDuration > 0 else { return }
@@ -364,6 +385,7 @@ final class GameSession {
                     if isGauntletLadderMode { isLadderRunFailed = true }
                     stopTimeTrialCountdown()
                     liveActivity.end()
+                    widgetData.clearResume()
                     saveToUserDefaults()
                     return
                 }
@@ -427,6 +449,7 @@ final class GameSession {
             if currentStreakForCurrentSize > 0 { startCountdown() }
             if isTimeTrialMode { startTimeTrialCountdown() }
             saveToUserDefaults()
+            syncResumeWidget()
             return
         }
 
@@ -535,6 +558,7 @@ final class GameSession {
             // has nothing to preview. Starting now (in the foreground) is the reliable moment —
             // the reminder stays invisible until the player leaves the app, then refreshes.
             if let input = makeLiveActivityInput() { liveActivity.start(input) }
+            syncResumeWidget()
         } catch {
             self.error = error
             isLoading = false
@@ -700,6 +724,14 @@ final class GameSession {
         if !debugOverlayEnabled {
             achievementsStore.checkAchievements(using: statsStore, justSolved: isSolved)
         }
+        // Widget sync happens only on the solving move (never per move — refresh budget),
+        // and after the streak/records bookkeeping above so the snapshot includes the
+        // solving move's own streak increment.
+        if isSolved {
+            widgetData.clearResume()
+            syncStatsWidget()
+            if isDailyGameActive { syncDailyWidget() }
+        }
         // The source image can't change mid-game, so only the cheap dynamic state needs
         // rewriting here — re-encoding the image JPEG on every tap was the old hot path.
         saveDynamicState()
@@ -723,6 +755,7 @@ final class GameSession {
             if isGauntletLadderMode { isLadderRunFailed = true }
             stopTimeTrialCountdown()
             liveActivity.end()
+            widgetData.clearResume()
         }
     }
 
@@ -733,6 +766,7 @@ final class GameSession {
         guard !isSolved, currentMoveCount >= movesBudgetForCurrentSize else { return }
         isLimitedMovesFailed = true
         liveActivity.end()
+        widgetData.clearResume()
     }
 
     func skipPreview() {
@@ -804,6 +838,10 @@ final class GameSession {
 
     /// Stops the countdown when the user quits mid-game; streak is preserved.
     func leaveGame() {
+        // Before the daily/Quick Snap teardown below, so the resume card still says
+        // "Daily Challenge"/"Quick Snap" rather than the mode the player had before.
+        syncResumeWidget()
+        syncStatsWidget()
         if let backup = preDailyGameMode {
             selectedGameMode = backup
             preDailyGameMode = nil
@@ -820,6 +858,66 @@ final class GameSession {
         stopStopwatch()
         liveActivity.end()
         saveToUserDefaults()
+    }
+
+    // MARK: - Home-screen widgets
+
+    /// Whether there is an in-progress game the resume deep link can land on.
+    var hasResumableGame: Bool {
+        !tiles.isEmpty && !isSolved && !isTimeTrialFailed && !isLimitedMovesFailed
+    }
+
+    /// One-shot flag set by the resume deep link before pushing `PuzzleView`, telling its
+    /// lifecycle to keep the restored board instead of starting a fresh game.
+    private(set) var pendingResume = false
+
+    func requestResume() {
+        pendingResume = true
+    }
+
+    func consumePendingResume() -> Bool {
+        defer { pendingResume = false }
+        return pendingResume
+    }
+
+    /// Brings the Resume widget in line with the session: an up-to-date card while a game
+    /// is in progress, cleared otherwise. Called at game start/leave/background — never
+    /// per move, to respect the WidgetKit refresh budget.
+    func syncResumeWidget() {
+        guard hasResumableGame else {
+            widgetData.clearResume()
+            return
+        }
+        widgetData.updateResume(
+            // `nil` for numbers games (no picture) — the card renders without a thumbnail.
+            boardInput: makeLiveActivityInput(),
+            state: WidgetSnapshot.ResumeState(
+                gameModeRaw: selectedGameMode.rawValue,
+                displayTitle: liveActivityTitle,
+                displayIcon: liveActivityIcon,
+                gridSize: gridSize,
+                moveCount: currentMoveCount,
+                elapsedTime: elapsedTime,
+                progress: Double(tiles.filter(\.isCorrect).count) / Double(tiles.count),
+                savedAt: .now
+            )
+        )
+    }
+
+    /// Re-syncs everything widget-visible after a Settings reset, where the stores change
+    /// without the usual gameplay hooks firing.
+    func syncWidgetsAfterReset() {
+        syncStatsWidget()
+        syncDailyWidget()
+        syncResumeWidget()
+    }
+
+    private func syncStatsWidget() {
+        widgetData.updateStats(from: statsStore)
+    }
+
+    private func syncDailyWidget() {
+        widgetData.updateDaily(from: dailyChallengeStore)
     }
 }
 
@@ -873,6 +971,8 @@ extension GameSession {
         defaults.set(gridSize, forKey: Keys.gridSize)
         defaults.removeObject(forKey: Keys.tiles)
         defaults.removeObject(forKey: Keys.sourceImage)
+        // The in-progress game was just discarded, so the Resume widget must forget it too.
+        widgetData.clearResume()
     }
 
     func setRandomSize() {
@@ -887,6 +987,8 @@ extension GameSession {
         defaults.set(true, forKey: Keys.useRandomSize)
         defaults.removeObject(forKey: Keys.tiles)
         defaults.removeObject(forKey: Keys.sourceImage)
+        // The in-progress game was just discarded, so the Resume widget must forget it too.
+        widgetData.clearResume()
     }
 
     func setMediaSourceType(_ type: MediaSourceType) {
@@ -1042,15 +1144,11 @@ private extension GameSession {
         ladderCumulativeScore = defaults.integer(forKey: Keys.ladderCumulativeScore)
         ladderWinStreak = defaults.integer(forKey: Keys.ladderWinStreak)
         hasHadWastedMoveThisGame = defaults.bool(forKey: Keys.hasHadWastedMoveThisGame)
-        if !isSolved && currentStreakForCurrentSize > 0 { startCountdown() }
         // Resuming restarts the Time Trial countdown at the full base duration rather than
         // the exact persisted remainder — background/foreground interruption handling is a
         // deliberately deferred follow-up, so this is an accepted MVP limitation. A puzzle
         // that had already failed stays failed rather than getting a fresh clock.
-        if !isSolved && !isTimeTrialFailed && isTimeTrialMode { startTimeTrialCountdown() }
-        // Resume the stopwatch only if it had actually started (i.e. a move was already made);
-        // otherwise it should still wait for the first move, same as a fresh game.
-        if !isSolved && currentMoveCount > 0 { startStopwatch() }
+        startTimersForRestoredGameIfNeeded()
     }
 
     func jpeg(from image: CGImage) -> Data? {

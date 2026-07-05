@@ -1,6 +1,6 @@
 # NineTilesPuzzle — Architecture Overview
 
-Snapshot of the current codebase structure, as of 2026-07-03 (updated for Wall of Fame + Stats→Settings, then a July 2026 performance pass). This is a descriptive
+Snapshot of the current codebase structure, as of 2026-07-05 (updated for Wall of Fame + Stats→Settings, a July 2026 performance pass, the Live Activity, and home-screen widgets + deep links). This is a descriptive
 document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in sync with
 it) for how the "does mode-specific behavior need a shared abstraction" question was
 revisited once Time Trial and Limited Moves both existed, and what would justify
@@ -12,7 +12,11 @@ revisiting it again.
 - `@Observable` classes for shared state (no `ObservableObject`/Combine)
 - Swift Concurrency throughout (`async/await`, structured `Task`s) — no GCD
 - Persistence: `UserDefaults` only, no SwiftData/CloudKit yet — but abstracted behind a
-  `PersistenceStore` protocol (see below), so that's a non-disruptive future swap
+  `PersistenceStore` protocol (see below), so that's a non-disruptive future swap. The one
+  addition: widget-visible state is mirrored into the App Group suite
+  (`group.cilia.filippo.NineTilesPuzzle`) as a single JSON blob (see §Home-screen widgets)
+- A widget extension target (`NineTilesPuzzleWidgetsExtension`) hosting the Live Activity
+  and three home-screen widgets; a handful of files are compiled into both targets
 - Swift Testing (not XCTest) for unit tests
 - No third-party dependencies
 
@@ -74,8 +78,27 @@ NineTilesPuzzle/
 │       │                              URL cache (same date → same image, at most one
 │       │                              network call per day)
 │       └── ImageSourceError.swift
+├── Shared/                          — compiled into BOTH the app and the widget extension
+│   │                                  (target sharing = membershipExceptions in project.pbxproj;
+│   │                                  everything here is explicitly `nonisolated` because the
+│   │                                  app target defaults to MainActor isolation)
+│   ├── PuzzleActivityAttributes.swift — Live Activity ActivityAttributes + ContentState
+│   ├── LiveActivityStore.swift     — App Group ID + shared-container URL helpers for
+│   │                                  board snapshot PNGs
+│   ├── WidgetDataStore.swift       — WidgetSnapshot (Codable schema: daily/modeStats/resume
+│   │                                  sections, all optional-tolerant), load/save through the
+│   │                                  App Group defaults, WidgetKind reload identifiers
+│   └── DeepLink.swift              — ninetilespuzzle:// routes (daily/resume/mode) with
+│                                      URL round-trip + validation
 ├── Services/
 │   ├── GameEngine.swift            — protocol: shuffle() + shared isSolved()
+│   ├── LiveActivityController.swift — owns the "puzzle in progress" Live Activity lifecycle:
+│   │                                  start/refresh/end, board PNG writes (board-<UUID>.png),
+│   │                                  1h staleDate, stray-activity reaping
+│   ├── WidgetDataController.swift  — owns every WidgetSnapshot write + scoped
+│   │                                  WidgetCenter.reloadTimelines(ofKind:) call; per-section
+│   │                                  Hashable diffing; Resume board PNG pipeline
+│   │                                  (widget-board-<UUID>.png); no-ops without the App Group
 │   ├── SwapEngine.swift            — swap-any-two-tiles rules (was ClassicEngine)
 │   ├── SlideEngine.swift           — 15-puzzle slide rules + solvability parity check
 │   ├── SlideSolver.swift           — BFS solver, debug-only "Solve" button
@@ -180,6 +203,19 @@ NineTilesPuzzle/
 │                                       Limited Moves' "Out of Moves" overlay, ShakeDetector
 │                                       UIKit bridge, LoudBounceModifier scale-pop modifier)
 ├── Resources/                       — achievements.json, sounds, asset catalog, app icon
+NineTilesPuzzleWidgets/               — widget extension target (NineTilesPuzzleWidgetsExtension)
+├── NineTilesPuzzleWidgetsBundle.swift — @main WidgetBundle: DailyChallengeWidget,
+│                                       StreaksRecordsWidget, ResumeGameWidget, PuzzleLiveActivity
+├── DailyChallenge/                  — widget + systemSmall/Medium views (home screen only —
+│                                       no Lock Screen accessory families)
+├── StreaksRecords/                  — AppIntent configuration (WidgetGameMode/WidgetGridSize
+│                                       AppEnums, StatsConfigurationIntent) + widget + views
+├── ResumeGame/                      — widget + views incl. ResumeBoardThumbnail (accented-mode
+│                                       desaturation wrapper around the board image)
+└── Views/                           — Live Activity presentation (PuzzleLiveActivity, Lock Screen
+                                        card, Dynamic Island) + shared pieces reused by the
+                                        widgets: StatBadge, ProgressRing, ProgressBar,
+                                        ModeGlyphBadge, BoardThumbnail, BrandPuzzleMark
 NineTilesPuzzleTests/                 — real, wired-up Unit Testing Bundle target (see below)
 ```
 
@@ -468,6 +504,86 @@ this time) so each round is a fresh shot; `refreshQuickSnapImage(with:)` swaps i
 without disturbing the saved pre-Quick-Snap mode. `leaveGame()` restores that mode and clears
 the flag, so a force-quit mid-game resumes as an ordinary Swap game.
 
+**Live Activity + Dynamic Island** (shipped July 2026): a "puzzle in progress" Live Activity
+(`PuzzleLiveActivity` in the widget extension) showing the board, mode, moves/time, streak,
+and a progress ring on the Lock Screen and in the Dynamic Island.
+`Services/LiveActivityController.swift` owns the lifecycle — `GameSession` calls
+`start` on game start, `refresh` when the app backgrounds (the moment the Lock Screen becomes
+visible), and `end` on solve/fail/leave. Only small counters travel in
+`PuzzleActivityAttributes.ContentState`; the board itself is a PNG (`board-<UUID>.png`,
+fresh name per update to bust the widget's image cache) written to the App Group container
+via `PuzzleBoardSnapshot.pngData(...)` with
+`.completeFileProtectionUntilFirstUserAuthentication` so the Lock Screen can read it while
+locked. A 1-hour `staleDate` plus `reconcileLiveActivityOnLaunch()` handle force-quit
+orphans (no code runs after a kill; next launch reaps strays).
+
+**Home-screen widgets + deep links** (shipped July 2026): three widgets in the same
+extension, all systemSmall/Medium only (Lock Screen accessory families were tried on the
+Daily widget and removed — home screen only) — Daily Challenge, Streaks & Records
+(configurable via `AppIntentConfiguration` with widget-local `WidgetGameMode`/
+`WidgetGridSize` AppEnums — Zen omitted since it tracks nothing), and Resume Puzzle (board
+snapshot + progress + empty state). All three force `.colorScheme(.dark)` on their content
+in the widget configuration closure, so the card stays dark-only regardless of iOS's
+per-widget light/dark appearance setting — without it, that system setting flips
+`.primary`/`.secondary` to their light values while the custom dark `containerBackground`
+stays fixed, making text unreadable.
+
+*Data flow*: the extension can't read `UserDefaults.standard`, so widget-visible state is
+mirrored as one Codable `WidgetSnapshot` (sections `daily` / `modeStats` / `resume`, each
+optional so old/new snapshots stay mutually decodable) in the App Group defaults through
+`Shared/WidgetDataStore.swift`. All writes go through `Services/WidgetDataController.swift`
+(owned by `GameSession`, mirroring how `LiveActivityController` is wired): each update
+rewrites one section, skips the save+reload when the section is unchanged (`Hashable`
+diffing), and reloads only that section's kind via
+`WidgetCenter.shared.reloadTimelines(ofKind:)` using the shared `WidgetKind` constants.
+Hooks fire at game start / solve / fail / leave / background / Settings reset — **never per
+move**, because `StatsStore.currentStreak` increments on every correct move and per-move
+reloads would burn the WidgetKit refresh budget. The controller no-ops when the App Group is
+unavailable, and `GameSession` passes it `nil` defaults when its own `PersistenceStore`
+isn't real `UserDefaults`, keeping unit tests hermetic.
+
+*Timelines*: Streaks & Records and Resume use a single entry with policy `.never` — their
+data only changes through app play, which reloads them explicitly. The Daily widget is the
+exception: it computes today's grid/mode itself via the target-shared
+`DailyChallengeSeeder` and emits a second entry at the next midnight (policy
+`.after(midnight)`), so "done today" flips off and the new day's identity appears with no
+app process running; the snapshot only carries completion/streak facts. Displayed streak
+drops to 0 when `lastCompletedDay` is older than yesterday, mirroring
+`advanceCalendarStreak`'s reset semantics.
+
+*Resume board PNG*: a separate `widget-board-<UUID>.png` pipeline in the controller rather
+than reusing the Live Activity's snapshots — those are deleted on every refresh and on
+`end()`, exactly when the Resume widget still needs a stable image. Same
+fresh-UUID-then-delete-previous discipline, so at most one stale file ever lingers. Numbers
+games have no picture: `boardImageName` is `nil` and the widget's `ResumeBoardThumbnail`
+falls through to the puzzle-glyph placeholder (it also applies
+`widgetAccentedRenderingMode(.accentedDesaturated)` so tinted Home Screens desaturate the
+photo instead of blanking it — the reason it's a widget-local sibling of `BoardThumbnail`
+rather than a change to the Live Activity's view).
+
+*Deep links*: `Shared/DeepLink.swift` defines `ninetilespuzzle://daily`, `…://resume`, and
+`…://mode/<rawValue>/<size>` (size optional, validated 3…8); the scheme lives in the app's
+`Info.plist` `CFBundleURLTypes`. `MenuView` handles them in `.onOpenURL` →
+`handleDeepLink(_:)`: every route dismisses covering sheets and pops to the menu first.
+Resume needs special handling because `PuzzleView`'s lifecycle unconditionally wipes the
+board and starts a fresh game — `GameSession.requestResume()` sets a one-shot
+`pendingResume` flag that `PuzzleView.onAppear` consumes to keep the restored board and
+restart its timers (`startTimersForRestoredGameIfNeeded()`, extracted from
+`restoreFromUserDefaults()`) instead. Two in-game taps short-circuit to "keep playing"
+(resume while playing, daily while already in today's daily); any other in-game route waits
+600ms after popping so the outgoing `PuzzleView`'s `onDisappear → leaveGame()` (which resets
+the transient daily/Quick Snap flags) can't clobber the new route's setup. The `.mode` route
+lands on the configured menu rather than auto-starting, since play is gated by mode
+specifics (Quick Snap capture, ladder stages) the menu already handles.
+
+*Target sharing gotchas*: files shared with the extension are listed in
+`membershipExceptions` of the `PBXFileSystemSynchronizedBuildFileExceptionSet` in
+`project.pbxproj` — Xcode silently drops entries whose files don't exist on disk yet, so
+create the file before (or with) the pbxproj edit. The app target sets
+`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, so shared types referenced from nonisolated
+contexts (`WidgetDataStore`, `WidgetSnapshot`, `WidgetKind`, `LiveActivityStore`) are
+explicitly `nonisolated`.
+
 **Wall of Fame** (shipped June 2026): a cork-board view where every personal best is
 automatically captured and pinned as a polaroid card. `PuzzleView` renders `ShareCardView`
 via `ImageRenderer` at 3× scale at the moment a record is set, converts the result to a
@@ -590,7 +706,13 @@ Gauntlet Ladder's persistence test instead asserts directly against the in-memor
 get a true write→reconstruct round-trip by using `.random` (image-backed) media instead of
 `.numbers`, which sidesteps that guard and lets it assert the sliced `tileImages` are rebuilt
 on restore; it also pins the new static/dynamic save split (`saveDynamicState()` never touches
-the image key, `saveToUserDefaults()` does). Getting the target wired up surfaced three real,
+the image key, `saveToUserDefaults()` does). The widget work (July 2026) added three suites:
+`WidgetSnapshotTests` (JSON round-trip, missing-optional-sections tolerance,
+`WidgetDataStore` save/load through a throwaway `UserDefaults` suite, corrupt-data
+resilience), `DailyChallengeSeederTests` (same-calendar-day determinism — what the Daily
+widget's precomputed midnight entry relies on — pool membership, cross-day variety, seeded
+derangement and slide-board permutation validity), and `DeepLinkTests` (URL round-trips for
+every route plus ten malformed-URL rejections). Getting the target wired up surfaced three real,
 previously-undetected bugs that had been sitting in untested code paths — two missing
 imports and one test with a geometrically-invalid fixture (asserted a slide between two
 non-adjacent grid cells) — all fixed once the target could finally compile and run them.

@@ -19,6 +19,9 @@ struct PuzzleView: View {
 
     @State private var completion = PuzzleCompletionViewModel()
     @State private var showQuitAlert = false
+    /// Set when the resume deep link pushed this view: the restored board is kept as-is
+    /// instead of being wiped and reshuffled by the fresh-game lifecycle below.
+    @State private var isResumedGame = false
     /// Drives the Quick Snap re-capture sheet shown when the player taps "Play Again" after
     /// solving a Quick Snap puzzle — every round starts on a freshly snapped frame.
     @State private var showQuickSnapRecapture = false
@@ -105,11 +108,19 @@ struct PuzzleView: View {
         // NavigationStack push transition), leaving the previous game's stale tiles briefly
         // visible and tappable. `.onAppear` runs synchronously, closing that window.
         .onAppear {
-            session.tiles = []
-            session.isLoading = true
+            if session.consumePendingResume() {
+                isResumedGame = true
+            } else {
+                session.tiles = []
+                session.isLoading = true
+            }
         }
         .task {
-            if session.isGauntletLadderMode {
+            if isResumedGame {
+                // The resume deep link landed on a fully restored board — restart its
+                // timers instead of wiping it for a fresh game.
+                session.startTimersForRestoredGameIfNeeded()
+            } else if session.isGauntletLadderMode {
                 await session.startNewLadderRun()
             } else {
                 await session.startNewGame()
@@ -233,6 +244,8 @@ struct PuzzleView: View {
                 // Refresh after pausing so the Lock Screen reminder shows the board and elapsed
                 // time exactly as the player left them — the moment the reminder becomes visible.
                 session.refreshLiveActivity()
+                // Same reasoning for the Resume widget: the home screen is about to show it.
+                session.syncResumeWidget()
             } else if newPhase == .active, !session.isLoading, !session.isPreviewing {
                 session.resumeTimers()
             }

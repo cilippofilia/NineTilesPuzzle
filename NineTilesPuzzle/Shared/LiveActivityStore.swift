@@ -13,7 +13,9 @@ import Foundation
 /// container to resolve — without it every accessor returns `nil` and callers no-op.
 ///
 /// Shared between the app and the widget extension: this file must be a member of both targets.
-enum LiveActivityStore {
+/// `nonisolated` so nonisolated shared code (e.g. `WidgetDataStore`) can reference it despite
+/// the app target's default MainActor isolation.
+nonisolated enum LiveActivityStore {
     /// App Group identifier. Must match the group added to *both* targets' Signing & Capabilities.
     static let appGroupID = "group.cilia.filippo.NineTilesPuzzle"
 

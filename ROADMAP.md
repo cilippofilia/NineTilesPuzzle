@@ -293,9 +293,40 @@ aggregates. This is the natural point to introduce **SwiftData**; render trends 
 achievement flags. If SwiftData lands for stats history, CloudKit-backed sync becomes the
 fuller option.
 
-### Widgets — **M**
-A daily-challenge widget ("Today's puzzle awaits" → completed state) and a streak widget.
-Requires a widget extension and an App Group to share state.
+[X] ### Widgets — **M** *(shipped July 2026)*
+Three home-screen widgets in the existing `NineTilesPuzzleWidgetsExtension` bundle (the
+target and App Group already existed for the Live Activity):
+
+- **Daily Challenge** — systemSmall/Medium. Shows done/not-done, today's mode + grid size,
+  calendar streak + best. The widget computes today's identity itself via the target-shared
+  `DailyChallengeSeeder` and schedules a midnight timeline entry, so the day rolls over with
+  zero app involvement.
+- **Streaks & Records** — systemSmall/Medium, configurable via `AppIntentConfiguration`
+  (widget-local `WidgetGameMode`/`WidgetGridSize` AppEnums; Zen omitted — no streaks by
+  design). Current streak, best streak, best moves/time (best score for Time Trial).
+- **Resume Puzzle** — systemSmall/Medium with the actual board snapshot (its own
+  `widget-board-<UUID>.png` pipeline — Live Activity PNGs are deleted at exactly the wrong
+  moments), progress, move count; "Start a new puzzle" empty state. Saves older than 14 days
+  read as empty rather than nagging forever.
+
+Data rides a single Codable `WidgetSnapshot` in the App Group defaults
+(`Shared/WidgetDataStore.swift`), written only by `Services/WidgetDataController.swift` with
+per-section Hashable diffing and `reloadTimelines(ofKind:)` scoped per widget — hooks fire at
+game start/solve/fail/leave/background/reset, never per move (refresh budget). Deep links
+shipped alongside: `ninetilespuzzle://daily|resume|mode/<mode>/<size>`
+(`Shared/DeepLink.swift`, routed in `MenuView.handleDeepLink`); resume bypasses
+`PuzzleView`'s wipe-and-restart lifecycle via `GameSession.requestResume()`/
+`consumePendingResume()`. All three home-screen widgets force `.colorScheme(.dark)` on their
+content so they render dark-only regardless of iOS's per-widget light/dark appearance
+setting (which otherwise flips `.primary`/`.secondary` to light values against the fixed
+dark card background, per a Simulator screenshot showing black-on-black text — fixed July
+2026). Lock Screen accessory families were tried on the Daily widget and removed by request
+— home-screen only for now. See `ARCHITECTURE.md` §Home-screen widgets. Still deferred:
+- `widgetURL`/deep link on the Live Activity itself (a tap currently just opens the app;
+  routing it through `ninetilespuzzle://resume` would reuse the new plumbing).
+- Lock Screen / StandBy accessory widgets, if revisited later.
+- StandBy/tinted-mode polish pass on real hardware (accented rendering is wired via
+  `widgetAccentedRenderingMode(.accentedDesaturated)` but only Simulator-verified).
 
 ### Monetization *(optional, later)* — **L**
 Lightest-touch options first: tip jar, then premium image packs and power-up bundles via

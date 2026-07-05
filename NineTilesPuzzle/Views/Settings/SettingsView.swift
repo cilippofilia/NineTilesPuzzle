@@ -88,6 +88,7 @@ struct SettingsView: View {
 
                         Button("Reset Today's Completion") {
                             dailyStore.resetCompletionForDebug()
+                            session.syncWidgetsAfterReset()
                         }
                     } header: {
                         Text("Daily Challenge")
@@ -135,7 +136,10 @@ struct SettingsView: View {
                 }
             }
             .alert("Reset Stats?", isPresented: $showResetStatsAlert) {
-                Button("Reset", role: .destructive) { statsStore.resetStats() }
+                Button("Reset", role: .destructive) {
+                    statsStore.resetStats()
+                    session.syncWidgetsAfterReset()
+                }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Your current streak, best streak, move counter, personal bests, and games played will be cleared.")

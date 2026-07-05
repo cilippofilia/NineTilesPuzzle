@@ -5,12 +5,15 @@
 //  Created by Filippo Cilia on 7/4/26.
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 @main
 struct NineTilesPuzzleWidgetsBundle: WidgetBundle {
     var body: some Widget {
+        DailyChallengeWidget()
+        StreaksRecordsWidget()
+        ResumeGameWidget()
         PuzzleLiveActivity()
     }
 }

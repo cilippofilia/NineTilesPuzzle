@@ -229,6 +229,69 @@ struct MenuView: View {
             } message: {
                 Text("For a curated experience with your own photos, create a dedicated album in the Photos app with only the images you'd like to use as puzzles, then grant Nine Tiles access to that album only.")
             }
+            .onOpenURL { url in
+                guard let link = DeepLink(url: url) else { return }
+                handleDeepLink(link)
+            }
+        }
+    }
+
+    /// Routes a widget deep link to its destination, dismissing any covering sheets so the
+    /// destination is actually visible.
+    ///
+    /// When a game is already on screen, two cases keep it running untouched (resume, and
+    /// daily while already playing today's daily). Every other route pops to the menu first
+    /// and then waits out the pop transition — the popped `PuzzleView`'s `onDisappear` runs
+    /// `leaveGame()` (the same persistence path as quitting by hand), which also resets the
+    /// daily/Quick Snap session flags, so applying the new route before it completes would
+    /// let that teardown clobber the route's setup.
+    private func handleDeepLink(_ link: DeepLink) {
+        showSettings = false
+        showTipsAlert = false
+        showQuickSnapCamera = false
+
+        let wasInGame = path.last == .game
+        if wasInGame {
+            switch link {
+            case .resume where session.hasResumableGame:
+                // Tapping "resume" while playing means keep playing.
+                return
+            case .daily where session.isDailyGameActive && !dailyChallengeStore.isDailyCompletedToday:
+                // Already mid-way through today's daily — keep playing it.
+                return
+            default:
+                path = []
+            }
+        }
+
+        Task {
+            if wasInGame {
+                // Long enough for the pop transition's onDisappear → leaveGame() to land.
+                try? await Task.sleep(for: .milliseconds(600))
+            }
+            switch link {
+            case .daily:
+                // Already done today: the menu's daily card shows the completed state.
+                guard !dailyChallengeStore.isDailyCompletedToday else { return }
+                session.enterDailyMode()
+                session.tiles = []
+                session.isLoading = true
+                path.append(.game)
+            case .resume:
+                // Flag first, so PuzzleView's onAppear sees it before wiping the board.
+                // With nothing to resume, landing on the menu is the whole route.
+                guard session.hasResumableGame else { return }
+                session.requestResume()
+                path.append(.game)
+            case .mode(let mode, let gridSize):
+                // Land on the configured menu rather than auto-starting: play is gated by
+                // mode specifics (Quick Snap capture, ladder stages), and the menu handles
+                // all of them.
+                session.setGameMode(mode)
+                if let gridSize {
+                    session.setGridSize(gridSize)
+                }
+            }
         }
     }
 }
