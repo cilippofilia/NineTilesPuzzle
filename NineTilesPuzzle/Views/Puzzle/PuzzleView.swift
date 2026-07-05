@@ -61,16 +61,19 @@ struct PuzzleView: View {
                 LimitedMovesFailOverlay(completion: completion, onTryAgain: startNewGame)
             }
 
-            // Layer 4: achievement unlock toast — only shown mid-game to avoid overlapping the
-            // completion banner. Achievements aren't tracked in Zen mode, so this never fires there.
-            if let achievement = achievementsStore.newlyUnlockedAchievement, !session.isSolved {
-                VStack {
-                    Spacer()
-                    AchievementToastView(achievement: achievement)
-                        .padding(.horizontal)
-                        .padding(.bottom)
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+        // Layer 4: achievement unlock toast. Every achievement metric is only evaluated at
+        // the instant a puzzle is solved (see `AchievementMetric.value`), so `isSolved` is
+        // already true whenever `newlyUnlockedAchievement` is set — gating the toast on
+        // `!session.isSolved` meant it could never actually render. `safeAreaInset` reserves
+        // room for it at the bottom instead, which pushes the completion banner's
+        // Continue/Back-to-Menu button up rather than sitting underneath the toast.
+        .safeAreaInset(edge: .bottom) {
+            if let achievement = achievementsStore.newlyUnlockedAchievement {
+                AchievementToastView(achievement: achievement)
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: achievementsStore.newlyUnlockedAchievement)
