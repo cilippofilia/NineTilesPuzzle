@@ -29,14 +29,16 @@ enum DailyChallengeSeeder {
 
     /// Picsum "seed" URL — returns a consistent image for the same seed string.
     /// The `ntp-YYYY-MM-DD` prefix avoids collisions with any other picsum consumer.
-    static func imageURL(for date: Date = .now) -> URL {
+    /// Picsum serves the same source photo for a seed at any size, so smaller `size`
+    /// values (e.g. calendar thumbnails) show the same picture as the full puzzle.
+    static func imageURL(for date: Date = .now, size: Int = 1024) -> URL {
         let cal = Calendar.current
         let comps = cal.dateComponents([.year, .month, .day], from: date)
         let y = comps.year ?? 2026
         let m = comps.month ?? 1
         let d = comps.day ?? 1
         let seedString = String(format: "ntp-%04d-%02d-%02d", y, m, d)
-        return URL(string: "https://picsum.photos/seed/\(seedString)/1024/1024")!
+        return URL(string: "https://picsum.photos/seed/\(seedString)/\(size)/\(size)")!
     }
 
     /// Returns today's grid size, deterministically chosen from `availableGridSizes`.

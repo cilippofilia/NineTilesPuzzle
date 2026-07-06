@@ -21,6 +21,14 @@ final class DailyChallengeStore {
     private(set) var bestMoves: Int?
     private(set) var bestTime: TimeInterval?
 
+    /// Every calendar day the player has ever completed, as `yyyymmdd` keys
+    /// (same encoding as `DailyChallengeSeeder.seed`). Drives the history calendar.
+    private(set) var completedDayKeys: Set<Int> = []
+
+    /// Per-day stats keyed by `yyyymmdd`, captured on each day's first completion.
+    /// Days completed before this existed appear in `completedDayKeys` only.
+    private(set) var dayRecords: [Int: DailyDayRecord] = [:]
+
     /// Debug-only day offset applied to every seeder and completion check.
     /// In-memory only — resets to 0 on each launch so it never affects production data.
     private(set) var debugDayOffset: Int = 0
@@ -38,6 +46,34 @@ final class DailyChallengeStore {
         return Calendar.current.isDate(last, inSameDayAs: effectiveDate)
     }
 
+    /// The earliest day ever completed — anchors the first month of the history calendar.
+    var firstCompletedDate: Date? {
+        completedDayKeys.min().flatMap(Self.date(fromDayKey:))
+    }
+
+    /// True when the calendar day containing `date` has ever been completed.
+    func isDayCompleted(_ date: Date) -> Bool {
+        completedDayKeys.contains(Self.dayKey(for: date))
+    }
+
+    /// The stats captured on `date`'s first completion, or `nil` for days that
+    /// were never completed or predate per-day record keeping.
+    func record(for date: Date) -> DailyDayRecord? {
+        dayRecords[Self.dayKey(for: date)]
+    }
+
+    /// Encodes the calendar day of `date` as a `yyyymmdd` integer, using
+    /// `Calendar.current` so keys agree with the seeder's day boundaries.
+    static func dayKey(for date: Date) -> Int {
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return (comps.year ?? 0) * 10_000 + (comps.month ?? 0) * 100 + (comps.day ?? 0)
+    }
+
+    /// Decodes a `yyyymmdd` key back into a `Date` (start of that day).
+    static func date(fromDayKey key: Int) -> Date? {
+        Calendar.current.date(from: DateComponents(year: key / 10_000, month: (key / 100) % 100, day: key % 100))
+    }
+
     func setDebugDayOffset(_ offset: Int) {
         debugDayOffset = offset
     }
@@ -45,6 +81,11 @@ final class DailyChallengeStore {
     func resetCompletionForDebug() {
         lastCompletedDate = nil
         defaults.removeObject(forKey: Keys.lastCompletedDate)
+        // Drop the day from history too, so the calendar agrees with the daily card.
+        completedDayKeys.remove(Self.dayKey(for: effectiveDate))
+        persistCompletedDays()
+        dayRecords.removeValue(forKey: Self.dayKey(for: effectiveDate))
+        persistDayRecords()
     }
 
     init(defaults: PersistenceStore = UserDefaults.standard) {
@@ -64,6 +105,19 @@ final class DailyChallengeStore {
             isNewCalendarStreakRecord = advanceCalendarStreak(for: date)
             lastCompletedDate = date
             defaults.set(date.timeIntervalSinceReferenceDate, forKey: Keys.lastCompletedDate)
+        }
+
+        let dayKey = Self.dayKey(for: date)
+        if !completedDayKeys.contains(dayKey) {
+            completedDayKeys.insert(dayKey)
+            persistCompletedDays()
+        }
+
+        // First completion of the day wins — the stats that earned the streak
+        // are the ones the history card shows; replays don't rewrite that run.
+        if dayRecords[dayKey] == nil {
+            dayRecords[dayKey] = DailyDayRecord(moves: moves, time: time, streak: calendarStreak)
+            persistDayRecords()
         }
 
         var isNewMovesRecord = false
@@ -89,11 +143,15 @@ final class DailyChallengeStore {
         lastCompletedDate = nil
         bestMoves = nil
         bestTime = nil
+        completedDayKeys = []
+        dayRecords = [:]
         defaults.removeObject(forKey: Keys.calendarStreak)
         defaults.removeObject(forKey: Keys.bestCalendarStreak)
         defaults.removeObject(forKey: Keys.lastCompletedDate)
         defaults.removeObject(forKey: Keys.bestMoves)
         defaults.removeObject(forKey: Keys.bestTime)
+        defaults.removeObject(forKey: Keys.completedDays)
+        defaults.removeObject(forKey: Keys.dayRecords)
     }
 }
 
@@ -104,6 +162,17 @@ private extension DailyChallengeStore {
         static let lastCompletedDate = "daily.lastCompletedDate"
         static let bestMoves = "daily.bestMoves"
         static let bestTime = "daily.bestTime"
+        static let completedDays = "daily.completedDays"
+        static let dayRecords = "daily.dayRecords"
+    }
+
+    func persistCompletedDays() {
+        defaults.set(Array(completedDayKeys).sorted(), forKey: Keys.completedDays)
+    }
+
+    func persistDayRecords() {
+        guard let data = try? JSONEncoder().encode(dayRecords) else { return }
+        defaults.set(data, forKey: Keys.dayRecords)
     }
 
     /// Increments the streak when today directly follows the last completed day;
@@ -136,5 +205,25 @@ private extension DailyChallengeStore {
         if moves > 0 { bestMoves = moves }
         let time = defaults.double(forKey: Keys.bestTime)
         if time > 0 { bestTime = time }
+
+        if let data = defaults.data(forKey: Keys.dayRecords),
+           let decoded = try? JSONDecoder().decode([Int: DailyDayRecord].self, from: data) {
+            dayRecords = decoded
+        }
+
+        if let stored = defaults.object(forKey: Keys.completedDays) as? [Int] {
+            completedDayKeys = Set(stored)
+        } else if calendarStreak > 0, let last = lastCompletedDate {
+            // One-time migration for players who completed dailies before history
+            // existed: the only reconstructable days are the current streak's run,
+            // counting back from the last completed day.
+            let cal = Calendar.current
+            for dayOffset in 0..<calendarStreak {
+                if let day = cal.date(byAdding: .day, value: -dayOffset, to: last) {
+                    completedDayKeys.insert(Self.dayKey(for: day))
+                }
+            }
+            persistCompletedDays()
+        }
     }
 }

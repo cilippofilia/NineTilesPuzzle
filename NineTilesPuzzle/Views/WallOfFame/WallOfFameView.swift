@@ -69,7 +69,7 @@ struct WallOfFameView: View {
             }
 
             if let image = zoomedCardImage, zoomedShareURL != nil, let slot = zoomedSlot {
-                ZoomedCardOverlay(cardImage: image, slot: slot) {
+                ZoomedCardOverlay(cardImage: image, title: slot.displayTitle) {
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.85)) {
                         zoomedCardImage = nil
                         zoomedShareURL = nil
@@ -161,41 +161,6 @@ struct WallOfFameView: View {
             .buttonStyle(.plain)
         } else {
             WallOfFameEmptySlot(slot: slot)
-        }
-    }
-}
-
-// MARK: - Zoom overlay
-
-private struct ZoomedCardOverlay: View {
-    let cardImage: CGImage
-    let slot: WallOfFameSlot
-    let onDismiss: () -> Void
-
-    var body: some View {
-        Button(action: onDismiss) {
-            Color.clear.contentShape(.rect)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ignoresSafeArea()
-        .buttonStyle(.plain)
-        .overlay {
-            VStack(spacing: 14) {
-                Text(slot.displayTitle)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(.ultraThinMaterial, in: .capsule)
-
-                Image(decorative: cardImage, scale: 1)
-                    .resizable()
-                    .scaledToFit()
-                    .clipShape(.rect(cornerRadius: 10))
-                    .shadow(color: .black.opacity(0.45), radius: 30, x: 0, y: 18)
-            }
-            .padding(.horizontal, 28)
-            .allowsHitTesting(false)
         }
     }
 }

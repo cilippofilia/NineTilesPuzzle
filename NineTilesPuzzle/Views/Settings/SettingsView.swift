@@ -23,6 +23,25 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                #if DEBUG
+                Section {
+                    Toggle("Show debug tools", isOn: Binding(
+                        get: { settings.debugOverlayEnabled },
+                        set: { newValue in
+                            if newValue {
+                                showDebugOverlayAlert = true
+                            } else {
+                                settings.setDebugOverlayEnabled(false)
+                            }
+                        }
+                    ))
+                } header: {
+                    Text("Dev Tools")
+                } footer: {
+                    Text("This feature is for development testing only and is not intended for production use.")
+                }
+                #endif
+
                 Section("Game") {
                     NavigationLink {
                         PreviewTimePickerView()
@@ -45,6 +64,12 @@ struct SettingsView: View {
                             LabeledContent("Quick Snap Timer", value: settings.quickSnapDurationLabel)
                         }
                     }
+
+                    NavigationLink {
+                        StatsView()
+                    } label: {
+                        Text("Stats")
+                    }
                 }
 
                 Section("Audio") {
@@ -59,21 +84,17 @@ struct SettingsView: View {
                     ))
                 }
 
-                Section {
-                    Toggle("Show debug tools", isOn: Binding(
-                        get: { settings.debugOverlayEnabled },
-                        set: { newValue in
-                            if newValue {
-                                showDebugOverlayAlert = true
-                            } else {
-                                settings.setDebugOverlayEnabled(false)
-                            }
+                Section("Widgets") {
+                    NavigationLink {
+                        WidgetsGuideView()
+                    } label: {
+                        Label {
+                            Text("How to Add Widgets")
+                        } icon: {
+                            Image(systemName: "widget.small.badge.plus")
+                                .foregroundStyle(.white)
                         }
-                    ))
-                } header: {
-                    Text("Dev Tools")
-                } footer: {
-                    Text("This feature is for development testing only and is not intended for production use.")
+                    }
                 }
 
                 if settings.debugOverlayEnabled {
@@ -94,19 +115,6 @@ struct SettingsView: View {
                         Text("Daily Challenge")
                     } footer: {
                         Text("Offset shifts the puzzle date so you can test different modes and grid sizes. Reset clears today's completion so the Play button reappears.")
-                    }
-                }
-
-                Section {
-                    NavigationLink {
-                        StatsView()
-                    } label: {
-                        Label {
-                            Text("Stats")
-                        } icon: {
-                            Image(systemName: "chart.bar.fill")
-                                .foregroundStyle(.white)
-                        }
                     }
                 }
 

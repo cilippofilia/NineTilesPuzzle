@@ -15,6 +15,7 @@ enum GameRoute: Hashable {
     case wallOfFame
     case gameModes
     case mediaPicker
+    case dailyCalendar
 }
 
 struct MenuView: View {
@@ -35,12 +36,17 @@ struct MenuView: View {
                 BrandMarkView()
                     .padding()
 
-                DailyChallengeCardView {
-                    session.enterDailyMode()
-                    session.tiles = []
-                    session.isLoading = true
-                    path.append(.game)
-                }
+                DailyChallengeCardView(
+                    onPlay: {
+                        session.enterDailyMode()
+                        session.tiles = []
+                        session.isLoading = true
+                        path.append(.game)
+                    },
+                    onShowCalendar: {
+                        path.append(.dailyCalendar)
+                    }
+                )
                 .padding([.horizontal, .bottom])
 
                 VStack(spacing: 0) {
@@ -203,6 +209,8 @@ struct MenuView: View {
                     GameModeView()
                 case .mediaPicker:
                     MediaSourcePickerView()
+                case .dailyCalendar:
+                    DailyChallengeCalendarView()
                 }
             }
             .toolbar {
