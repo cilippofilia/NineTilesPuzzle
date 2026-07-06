@@ -20,9 +20,11 @@ enum DailyDayState {
 /// One day cell in the daily-challenge history calendar. Completed days show
 /// the day's seeded puzzle image inside a golden square frame; missed days
 /// render as empty circles, and upcoming days as fainter empty squares.
+/// The last day of an ongoing 2+ day streak carries a numbered streak badge.
 struct DailyDayCellView: View {
     let date: Date
     let state: DailyDayState
+    var streakCount: Int?
 
     var body: some View {
         Color.clear
@@ -46,6 +48,11 @@ struct DailyDayCellView: View {
                         .strokeBorder(.yellow.gradient, lineWidth: 2)
                 }
             }
+            .overlay(alignment: .bottomTrailing) {
+                if let streakCount, state == .completed {
+                    DailyStreakBadgeView(count: streakCount)
+                }
+            }
             .accessibilityElement()
             .accessibilityLabel(Text(date, format: .dateTime.weekday(.wide).month(.wide).day()))
             .accessibilityValue(accessibilityValue)
@@ -67,7 +74,12 @@ struct DailyDayCellView: View {
 
     private var accessibilityValue: Text {
         switch state {
-        case .completed: Text("Completed")
+        case .completed:
+            if let streakCount {
+                Text("Completed, \(streakCount) day streak")
+            } else {
+                Text("Completed")
+            }
         case .missed: Text("Not completed")
         case .upcoming: Text("Upcoming")
         }
@@ -77,6 +89,7 @@ struct DailyDayCellView: View {
 #Preview {
     HStack {
         DailyDayCellView(date: .now, state: .completed)
+        DailyDayCellView(date: .now, state: .completed, streakCount: 114)
         DailyDayCellView(date: .now, state: .missed)
         DailyDayCellView(date: .now, state: .upcoming)
     }

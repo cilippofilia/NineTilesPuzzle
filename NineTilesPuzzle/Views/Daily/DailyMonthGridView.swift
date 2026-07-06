@@ -34,18 +34,25 @@ struct DailyMonthGridView: View {
                         Button {
                             onDayTap(day)
                         } label: {
-                            DailyDayCellView(date: day, state: .completed)
+                            DailyDayCellView(date: day, state: .completed, streakCount: streakBadge(for: day))
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Shows that day's record card")
                     } else {
-                        DailyDayCellView(date: day, state: state(for: day))
+                        DailyDayCellView(date: day, state: state(for: day), streakCount: streakBadge(for: day))
                     }
                 }
             }
         }
         .padding()
         .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 20))
+    }
+
+    /// The ongoing streak count when `day` is the streak's last completed day, else `nil`.
+    private func streakBadge(for day: Date) -> Int? {
+        guard let badge = dailyStore.ongoingStreakBadge,
+              Calendar.current.isDate(day, inSameDayAs: badge.date) else { return nil }
+        return badge.count
     }
 
     private func state(for day: Date) -> DailyDayState {

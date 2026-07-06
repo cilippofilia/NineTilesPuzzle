@@ -82,14 +82,6 @@ struct DailyChallengeCalendarView: View {
                     }
                     .labelStyle(.iconOnly)
                 }
-            } else if dailyStore.calendarStreak > 0 {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Label("\(dailyStore.calendarStreak)", systemImage: "flame.fill")
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(.orange)
-                        .bold()
-                        .accessibilityLabel("Current streak: \(dailyStore.calendarStreak) days")
-                }
             }
         }
         .alert("Couldn't Load Puzzle", isPresented: $showCardError) {

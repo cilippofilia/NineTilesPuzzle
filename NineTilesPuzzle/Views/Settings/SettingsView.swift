@@ -40,6 +40,27 @@ struct SettingsView: View {
                 } footer: {
                     Text("This feature is for development testing only and is not intended for production use.")
                 }
+
+                if settings.debugOverlayEnabled {
+                    Section {
+                        Stepper(
+                            "Day offset: \(dailyStore.debugDayOffset > 0 ? "+" : "")\(dailyStore.debugDayOffset)",
+                            value: Binding(
+                                get: { dailyStore.debugDayOffset },
+                                set: { dailyStore.setDebugDayOffset($0) }
+                            )
+                        )
+
+                        Button("Reset Today's Completion") {
+                            dailyStore.resetCompletionForDebug()
+                            session.syncWidgetsAfterReset()
+                        }
+                    } header: {
+                        Text("Daily Challenge")
+                    } footer: {
+                        Text("Offset shifts the puzzle date so you can test different modes and grid sizes. Reset clears today's completion so the Play button reappears.")
+                    }
+                }
                 #endif
 
                 Section("Game") {
@@ -94,27 +115,6 @@ struct SettingsView: View {
                             Image(systemName: "widget.small.badge.plus")
                                 .foregroundStyle(.white)
                         }
-                    }
-                }
-
-                if settings.debugOverlayEnabled {
-                    Section {
-                        Stepper(
-                            "Day offset: \(dailyStore.debugDayOffset > 0 ? "+" : "")\(dailyStore.debugDayOffset)",
-                            value: Binding(
-                                get: { dailyStore.debugDayOffset },
-                                set: { dailyStore.setDebugDayOffset($0) }
-                            )
-                        )
-
-                        Button("Reset Today's Completion") {
-                            dailyStore.resetCompletionForDebug()
-                            session.syncWidgetsAfterReset()
-                        }
-                    } header: {
-                        Text("Daily Challenge")
-                    } footer: {
-                        Text("Offset shifts the puzzle date so you can test different modes and grid sizes. Reset clears today's completion so the Play button reappears.")
                     }
                 }
 

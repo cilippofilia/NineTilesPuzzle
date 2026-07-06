@@ -51,6 +51,21 @@ final class DailyChallengeStore {
         completedDayKeys.min().flatMap(Self.date(fromDayKey:))
     }
 
+    /// The streak count to badge on the last completed day's calendar cell.
+    /// Non-nil only while a streak of 2+ days is still alive — the last
+    /// completion was today or yesterday relative to the effective date.
+    var ongoingStreakBadge: (date: Date, count: Int)? {
+        guard calendarStreak >= 2, let last = lastCompletedDate else { return nil }
+        let cal = Calendar.current
+        let daysAgo = cal.dateComponents(
+            [.day],
+            from: cal.startOfDay(for: last),
+            to: cal.startOfDay(for: effectiveDate)
+        ).day ?? .max
+        guard daysAgo <= 1 else { return nil }
+        return (last, calendarStreak)
+    }
+
     /// True when the calendar day containing `date` has ever been completed.
     func isDayCompleted(_ date: Date) -> Bool {
         completedDayKeys.contains(Self.dayKey(for: date))
