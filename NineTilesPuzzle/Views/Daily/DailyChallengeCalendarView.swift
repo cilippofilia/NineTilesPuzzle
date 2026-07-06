@@ -39,7 +39,9 @@ struct DailyChallengeCalendarView: View {
                 }
                 .padding(.horizontal)
             }
-            .defaultScrollAnchor(.bottom)
+            // Initial offset only: open scrolled to the current (last) month, but
+            // keep content top-aligned when the history is shorter than the screen.
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
 
             if isPreparingCard {
                 ProgressView()
