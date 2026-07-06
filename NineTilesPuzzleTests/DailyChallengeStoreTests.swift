@@ -125,6 +125,68 @@ struct DailyChallengeStoreTests {
         #expect(DailyChallengeStore(defaults: defaults).record(for: referenceDate) == nil)
     }
 
+    // MARK: - Past-day replays
+
+    @Test func pastReplayDoesNotAdvanceCalendarStreak() throws {
+        let store = DailyChallengeStore(defaults: InMemoryPersistenceStore())
+        store.recordCompletion(moves: 20, time: 60, date: referenceDate)
+
+        let result = store.recordCompletion(moves: 15, time: 45, date: day(offset: -3), isPastReplay: true)
+
+        #expect(store.calendarStreak == 1)
+        #expect(!result.isNewCalendarStreakRecord)
+        let last = try #require(store.lastCompletedDate)
+        #expect(Calendar.current.isDate(last, inSameDayAs: referenceDate))
+    }
+
+    @Test func pastReplayAddsDayToHistoryAndBackfillsRecord() throws {
+        let store = DailyChallengeStore(defaults: InMemoryPersistenceStore())
+
+        store.recordCompletion(moves: 18, time: 50, date: day(offset: -5), isPastReplay: true)
+
+        #expect(store.isDayCompleted(day(offset: -5)))
+        let record = try #require(store.record(for: day(offset: -5)))
+        #expect(record.moves == 18)
+        #expect(record.time == 50)
+        #expect(record.streak == 1)
+    }
+
+    @Test func backfilledRecordStreakCountsCompletedRunEndingThatDay() throws {
+        // A pre-records player: three consecutive completed days in history, no stats.
+        let defaults = InMemoryPersistenceStore()
+        let keys = [-3, -2, -1].map { DailyChallengeStore.dayKey(for: day(offset: $0)) }
+        defaults.set(keys, forKey: "daily.completedDays")
+        let store = DailyChallengeStore(defaults: defaults)
+
+        store.recordCompletion(moves: 22, time: 70, date: day(offset: -1), isPastReplay: true)
+
+        let record = try #require(store.record(for: day(offset: -1)))
+        #expect(record.streak == 3)
+    }
+
+    @Test func pastReplayKeepsExistingDayRecord() throws {
+        let store = DailyChallengeStore(defaults: InMemoryPersistenceStore())
+        store.recordCompletion(moves: 30, time: 90, date: day(offset: -1))
+
+        store.recordCompletion(moves: 10, time: 20, date: day(offset: -1), isPastReplay: true)
+
+        let record = try #require(store.record(for: day(offset: -1)))
+        #expect(record.moves == 30)
+        #expect(record.time == 90)
+    }
+
+    @Test func pastReplayCanStillImproveAllTimeBests() {
+        let store = DailyChallengeStore(defaults: InMemoryPersistenceStore())
+        store.recordCompletion(moves: 30, time: 90, date: referenceDate)
+
+        let result = store.recordCompletion(moves: 10, time: 20, date: day(offset: -2), isPastReplay: true)
+
+        #expect(result.isNewMovesRecord)
+        #expect(result.isNewTimeRecord)
+        #expect(store.bestMoves == 10)
+        #expect(store.bestTime == 20)
+    }
+
     // MARK: - Migration from pre-history data
 
     @Test func migrationBackfillsCurrentStreakDays() {

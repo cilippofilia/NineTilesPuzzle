@@ -11,9 +11,14 @@ import SwiftUI
 /// first day the player ever completed through today. Opens scrolled to the
 /// current month; each completed day shows that day's puzzle image, fetched from
 /// the same date-seeded URL the challenge itself used. Tapping a completed day
-/// with recorded stats zooms a rebuilt share card, matching the Wall of Fame.
+/// zooms a rebuilt share card, matching the Wall of Fame, with a Replay button
+/// below it that hands the day to `onReplay`.
 struct DailyChallengeCalendarView: View {
     @Environment(DailyChallengeStore.self) private var dailyStore
+
+    /// Starts a replay of the given day's challenge; provided by the menu, which
+    /// owns the navigation path the puzzle is pushed onto.
+    let onReplay: (Date) -> Void
 
     @State private var zoomedCardImage: CGImage?
     @State private var zoomedDay: Date?
@@ -60,21 +65,42 @@ struct DailyChallengeCalendarView: View {
             if let image = zoomedCardImage, let day = zoomedDay {
                 ZoomedCardOverlay(
                     cardImage: image,
-                    title: day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+                    title: day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()),
+                    onDismiss: dismissCard
                 ) {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.85)) {
-                        zoomedCardImage = nil
-                        zoomedDay = nil
+                    VStack {
+                        if dailyStore.record(for: day) == nil {
+                            Text("No stats saved for this day yet — replay it to record them.")
+                                .font(.footnote)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(.ultraThinMaterial, in: .capsule)
+                        }
+
+                        Button("Replay", systemImage: "arrow.counterclockwise") {
+                            zoomedCardImage = nil
+                            zoomedDay = nil
+                            onReplay(day)
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                 }
-                .transition(.scale(scale: 0.88).combined(with: .opacity))
+                // Spring-scale in, but fade straight out: reversing the scale on
+                // removal read as a half-hearted shrink and the spring's long
+                // settling tail made the fade feel laggy.
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.88).combined(with: .opacity),
+                    removal: .opacity
+                ))
             }
         }
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: zoomedCardImage == nil)
         .navigationTitle("Daily Challenges")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let image = zoomedCardImage {
+            // Only real record cards are share-worthy — a record-less day zooms the
+            // bare puzzle image, which isn't a "Daily Challenge Card" to send anywhere.
+            if let image = zoomedCardImage, let day = zoomedDay, dailyStore.record(for: day) != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(
                         item: Image(decorative: image, scale: 3),
@@ -96,11 +122,24 @@ struct DailyChallengeCalendarView: View {
         }
     }
 
+    /// Fades the zoomed card out with a quick ease — snappier than reversing
+    /// the springy zoom-in animation.
+    private func dismissCard() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            zoomedCardImage = nil
+            zoomedDay = nil
+        }
+    }
+
     /// Rebuilds the day's share card — image, grid size, and mode all derive
     /// deterministically from the date; moves/time/streak come from the stored
     /// record — then zooms it exactly like a Wall of Fame card.
+    ///
+    /// Days completed before per-day records existed have no stats to rebuild a
+    /// card from, so they zoom the day's puzzle image itself; replaying the day
+    /// records stats and upgrades future taps to the full card.
     private func showCard(for day: Date) {
-        guard let record = dailyStore.record(for: day), !isPreparingCard else { return }
+        guard !isPreparingCard else { return }
         isPreparingCard = true
         cardTask?.cancel()
         cardTask = Task {
@@ -110,22 +149,29 @@ struct DailyChallengeCalendarView: View {
                 return
             }
 
-            let card = ShareCardView(
-                image: image,
-                gridSize: DailyChallengeSeeder.gridSize(for: day),
-                gameMode: DailyChallengeSeeder.gameMode(for: day),
-                moveCount: record.moves,
-                elapsedTime: record.time,
-                isDailyChallenge: true,
-                dailyDate: day,
-                calendarStreak: record.streak
-            )
-            let renderer = ImageRenderer(content: card)
-            renderer.scale = 3.0
-            guard let rendered = renderer.cgImage, !Task.isCancelled else { return }
+            let zoomImage: CGImage
+            if let record = dailyStore.record(for: day) {
+                let card = ShareCardView(
+                    image: image,
+                    gridSize: DailyChallengeSeeder.gridSize(for: day),
+                    gameMode: DailyChallengeSeeder.gameMode(for: day),
+                    moveCount: record.moves,
+                    elapsedTime: record.time,
+                    isDailyChallenge: true,
+                    dailyDate: day,
+                    calendarStreak: record.streak
+                )
+                let renderer = ImageRenderer(content: card)
+                renderer.scale = 3.0
+                guard let rendered = renderer.cgImage else { return }
+                zoomImage = rendered
+            } else {
+                zoomImage = image
+            }
+            guard !Task.isCancelled else { return }
 
             withAnimation(.spring(response: 0.38, dampingFraction: 0.85)) {
-                zoomedCardImage = rendered
+                zoomedCardImage = zoomImage
                 zoomedDay = day
             }
         }
@@ -134,7 +180,7 @@ struct DailyChallengeCalendarView: View {
 
 #Preview {
     NavigationStack {
-        DailyChallengeCalendarView()
+        DailyChallengeCalendarView(onReplay: { _ in })
             .environment(DailyChallengeStore())
     }
 }

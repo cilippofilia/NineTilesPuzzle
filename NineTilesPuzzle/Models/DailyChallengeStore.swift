@@ -113,10 +113,15 @@ final class DailyChallengeStore {
     /// The calendar streak is advanced only the first time per calendar day —
     /// replaying the same puzzle (which is allowed) can still improve `bestMoves`
     /// and `bestTime` without double-counting the streak.
+    ///
+    /// Pass `isPastReplay: true` when the completion comes from replaying an older
+    /// day out of the history calendar: the day joins the completion history and,
+    /// when it has no stored stats yet, gains a backfilled record — but the live
+    /// calendar streak belongs to today's challenge and is never touched.
     @discardableResult
-    func recordCompletion(moves: Int, time: TimeInterval, date: Date = .now) -> (isNewMovesRecord: Bool, isNewTimeRecord: Bool, isNewCalendarStreakRecord: Bool) {
+    func recordCompletion(moves: Int, time: TimeInterval, date: Date = .now, isPastReplay: Bool = false) -> (isNewMovesRecord: Bool, isNewTimeRecord: Bool, isNewCalendarStreakRecord: Bool) {
         var isNewCalendarStreakRecord = false
-        if !isDailyCompletedToday {
+        if !isPastReplay && !isDailyCompletedToday {
             isNewCalendarStreakRecord = advanceCalendarStreak(for: date)
             lastCompletedDate = date
             defaults.set(date.timeIntervalSinceReferenceDate, forKey: Keys.lastCompletedDate)
@@ -131,7 +136,10 @@ final class DailyChallengeStore {
         // First completion of the day wins — the stats that earned the streak
         // are the ones the history card shows; replays don't rewrite that run.
         if dayRecords[dayKey] == nil {
-            dayRecords[dayKey] = DailyDayRecord(moves: moves, time: time, streak: calendarStreak)
+            // A backfilled past day never carried the live streak, so badge it with
+            // the reconstructed run of completed days ending on that day instead.
+            let streak = isPastReplay ? completedRunLength(endingOn: date) : calendarStreak
+            dayRecords[dayKey] = DailyDayRecord(moves: moves, time: time, streak: streak)
             persistDayRecords()
         }
 
@@ -188,6 +196,21 @@ private extension DailyChallengeStore {
     func persistDayRecords() {
         guard let data = try? JSONEncoder().encode(dayRecords) else { return }
         defaults.set(data, forKey: Keys.dayRecords)
+    }
+
+    /// The number of consecutive completed days ending on `date` (inclusive),
+    /// reconstructed from the completion history. Used to badge backfilled records
+    /// for days that were completed before per-day record keeping existed.
+    func completedRunLength(endingOn date: Date) -> Int {
+        let cal = Calendar.current
+        var day = cal.startOfDay(for: date)
+        var count = 0
+        while completedDayKeys.contains(Self.dayKey(for: day)) {
+            count += 1
+            guard let previous = cal.date(byAdding: .day, value: -1, to: day) else { break }
+            day = previous
+        }
+        return count
     }
 
     /// Increments the streak when today directly follows the last completed day;

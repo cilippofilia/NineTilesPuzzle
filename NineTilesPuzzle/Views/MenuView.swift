@@ -210,7 +210,12 @@ struct MenuView: View {
                 case .mediaPicker:
                     MediaSourcePickerView()
                 case .dailyCalendar:
-                    DailyChallengeCalendarView()
+                    DailyChallengeCalendarView { day in
+                        session.enterDailyMode(for: day)
+                        session.tiles = []
+                        session.isLoading = true
+                        path.append(.game)
+                    }
                 }
             }
             .toolbar {
@@ -264,8 +269,10 @@ struct MenuView: View {
             case .resume where session.hasResumableGame:
                 // Tapping "resume" while playing means keep playing.
                 return
-            case .daily where session.isDailyGameActive && !dailyChallengeStore.isDailyCompletedToday:
-                // Already mid-way through today's daily — keep playing it.
+            case .daily where session.isDailyGameActive && !session.isReplayingPastDaily && !dailyChallengeStore.isDailyCompletedToday:
+                // Already mid-way through today's daily — keep playing it. A history
+                // replay doesn't count: the link means today's challenge, so fall
+                // through to the pop-and-restart path below.
                 return
             default:
                 path = []

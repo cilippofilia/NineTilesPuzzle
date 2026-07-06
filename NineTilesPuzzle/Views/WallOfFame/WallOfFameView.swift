@@ -69,17 +69,16 @@ struct WallOfFameView: View {
             }
 
             if let image = zoomedCardImage, zoomedShareURL != nil, let slot = zoomedSlot {
-                ZoomedCardOverlay(cardImage: image, title: slot.displayTitle) {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.85)) {
-                        zoomedCardImage = nil
-                        zoomedShareURL = nil
-                        zoomedSlot = nil
-                    }
-                }
-                .transition(.scale(scale: 0.88).combined(with: .opacity))
+                ZoomedCardOverlay(cardImage: image, title: slot.displayTitle, onDismiss: dismissCard)
+                    // Spring-scale in, but fade straight out: reversing the scale on
+                    // removal read as a half-hearted shrink and the spring's long
+                    // settling tail made the fade feel laggy.
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.88).combined(with: .opacity),
+                        removal: .opacity
+                    ))
             }
         }
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: zoomedCardImage == nil)
         .navigationTitle("Wall of Fame")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -108,6 +107,16 @@ struct WallOfFameView: View {
             @unknown default:
                 break
             }
+        }
+    }
+
+    /// Fades the zoomed card out with a quick ease — snappier than reversing
+    /// the springy zoom-in animation.
+    private func dismissCard() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            zoomedCardImage = nil
+            zoomedShareURL = nil
+            zoomedSlot = nil
         }
     }
 

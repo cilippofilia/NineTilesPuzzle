@@ -66,6 +66,10 @@ final class GameSession {
     private(set) var isDailyGameActive: Bool = false
     /// The user's `selectedGameMode` before entering a daily game, restored in `leaveGame()`.
     private var preDailyGameMode: GameMode? = nil
+    /// The calendar day the active daily game targets — today when entered from the
+    /// menu, or a past day when replaying from the history calendar. Transient like
+    /// `isDailyGameActive`; cleared in `leaveGame()`.
+    private var dailyGameDate: Date? = nil
 
     /// True while the player is in a Quick Snap game — a plain Swap puzzle whose image was
     /// just captured by the camera. Transient like `isDailyGameActive`, so a force-quit
@@ -140,16 +144,30 @@ final class GameSession {
     var isDailyCompletedToday: Bool { dailyChallengeStore.isDailyCompletedToday }
     var dailyBestMoves: Int? { dailyChallengeStore.bestMoves }
     var dailyBestTime: TimeInterval? { dailyChallengeStore.bestTime }
-    var dailyEffectiveDate: Date { dailyChallengeStore.effectiveDate }
+
+    /// The calendar day the active daily game is played against: the replayed day
+    /// when the game came from the history calendar, today's effective date otherwise.
+    var activeDailyDate: Date { dailyGameDate ?? dailyChallengeStore.effectiveDate }
+
+    /// True while the active daily game is a history replay of a day other than today.
+    var isReplayingPastDaily: Bool {
+        guard isDailyGameActive, let dailyGameDate else { return false }
+        return !Calendar.current.isDate(dailyGameDate, inSameDayAs: dailyChallengeStore.effectiveDate)
+    }
 
     /// Marks this session as a Daily Challenge game. Must be called before navigating
     /// to `PuzzleView` — `startNewGame()` checks `isDailyGameActive` to use the
     /// seeded image/shuffle path instead of the regular source/engine path.
-    /// Saves the user's current game mode and replaces it with today's seeded mode;
+    /// Saves the user's current game mode and replaces it with the seeded mode;
     /// `leaveGame()` restores the original.
-    func enterDailyMode() {
+    ///
+    /// Pass a `date` to replay a specific past day from the history calendar;
+    /// omitting it plays today's challenge.
+    func enterDailyMode(for date: Date? = nil) {
+        let targetDate = date ?? dailyChallengeStore.effectiveDate
         preDailyGameMode = selectedGameMode
-        selectedGameMode = DailyChallengeSeeder.gameMode(for: dailyChallengeStore.effectiveDate)
+        selectedGameMode = DailyChallengeSeeder.gameMode(for: targetDate)
+        dailyGameDate = targetDate
         isDailyGameActive = true
     }
 
@@ -400,7 +418,7 @@ final class GameSession {
         // Grid size is determined by mode priority: daily (fixed 4×4) > ladder (stage
         // table) > random > user-selected. Each overrides the one below it.
         if isDailyGameActive {
-            gridSize = DailyChallengeSeeder.gridSize(for: dailyChallengeStore.effectiveDate)
+            gridSize = DailyChallengeSeeder.gridSize(for: activeDailyDate)
         } else if isGauntletLadderMode {
             gridSize = GauntletLadderRules.stage(currentLadderStage).gridSize
         } else if useRandomSize {
@@ -464,7 +482,7 @@ final class GameSession {
                 image = captured
             } else if isDailyGameActive {
                 do {
-                    image = try await DailyImageSource(date: dailyChallengeStore.effectiveDate).fetchImage()
+                    image = try await DailyImageSource(date: activeDailyDate).fetchImage()
                 } catch {
                     throw ImageSourceError.providerUnavailable
                 }
@@ -530,10 +548,10 @@ final class GameSession {
             }
 
             if isDailyGameActive {
-                // Apply a deterministic shuffle seeded from today's date so every player
+                // Apply a deterministic shuffle seeded from the game's date so every player
                 // gets the same starting arrangement. Slide mode requires a solvability
                 // check; swap/limited-moves use a simpler derangement.
-                let seed = DailyChallengeSeeder.seed(for: dailyChallengeStore.effectiveDate)
+                let seed = DailyChallengeSeeder.seed(for: activeDailyDate)
                 if selectedGameMode == .slide {
                     let board = DailyChallengeSeeder.shuffledSlideBoard(count: initial.count, gridSize: gridSize, seed: seed)
                     for position in initial.indices {
@@ -642,7 +660,12 @@ final class GameSession {
             liveActivity.end()
             if isDailyGameActive {
                 if !debugOverlayEnabled {
-                    let result = dailyChallengeStore.recordCompletion(moves: currentMoveCount, time: elapsedTime, date: dailyChallengeStore.effectiveDate)
+                    let result = dailyChallengeStore.recordCompletion(
+                        moves: currentMoveCount,
+                        time: elapsedTime,
+                        date: activeDailyDate,
+                        isPastReplay: isReplayingPastDaily
+                    )
                     isNewMovesRecord = result.isNewMovesRecord
                     isNewBestTime = result.isNewTimeRecord
                     isNewCalendarStreakRecord = result.isNewCalendarStreakRecord
@@ -851,6 +874,7 @@ final class GameSession {
             preQuickSnapGameMode = nil
         }
         isDailyGameActive = false
+        dailyGameDate = nil
         isQuickSnapActive = false
         quickSnapImage = nil
         stopCountdown()

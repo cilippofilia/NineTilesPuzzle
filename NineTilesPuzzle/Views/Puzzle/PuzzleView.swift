@@ -264,7 +264,7 @@ struct PuzzleView: View {
             moveCount: session.currentMoveCount,
             elapsedTime: session.elapsedTime,
             isDailyChallenge: session.isDailyGameActive,
-            dailyDate: session.dailyEffectiveDate,
+            dailyDate: session.activeDailyDate,
             calendarStreak: session.dailyCalendarStreak
         )
         let renderer = ImageRenderer(content: card)
@@ -343,7 +343,7 @@ struct PuzzleView: View {
             moveCount: session.currentMoveCount,
             elapsedTime: session.elapsedTime,
             isDailyChallenge: session.isDailyGameActive,
-            dailyDate: session.dailyEffectiveDate,
+            dailyDate: session.activeDailyDate,
             calendarStreak: session.dailyCalendarStreak,
             ladderStage: ladderStage,
             ladderStageScore: ladderStage != nil ? session.lastLadderStageScore : nil
