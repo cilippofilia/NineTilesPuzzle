@@ -78,6 +78,67 @@ struct SwapEngineTests {
         #expect(tiles.map { $0.currentIndex } == snapshot)
     }
 
+    // MARK: - reshuffleUnlocked
+
+    @Test func reshuffleUnlockedNeverReproducesTheExactSameArrangement() {
+        for _ in 0..<200 {
+            var tiles = solvedTiles()
+            tiles[0].currentIndex = 3
+            tiles[3].currentIndex = 0
+            let before = tiles.map(\.currentIndex)
+            engine.reshuffleUnlocked(&tiles)
+            #expect(tiles.map(\.currentIndex) != before)
+        }
+    }
+
+    @Test func reshuffleUnlockedLeavesLockedTilesUntouched() {
+        var tiles = solvedTiles()
+        tiles[0].currentIndex = 3
+        tiles[3].currentIndex = 0
+        tiles[6].isLocked = true // sits at its own correct index, id == currentIndex == 6
+        engine.reshuffleUnlocked(&tiles)
+        let tile6 = tiles.first { $0.id == 6 }!
+        #expect(tile6.currentIndex == 6)
+        #expect(tile6.isLocked)
+    }
+
+    @Test func reshuffleUnlockedOnlyPermutesAmongTheOriginallyUnlockedPositions() {
+        var tiles = solvedTiles()
+        tiles[0].currentIndex = 3
+        tiles[3].currentIndex = 0
+        tiles[6].isLocked = true
+        let originallyUnlockedPositions = tiles.filter { !$0.isLocked }.map(\.currentIndex).sorted()
+        engine.reshuffleUnlocked(&tiles)
+        // Identify the same tiles by id (lock state may have changed) and confirm they
+        // still occupy exactly the same set of positions, just reassigned among themselves.
+        let sameTilesPositionsAfter = tiles.filter { $0.id != 6 }.map(\.currentIndex).sorted()
+        #expect(sameTilesPositionsAfter == originallyUnlockedPositions)
+    }
+
+    @Test func reshuffleUnlockedNoOpsWithOneOrFewerUnlockedTiles() {
+        var tiles = solvedTiles()
+        for i in tiles.indices where i != 0 { tiles[i].isLocked = true }
+        let before = tiles.map(\.currentIndex)
+        engine.reshuffleUnlocked(&tiles)
+        #expect(tiles.map(\.currentIndex) == before)
+    }
+
+    @Test func reshuffleUnlockedCanLandATileCorrectlyAndLockIt() {
+        // Run many trials since landing correctly is only one of several random outcomes.
+        var everLockedSomething = false
+        for _ in 0..<500 {
+            var tiles = solvedTiles()
+            tiles[0].currentIndex = 3
+            tiles[3].currentIndex = 0
+            engine.reshuffleUnlocked(&tiles)
+            if tiles.contains(where: { $0.isLocked }) {
+                everLockedSomething = true
+                break
+            }
+        }
+        #expect(everLockedSomething)
+    }
+
     // MARK: - isSolved
 
     @Test func isSolvedReturnsTrueWhenAllTilesAreInPosition() {

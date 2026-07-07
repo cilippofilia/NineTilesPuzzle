@@ -21,11 +21,18 @@ struct TileView: View {
 
     @State private var dragOffset: CGSize = .zero
     @State private var isDragging = false
+    /// Drives the Hint power-up's pulse — toggled by a `repeatForever` animation while
+    /// `isHinted` is true, so the glow/scale/shake below all breathe in sync off one value.
+    @State private var isHintPulsing = false
 
     /// Sparkle fog: tile is unrevealed and not being touched.
     private var showFog: Bool { isFogMode && !tile.isLocked && !isDragging }
     /// Frosted glass: tile is being actively dragged (can't see what you're placing).
     private var showFrostedGlass: Bool { isFogMode && !tile.isLocked && isDragging }
+    private var hintRotationDegrees: Double {
+        guard isHinted else { return 0 }
+        return isHintPulsing ? 2.5 : -2.5
+    }
 
     var body: some View {
         ZStack {
@@ -55,7 +62,20 @@ struct TileView: View {
             if isHinted {
                 RoundedRectangle(cornerRadius: 4)
                     .strokeBorder(.yellow, lineWidth: 3)
-                    .shadow(color: .yellow, radius: 6)
+                    .shadow(color: .yellow, radius: isHintPulsing ? 12 : 4)
+            }
+        }
+        .scaleEffect(isHinted && isHintPulsing ? 1.06 : 1.0)
+        .rotationEffect(.degrees(hintRotationDegrees))
+        .onChange(of: isHinted) { _, newValue in
+            if newValue {
+                withAnimation(.easeInOut(duration: 0.35).repeatForever(autoreverses: true)) {
+                    isHintPulsing = true
+                }
+            } else {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isHintPulsing = false
+                }
             }
         }
         .overlay(alignment: .topLeading) {

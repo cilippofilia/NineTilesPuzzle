@@ -54,10 +54,13 @@ struct SwapEngine: GameEngine {
         }
     }
 
-    /// Reshuffles only the unlocked tiles into a new derangement among their own occupied
-    /// positions, leaving every locked tile exactly where it is. Used by the Re-shuffle
-    /// power-up when the player is stuck. No-ops if fewer than two tiles are unlocked, since a
-    /// derangement of one tile is impossible.
+    /// Reshuffles only the unlocked tiles among their own occupied positions — a genuine
+    /// random permutation, so a tile can land correctly by chance (and locks immediately,
+    /// same as `swap()`). Unlike `shuffle()`, this doesn't forbid every individual tile from
+    /// landing on its own id; it only rejects the one outcome that would make the power-up
+    /// feel wasted — the exact same arrangement coming back unchanged. Leaves every
+    /// already-locked tile exactly where it is. No-ops with fewer than two unlocked tiles,
+    /// since there's nothing meaningful to reshuffle.
     func reshuffleUnlocked(_ tiles: inout [TileModel]) {
         let unlockedOffsets = tiles.indices.filter { !tiles[$0].isLocked }
         guard unlockedOffsets.count > 1 else { return }
@@ -66,10 +69,13 @@ struct SwapEngine: GameEngine {
         var shuffledPositions: [Int]
         repeat {
             shuffledPositions = positions.shuffled()
-        } while zip(unlockedOffsets, shuffledPositions).contains { offset, position in tiles[offset].id == position }
+        } while shuffledPositions == positions
 
         for (offset, position) in zip(unlockedOffsets, shuffledPositions) {
             tiles[offset].currentIndex = position
+            if tiles[offset].id == position {
+                tiles[offset].isLocked = true
+            }
         }
     }
 }

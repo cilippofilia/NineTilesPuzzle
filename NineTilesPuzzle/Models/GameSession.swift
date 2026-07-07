@@ -733,10 +733,12 @@ final class GameSession {
     }
 
     /// Spends a Re-shuffle power-up to scramble only the unlocked tiles among their own
-    /// occupied positions — a fresh derangement, so the player is never left exactly as stuck.
-    /// Not available in Slide mode (no locked tiles to leave in place). Deliberately doesn't
-    /// route through `registerMove`: it isn't a move, so it must not cost a move, break the
-    /// streak, or count against a Limited Moves budget.
+    /// occupied positions — a genuine random permutation (a tile can land correctly by
+    /// chance and lock in, unlike the initial shuffle) guaranteed only to differ from the
+    /// current arrangement, so the power-up never feels wasted. Not available in Slide mode
+    /// (no locked tiles to leave in place). Deliberately doesn't route through `registerMove`:
+    /// it isn't a move, so it must not cost a move, break the streak, or count against a
+    /// Limited Moves budget.
     @discardableResult
     func useReshufflePowerUp() -> Bool {
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
