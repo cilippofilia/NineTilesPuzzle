@@ -718,7 +718,11 @@ final class GameSession {
         hintSleepTask = Task {
             try? await Task.sleep(for: .seconds(PowerUpRules.hintDuration))
             guard !Task.isCancelled else { return }
-            hintedTileID = nil
+            // Animated so the glow/home-cell marker fade out instead of popping off
+            // mid-pulse, matching the settle animation TileView runs on `isHinted`.
+            withAnimation(.easeInOut(duration: 0.3)) {
+                hintedTileID = nil
+            }
             hintSleepTask = nil
         }
         return true
@@ -739,9 +743,13 @@ final class GameSession {
     /// occupied positions — a genuine random permutation (a tile can land correctly by
     /// chance and lock in, unlike the initial shuffle) guaranteed only to differ from the
     /// current arrangement, so the power-up never feels wasted. Not available in Slide mode
-    /// (no locked tiles to leave in place). Deliberately doesn't route through `registerMove`:
-    /// it isn't a move, so it must not cost a move, break the streak, or count against a
-    /// Limited Moves budget.
+    /// (no locked tiles to leave in place). Skips `registerMove` when the reshuffle doesn't
+    /// finish the puzzle: it isn't a move, so it must not cost a move, break the streak, or
+    /// count against a Limited Moves budget. But since it's a genuine random permutation, the
+    /// unlocked tiles can — rarely, most likely when exactly two remain — all land correctly
+    /// by chance; when that happens it really did finish the puzzle, so it must still flow
+    /// through `registerMove` for solve detection, otherwise `isSolved` never flips and the
+    /// game is left stuck with no completion screen.
     @discardableResult
     func useReshufflePowerUp() -> Bool {
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
@@ -749,8 +757,13 @@ final class GameSession {
         guard tiles.filter({ !$0.isLocked }).count > 1 else { return false }
         guard settingsStore.debugInfinitePowerUps || powerUpStore.consume(.reshuffle) else { return false }
 
+        let correctBefore = tiles.filter { $0.isCorrect }.count
         swapEngine.reshuffleUnlocked(&tiles)
-        saveDynamicState()
+        if activeEngine.isSolved(tiles) {
+            registerMove(correctBefore: correctBefore)
+        } else {
+            saveDynamicState()
+        }
         return true
     }
 

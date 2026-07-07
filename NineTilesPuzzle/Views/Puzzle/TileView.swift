@@ -63,6 +63,7 @@ struct TileView: View {
                 RoundedRectangle(cornerRadius: 4)
                     .strokeBorder(.yellow, lineWidth: 3)
                     .shadow(color: .yellow, radius: isHintPulsing ? 12 : 4)
+                    .transition(.opacity)
             }
         }
         .scaleEffect(isHinted && isHintPulsing ? 1.06 : 1.0)
@@ -77,7 +78,11 @@ struct TileView: View {
                     isHintPulsing = true
                 }
             } else {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                // A settling spring rather than a plain ease-out: the tile was mid-shake,
+                // so easing straight to rest reads as an abrupt stop. Duration is matched to
+                // the fade the caller wraps `isHinted`'s own clear in, so the glow/border and
+                // the scale/rotation settle finish together instead of at staggered times.
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) {
                     isHintPulsing = false
                 }
             }
