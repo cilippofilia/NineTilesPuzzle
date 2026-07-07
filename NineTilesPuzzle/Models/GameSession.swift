@@ -18,6 +18,7 @@ final class GameSession {
     private let achievementsStore: AchievementsStore
     private let settingsStore: SettingsStore
     private let dailyChallengeStore: DailyChallengeStore
+    private let powerUpStore: PowerUpStore
     private let defaults: PersistenceStore
 
     private let swapEngine = SwapEngine()
@@ -25,6 +26,7 @@ final class GameSession {
     private let liveActivity = LiveActivityController()
     private let widgetData: WidgetDataController
     private var previewSleepTask: Task<Void, Never>?
+    private var peekSleepTask: Task<Void, Never>?
 
     /// Reused across every save/restore so we don't pay a fresh coder allocation on each
     /// move. Both are stateless for our value types, so sharing them is safe on the actor.
@@ -48,6 +50,9 @@ final class GameSession {
     var previewImage: CGImage?
     var isLoading = false
     var isPreviewing = false
+    /// True while a Peek power-up is showing the full image mid-game. Transient like
+    /// `isPreviewing` — not persisted, so a force-quit simply loses the remaining peek time.
+    var isPeeking = false
     var isSolved = false
     var isNewRecord: Bool = false
     var currentMoveCount: Int = 0
@@ -214,12 +219,14 @@ final class GameSession {
         achievementsStore: AchievementsStore,
         settingsStore: SettingsStore,
         dailyChallengeStore: DailyChallengeStore,
+        powerUpStore: PowerUpStore,
         defaults: PersistenceStore = UserDefaults.standard
     ) {
         self.statsStore = statsStore
         self.achievementsStore = achievementsStore
         self.settingsStore = settingsStore
         self.dailyChallengeStore = dailyChallengeStore
+        self.powerUpStore = powerUpStore
         self.defaults = defaults
         // Widget syncing writes to the real App Group suite, so it only runs when this
         // session persists to real UserDefaults too — tests injecting an in-memory store
@@ -636,6 +643,53 @@ final class GameSession {
         return true
     }
 
+    // MARK: - Power-ups
+
+    /// Spends a Peek power-up to re-show the full image for `settingsStore.peekDuration`
+    /// seconds, reusing the same `previewImage` `ImagePreviewView` shows pre-shuffle. No-ops
+    /// (without consuming inventory) once the puzzle is over, already peeking, or when there's
+    /// no image to show (numbers mode never sets `previewImage`).
+    @discardableResult
+    func usePeekPowerUp() -> Bool {
+        guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed, !isPeeking else { return false }
+        guard previewImage != nil else { return false }
+        guard powerUpStore.consume(.peek) else { return false }
+
+        isPeeking = true
+        peekSleepTask = Task {
+            try? await Task.sleep(for: .seconds(settingsStore.peekDuration))
+            guard !Task.isCancelled else { return }
+            isPeeking = false
+            peekSleepTask = nil
+        }
+        return true
+    }
+
+    /// Ends an active Peek early — called from the overlay's "Skip" button.
+    func skipPeek() {
+        peekSleepTask?.cancel()
+        peekSleepTask = nil
+        isPeeking = false
+    }
+
+    /// Spends an Auto-place power-up to lock one random unlocked tile into its correct cell,
+    /// via the same swap/lock logic a manual move uses. Not available in Slide mode, whose
+    /// blank-cell mechanic has no notion of a permanently "locked" tile. Routes through
+    /// `registerMove` so solve detection, stats, and achievements stay in sync exactly as they
+    /// would for a manual move.
+    @discardableResult
+    func useAutoPlacePowerUp() -> Bool {
+        guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
+        guard selectedGameMode != .slide else { return false }
+        guard let target = tiles.filter({ !$0.isLocked }).randomElement() else { return false }
+        guard powerUpStore.consume(.autoPlace) else { return false }
+
+        let correctBefore = tiles.filter { $0.isCorrect }.count
+        swapEngine.swap(&tiles, from: target.currentIndex, to: target.id)
+        registerMove(correctBefore: correctBefore)
+        return true
+    }
+
     /// Shared bookkeeping after a move: move count, solved/streak/records, achievements, and persistence.
     private func registerMove(correctBefore: Int) {
         // The stopwatch starts on the first move, not at game start, so memorizing the
@@ -669,6 +723,7 @@ final class GameSession {
                     isNewMovesRecord = result.isNewMovesRecord
                     isNewBestTime = result.isNewTimeRecord
                     isNewCalendarStreakRecord = result.isNewCalendarStreakRecord
+                    powerUpStore.earnRandom()
                 }
             } else if isZenMode {
                 statsStore.recordGamePlayed(for: key)
@@ -734,6 +789,9 @@ final class GameSession {
                 let result = statsStore.recordStreakIncrement(for: key, trackRecord: !debugOverlayEnabled)
                 if !isSolved { startCountdown() }
                 if result.isNewRecord { isNewRecord = true }
+                if !debugOverlayEnabled && settingsStore.streakMilestoneInterval > 0 && result.streak % settingsStore.streakMilestoneInterval == 0 {
+                    powerUpStore.earnRandom()
+                }
             } else {
                 statsStore.resetStreak(for: key)
                 isNewRecord = false
@@ -745,7 +803,11 @@ final class GameSession {
         // Zen clear) could never unlock. Practice/debug play is still excluded — it never
         // touches `StatsStore` records above, so it shouldn't unlock achievements either.
         if !debugOverlayEnabled {
+            let unlockedBefore = achievementsStore.unlockedCount
             achievementsStore.checkAchievements(using: statsStore, justSolved: isSolved)
+            for _ in 0..<(achievementsStore.unlockedCount - unlockedBefore) {
+                powerUpStore.earnRandom()
+            }
         }
         // Widget sync happens only on the solving move (never per move — refresh budget),
         // and after the streak/records bookkeeping above so the snapshot includes the

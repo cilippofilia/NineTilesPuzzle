@@ -82,7 +82,7 @@ private extension StatsView {
     let achievements = AchievementsStore()
     NavigationStack {
         StatsView()
-            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore()))
+            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: PowerUpStore()))
             .environment(stats)
     }
 }

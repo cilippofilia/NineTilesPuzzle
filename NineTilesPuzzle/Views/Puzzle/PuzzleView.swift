@@ -64,6 +64,20 @@ struct PuzzleView: View {
                 LimitedMovesFailOverlay(completion: completion, onTryAgain: startNewGame)
             }
 
+            // Layer 3d: Peek power-up — re-shows the full image mid-game, reusing the same
+            // view the pre-shuffle "memorize the image" step uses.
+            if session.isPeeking, let previewImage = session.previewImage {
+                ImagePreviewView(
+                    image: previewImage,
+                    duration: settings.peekDuration,
+                    isFogMode: false,
+                    isDailyChallenge: session.isDailyGameActive,
+                    gameMode: session.selectedGameMode,
+                    onSkip: session.skipPeek
+                )
+                .transition(.opacity)
+            }
+
         }
         // Layer 4: achievement unlock toast. Every achievement metric is only evaluated at
         // the instant a puzzle is solved (see `AchievementMetric.value`), so `isSolved` is
@@ -77,6 +91,15 @@ struct PuzzleView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 8)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        // Layer 5: power-up inventory bar, shown below the grid whenever a game is actually
+        // in progress. Hidden in Zen mode along with the rest of the HUD — Zen is meant to be
+        // nothing but the puzzle.
+        .safeAreaInset(edge: .bottom) {
+            if !session.isZenMode && isGameActive {
+                PuzzlePowerUpToolbarView()
+                    .padding(.bottom, 8)
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: achievementsStore.newlyUnlockedAchievement)
@@ -391,9 +414,11 @@ struct PuzzleView: View {
     let stats = StatsStore()
     let settings = SettingsStore()
     let achievements = AchievementsStore()
+    let powerUps = PowerUpStore()
     PuzzleView()
-        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore()))
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: powerUps))
         .environment(settings)
         .environment(achievements)
+        .environment(powerUps)
         .environment(SoundService())
 }

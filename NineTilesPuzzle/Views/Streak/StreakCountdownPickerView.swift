@@ -52,6 +52,6 @@ struct StreakCountdownPickerView: View {
     NavigationStack {
         StreakCountdownPickerView()
             .environment(settings)
-            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore()))
+            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: PowerUpStore()))
     }
 }

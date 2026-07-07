@@ -25,6 +25,7 @@ struct GameSessionFogModeTests {
             achievementsStore: AchievementsStore(defaults: InMemoryPersistenceStore()),
             settingsStore: SettingsStore(defaults: InMemoryPersistenceStore()),
             dailyChallengeStore: DailyChallengeStore(defaults: InMemoryPersistenceStore()),
+            powerUpStore: PowerUpStore(defaults: InMemoryPersistenceStore()),
             defaults: InMemoryPersistenceStore()
         )
         session.selectedGameMode = .fog
@@ -48,6 +49,7 @@ struct GameSessionFogModeTests {
             achievementsStore: AchievementsStore(defaults: InMemoryPersistenceStore()),
             settingsStore: SettingsStore(defaults: InMemoryPersistenceStore()),
             dailyChallengeStore: DailyChallengeStore(defaults: InMemoryPersistenceStore()),
+            powerUpStore: PowerUpStore(defaults: InMemoryPersistenceStore()),
             defaults: InMemoryPersistenceStore()
         )
         session.selectedGameMode = .fog
@@ -94,6 +96,7 @@ struct GameSessionFogModeTests {
                 achievementsStore: AchievementsStore(defaults: InMemoryPersistenceStore()),
                 settingsStore: SettingsStore(defaults: InMemoryPersistenceStore()),
             dailyChallengeStore: DailyChallengeStore(defaults: InMemoryPersistenceStore()),
+            powerUpStore: PowerUpStore(defaults: InMemoryPersistenceStore()),
                 defaults: InMemoryPersistenceStore()
             )
             session.selectedGameMode = mode

@@ -60,6 +60,30 @@ struct SettingsView: View {
                     } footer: {
                         Text("Offset shifts the puzzle date so you can test different modes and grid sizes. Reset clears today's completion so the Play button reappears.")
                     }
+
+                    Section {
+                        Stepper(
+                            "Peek duration: \(Int(settings.peekDuration))s",
+                            value: Binding(
+                                get: { settings.peekDuration },
+                                set: { settings.setPeekDuration($0) }
+                            ),
+                            in: 1...15
+                        )
+
+                        Stepper(
+                            "Streak milestone: every \(settings.streakMilestoneInterval)",
+                            value: Binding(
+                                get: { settings.streakMilestoneInterval },
+                                set: { settings.setStreakMilestoneInterval($0) }
+                            ),
+                            in: 1...20
+                        )
+                    } header: {
+                        Text("Power-ups")
+                    } footer: {
+                        Text("Tunes how long a Peek shows the image and how often a streak milestone earns a power-up, so the defaults in PowerUpRules can be tried out on device.")
+                    }
                 }
                 #endif
 
@@ -177,10 +201,11 @@ struct SettingsView: View {
     let settings = SettingsStore()
     let achievements = AchievementsStore()
     let daily = DailyChallengeStore()
+    let powerUps = PowerUpStore()
     Color.clear
         .sheet(isPresented: .constant(true)) {
             SettingsView()
-                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily))
+                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily, powerUpStore: powerUps))
                 .environment(stats)
                 .environment(settings)
                 .environment(daily)

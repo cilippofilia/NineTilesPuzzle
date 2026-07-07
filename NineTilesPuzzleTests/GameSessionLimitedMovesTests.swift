@@ -25,6 +25,7 @@ struct GameSessionLimitedMovesTests {
             achievementsStore: AchievementsStore(defaults: InMemoryPersistenceStore()),
             settingsStore: settingsStore ?? SettingsStore(defaults: InMemoryPersistenceStore()),
             dailyChallengeStore: DailyChallengeStore(defaults: InMemoryPersistenceStore()),
+            powerUpStore: PowerUpStore(defaults: InMemoryPersistenceStore()),
             defaults: InMemoryPersistenceStore()
         )
         session.selectedGameMode = .limitedMoves

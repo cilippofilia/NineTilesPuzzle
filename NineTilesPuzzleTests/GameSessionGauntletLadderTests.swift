@@ -22,6 +22,7 @@ struct GameSessionGauntletLadderTests {
             achievementsStore: AchievementsStore(defaults: InMemoryPersistenceStore()),
             settingsStore: SettingsStore(defaults: InMemoryPersistenceStore()),
             dailyChallengeStore: DailyChallengeStore(defaults: InMemoryPersistenceStore()),
+            powerUpStore: PowerUpStore(defaults: InMemoryPersistenceStore()),
             defaults: InMemoryPersistenceStore()
         )
         session.selectedGameMode = .timeTrial
@@ -219,6 +220,7 @@ struct GameSessionGauntletLadderTests {
             achievementsStore: AchievementsStore(defaults: InMemoryPersistenceStore()),
             settingsStore: SettingsStore(defaults: InMemoryPersistenceStore()),
             dailyChallengeStore: DailyChallengeStore(defaults: InMemoryPersistenceStore()),
+            powerUpStore: PowerUpStore(defaults: InMemoryPersistenceStore()),
             defaults: defaults
         )
         session.selectedGameMode = .timeTrial

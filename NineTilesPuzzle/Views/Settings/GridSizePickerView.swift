@@ -72,6 +72,6 @@ struct GridSizePickerView: View {
     let achievements = AchievementsStore()
     NavigationStack {
         GridSizePickerView()
-            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore()))
+            .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: PowerUpStore()))
     }
 }

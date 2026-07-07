@@ -316,10 +316,12 @@ struct MenuView: View {
     let settings = SettingsStore()
     let achievements = AchievementsStore()
     let daily = DailyChallengeStore()
+    let powerUps = PowerUpStore()
     MenuView()
-        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily))
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily, powerUpStore: powerUps))
         .environment(stats)
         .environment(settings)
         .environment(achievements)
         .environment(daily)
+        .environment(powerUps)
 }

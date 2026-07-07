@@ -24,6 +24,7 @@ struct GameSessionPersistenceTests {
             achievementsStore: AchievementsStore(defaults: InMemoryPersistenceStore()),
             settingsStore: SettingsStore(defaults: InMemoryPersistenceStore()),
             dailyChallengeStore: DailyChallengeStore(defaults: InMemoryPersistenceStore()),
+            powerUpStore: PowerUpStore(defaults: InMemoryPersistenceStore()),
             defaults: store
         )
     }

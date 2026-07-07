@@ -23,6 +23,11 @@ final class SettingsStore {
     var quickSnapUsesFrontCamera: Bool = false
     var hapticsEnabled: Bool = true
     var debugOverlayEnabled: Bool = false
+    /// Debug-tunable power-up values, surfaced in Settings' Dev Tools section so the
+    /// defaults in `PowerUpRules` can be tried out and adjusted on device before locking
+    /// them in.
+    var peekDuration: Double = PowerUpRules.peekDuration
+    var streakMilestoneInterval: Int = PowerUpRules.streakMilestoneInterval
 
     init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
@@ -75,12 +80,26 @@ final class SettingsStore {
         defaults.set(value, forKey: Keys.debugOverlayEnabled)
     }
 
+    func setPeekDuration(_ duration: Double) {
+        guard duration != peekDuration else { return }
+        peekDuration = duration
+        defaults.set(duration, forKey: Keys.peekDuration)
+    }
+
+    func setStreakMilestoneInterval(_ interval: Int) {
+        guard interval != streakMilestoneInterval else { return }
+        streakMilestoneInterval = interval
+        defaults.set(interval, forKey: Keys.streakMilestoneInterval)
+    }
+
     func resetSettings() {
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
         setQuickSnapDuration(3)
         setQuickSnapUsesFrontCamera(false)
         setHapticsEnabled(true)
+        setPeekDuration(PowerUpRules.peekDuration)
+        setStreakMilestoneInterval(PowerUpRules.streakMilestoneInterval)
     }
 }
 
@@ -92,6 +111,8 @@ private extension SettingsStore {
         static let quickSnapUsesFrontCamera = "puzzle.quickSnapUsesFrontCamera"
         static let hapticsEnabled = "puzzle.hapticsEnabled"
         static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
+        static let peekDuration = "puzzle.peekDuration"
+        static let streakMilestoneInterval = "puzzle.streakMilestoneInterval"
     }
 
     func restoreFromUserDefaults() {
@@ -112,6 +133,12 @@ private extension SettingsStore {
         }
         if defaults.object(forKey: Keys.debugOverlayEnabled) != nil {
             debugOverlayEnabled = defaults.bool(forKey: Keys.debugOverlayEnabled)
+        }
+        if defaults.object(forKey: Keys.peekDuration) != nil {
+            peekDuration = defaults.double(forKey: Keys.peekDuration)
+        }
+        if defaults.object(forKey: Keys.streakMilestoneInterval) != nil {
+            streakMilestoneInterval = defaults.integer(forKey: Keys.streakMilestoneInterval)
         }
     }
 }
