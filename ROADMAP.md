@@ -1,110 +1,44 @@
 # NineTilesPuzzle — Improvement Roadmap
 
 Each idea has an effort estimate — **S** (hours), **M** (days), **L** (a week or more) — and
-notes on how it hooks into the existing architecture.
+notes on how it hooks into the existing architecture. Shipped features and their
+implementation details live in `ARCHITECTURE.md`; this file tracks what's still outstanding.
 
 ---
 
 ## 1. New Game Modes
 
-All modes reuse the stateless `GameEngine` conformers (`ClassicEngine`/`SlideEngine`) and
-route through `GameSession`. The natural starting point is the existing `GameMode` enum
-already threaded through `GameSession`, with mode selection routed via the existing
-`GameRoute` enum in `Views/MenuView.swift`. See `ARCHITECTURE.md` for how `GameSession`,
-`StatsStore`, `SettingsStore`, and `AchievementsStore` fit together today.
+Six of seven originally-sketched modes have shipped — Slide, Swap, Time Trial (with the
+Gauntlet Ladder sub-mode), Limited Moves, Zen, Haze, and Chaos, all routed through
+`GameSession` via the `GameMode` enum in `Views/MenuView.swift`. See `ARCHITECTURE.md` for
+how `GameSession`, `StatsStore`, `SettingsStore`, and `AchievementsStore` fit together.
+Outstanding follow-ups on shipped modes:
 
-[X] ### Daily Challenge — **M** *(shipped June 2026)*
-One puzzle per day, identical for every player. A date-seeded picsum URL
-(`/seed/ntp-YYYY-MM-DD/1024/1024`) delivers the same image to every device; a seeded
-xorshift64 PRNG (`DailyChallengeSeeder`) produces the same derangement shuffle from the same
-date integer. `DailyChallengeStore` tracks a calendar streak of completed days (separate from
-the in-game move streak), all-time best calendar streak, and daily personal bests for moves
-and time. `DailyImageSource` fetches via the system URL cache (unlike `RemoteImageSource`
-which bypasses caching), so the image is loaded at most once per day. On the menu a dedicated
-`DailyChallengeCardView` shows today's date, the current streak, and a "Play" button that
-transitions to "Done ✓" once completed; the Play button calls `session.enterDailyMode()`
-which sets a transient `isDailyGameActive` flag — the session routes the seeded image fetch
-and shuffle through `startNewGame()`, skips the regular move-streak countdown, and on solve
-routes to `DailyChallengeStore.recordCompletion()` rather than StatsStore. The flag is reset
-in `leaveGame()` so the user's regular mode preference is untouched after playing a daily.
-Still deferred:
+### Daily Challenge
 - Leaderboard for daily challenge (§3 prerequisite for comparison across players).
 - Calendar streak achievements (7 / 30 days) — deferred until §5 achievements overhaul.
 - Replay limit / "come back tomorrow" gate — today the player can replay the same puzzle to
   improve best moves/time; the calendar streak only advances once per day.
 
-[X] ### Time Attack — **S/M**
-Shipped as Time Trial mode (MVP scope, June 2026): one timed puzzle per grid size, with a
-flat combo bonus/misplay penalty per move and a simplified score formula. Reused the streak
-countdown timer's `Task`-based shape in `GameSession` almost exactly, generalized from "time
-per correct move" to "time per puzzle" — see `ARCHITECTURE.md` for the implementation.
-
-The full 10-stage **Gauntlet Ladder** progression also shipped (June 2026), as a toggle
-inside Time Trial rather than a new mode — see `ARCHITECTURE.md` for the implementation.
-Time limits were nerfed in June 2026 (roughly +20–35% across all stages, scaling more
-generously for larger grids) after playtesting showed completion was too difficult.
-Still deferred to follow-up work, from the original feature spec:
+### Time Trial / Gauntlet Ladder
 - The Endless "Ghost Mode" (stage 11+), racing the player's own personal best pace.
 - Time-banking: carrying over a percentage of leftover time between ladder stages.
 - The low-time vignette pulse and BPM-escalating audio sensory layer (the countdown
-  currently only recolors text, per the existing `StreakCounterView`-style pattern).
+  currently only recolors text).
 - Restricting Time Trial to a curated, high-contrast image source for leaderboard fairness.
 - `scenePhase`-based countdown freeze + 3-2-1 resume overlay on backgrounding/interruption
-  (today the countdown has no background handling at all, same as the streak countdown).
+  (today the countdown has no background handling at all).
 
-[X] ### Limited Moves — **S**
-Shipped June 2026: a flat per-grid-size move budget (`Models/LimitedMovesRules.swift`,
-3×3 → 12 moves up to 115 for 8×8+), reusing the existing move counter and adding a budget
-check + fail state (`LimitedMovesFailView`'s "Out of Moves" overlay) — see
-`ARCHITECTURE.md` for the implementation. Still pairs naturally with the power-up economy
-(§2), and the move-budget table could use difficulty-based tuning passes later if playtesting
-shows the flat numbers are too generous/strict.
+### Limited Moves
+- Pairs naturally with the power-up economy (§2).
+- The move-budget table could use difficulty-based tuning passes if playtesting shows the
+  flat numbers are too generous/strict.
 
-[X] ### Zen Mode — **S**
-No timers, no streak pressure, no fail states — just the picture. Cheapest mode to build
-because it *disables* existing systems rather than adding new ones. Good for the audience
-that plays with personal photos.
+### Quick Snap
+- Landscape capture / orientation-locked framing UI (the frame is normalized upright on
+  capture, but the countdown UI assumes portrait).
 
-[X] ### Classic Slide (15-puzzle variant) — **M/L**
-One empty cell, tiles slide instead of swap. Needs new engine rules (legal-move adjacency
-and a solvability parity check on shuffle — half of random permutations are unsolvable) but
-reuses the entire image-slicing and grid-rendering pipeline. Effectively a second game in
-the same app.
-
-[X] ### Haze — **M** *(shipped as "Haze", case `.fog` in `GameMode`)*
-Shipped June 2026. Tiles start hidden behind an animated sparkle overlay (`FogTileOverlay`,
-a `Canvas`+`TimelineView` particle system seeded per tile so each tile's star field is
-unique). Three tile states driven purely by `TileModel` fields and local `isDragging`:
-
-- **Fogged** (unlocked, not dragging): heavy blur (18pt) + dark overlay + twinkling particles.
-- **Frosted glass** (dragging): lighter blur (3pt), no particles — you can see what you're
-  placing but just barely.
-- **Revealed** (locked/correct): full-color image, slow 1.2s easeInOut fade from fog.
-
-A dedicated preview phase (duration matches `settingsStore.previewDuration`) shows the image
-fogged by default; a `ShakeDetector` (UIKit bridge in `Views/Helpers/`) lets the player shake
-to lift the fog before tiles shuffle. The shake hint badge uses `LoudBounceModifier` (scale
-pop, brightness flash, horizontal rattle — iMessage Loud+Shake style). The fog overlay and
-shake gesture are gated on `isFogMode` inside `ImagePreviewView` so other modes see a plain
-"Memorize the image" preview with no fog. Still visual-twist, not budget-based — runs on
-`ClassicEngine` (SwapEngine) and feeds the same completion/streak/personal-best path as Swap.
-No new `GameEngine`, no fail state.
-
-[X] ### Chaos Mode — **S**
-Shipped June 2026, as a whole-image transform rather than the originally-sketched per-tile
-flags: a random `ChaosTransform` (one orientation pick — mirror/flip/rotate90/180/270 — plus
-one tone pick — desaturate/invert/hue-shift/sepia — plus independent posterize and pixelate
-coin flips) is baked into the source image once at shuffle time, before `ImageSlicer` ever
-sees it, so every tile inherits the same transform and the solved puzzle still reads as one
-coherent (if mirrored/inverted/pixelated) photo. The puzzle's correctness stays purely about
-grid position — see `ARCHITECTURE.md` for why this needed a dedicated `previewImage` so the
-pre-shuffle "memorize the image" step still shows the real photo, not the chaos version. No
-new `GameEngine`, no new fail state, no stats/streak exemption (it plays exactly like Swap
-underneath). Same pattern still available for a future Fog/Reveal: this shipped as a
-whole-image bake rather than per-tile `TileModel` flags, so Fog/Reveal would need its own
-approach if it wants tile-level reveal timing rather than a single baked-in effect.
-
-### Gravity Mode — **M**
+### Gravity Mode — **M** *(not started)*
 A tilt-to-play mode: the player holds their phone and all tiles simultaneously slide toward
 the direction of gravity. Tilt left → every tile drifts left until it hits the wall or
 another tile; tilt right → same in reverse; and so on for up/down. The mechanic is
@@ -112,10 +46,10 @@ fundamentally different from Slide (where you drag one tile into the adjacent bl
 because every tile moves at once — the empty space(s) collect at the "high" side of the
 board, and the order in which you make moves matters at a whole-board level.
 
-**Status:** Core gravity detection infra is already in place (June 2026+). `MotionManager`
-derives `pitch`/`roll` from `CMDeviceMotion.gravity` (real-world "down", drift-free) at
-60 Hz pull-based updates. The gravity-feel system is used by Wall of Fame's card physics and
-is unit-tested without CoreMotion.
+**Status:** Core gravity detection infra is already in place. `MotionManager` derives
+`pitch`/`roll` from `CMDeviceMotion.gravity` (real-world "down", drift-free) at 60 Hz
+pull-based updates. The gravity-feel system is used by Wall of Fame's card physics and is
+unit-tested without CoreMotion.
 
 Architecture hooks:
 - Add `.gravity` to the `GameMode` enum and a `GravityEngine: GameEngine` in `Services/`.
@@ -138,74 +72,6 @@ Architecture hooks:
 Still to decide: whether to use a discrete threshold (snap to the dominant axis) or a
 continuous tilt that lets tiles slide diagonally. Discrete is simpler to implement and
 likely more fun to play.
-
-[X] ### Quick Snap — **S/M** *(shipped July 2026)*
-Shipped as a new `.camera` media source (label "Quick Snap"), offered in
-`MediaSourcePickerView` only when `QuickSnapCameraSession.isCameraAvailable` (hardware
-present) — greyed out entirely on the Simulator, the same way Numbers is Slide-only. Tapping
-"Play" with camera media selected opens a full-screen `QuickSnapCameraView`
-(`AVCaptureSession` bridged through `CameraPreviewView`) with a countdown ring that recolors
-under pressure like `StreakCounterView`. There is no shutter *button* and no retake, but the
-whole viewfinder is tappable — tapping snaps the current frame immediately (like the Fitness
-app's skippable pre-workout countdown); otherwise the frame is captured automatically at zero.
-Each second down fires a `.selection` haptic and the capture fires a firmer `.impact`, both
-gated by `SettingsStore.hapticsEnabled`. On capture `MenuView` calls
-`session.enterQuickSnapMode(with:)` — a transient-flag entry point (mirroring `enterDailyMode()`)
-that forces Swap play, remembers the player's mode, and hands the captured `CGImage` to
-`startNewGame()`, which slices it directly — bypassing `ImageService` — and skips the
-"memorize the image" preview. Counts toward Swap stats/streaks (no exemption); `leaveGame()`
-restores the prior mode and clears the flag.
-
-The shot timer is its own setting now (`SettingsStore.quickSnapDuration`, default 3s, chosen
-between 3/5/10s via `QuickSnapDurationPickerView`, surfaced under Settings › Game only when a
-camera is present) rather than riding `previewDuration`. "Play Again" from the completion
-banner re-opens the camera (`PuzzleView` presents `QuickSnapCameraView`) so every round starts
-on a freshly snapped scene; `GameSession.refreshQuickSnapImage(with:)` swaps in the new frame
-without disturbing the saved pre-Quick-Snap mode, and backing out of the re-capture returns to
-the menu. Still deferred:
-- Landscape capture / orientation-locked framing UI (the frame is normalized upright on
-  capture, but the countdown UI assumes portrait).
-
-Original spec below.
-
-### Quick Snap (original spec) — **S/M**
-Point the camera at whatever's in front of you right now and the shutter fires on a
-countdown — no retakes, no framing it just right. Whatever the camera sees when the timer
-hits zero becomes the puzzle. Not a new engine or rule set: it plays exactly like Swap
-underneath (same pattern as Chaos/Haze), the only new thing is *where the image comes from*
-and the pressure of "this very second" replacing "pick something."
-
-The shot timer is `max(settingsStore.previewDuration, 3)` seconds — it rides the same
-preview-duration setting used for "memorize the image" (default 3s already satisfies the
-floor), but never drops below 3s even if the player has set previews to "Off" (0) or
-something shorter, since under 3s there isn't enough time to aim the camera at all. Once the
-timer hits zero the frame is captured automatically; there is no shutter button and no retake
-— committing to whatever's in frame is the point of the mode.
-
-Architecture hooks:
-- The existing `ImageSource` protocol's `fetchImage() async throws -> CGImage` assumes a
-  headless fetch (network call, photo library query). Camera capture needs a presented UI
-  step first, so it doesn't fit as a drop-in fourth conformer the way `PhotoLibraryImageSource`
-  does — instead, add a live camera preview (`AVCaptureSession` wrapped in a
-  `UIViewControllerRepresentable`, since `UIImagePickerController` has no way to suppress its
-  own shutter button/retake screen) with a countdown ring overlay; on zero it grabs the
-  current frame as a `CGImage` and hands it to `GameSession` directly, bypassing
-  `ImageService`'s primary/fallback source pair entirely for this one mode.
-- `GameSession.enterQuickSnapMode()` (mirrors `enterDailyMode()`'s transient-flag pattern)
-  presents the camera sheet with the countdown already running; auto-capture at zero calls
-  `startNewGame()` with that frame, then resets the flag in `leaveGame()` like Daily
-  Challenge does.
-- The countdown overlay reuses the existing countdown visual language (the streak/Time Trial
-  countdown's text recoloring under pressure) rather than introducing a new timer style.
-- Skips `ImagePreviewView`'s "memorize the image" step entirely — the player just watched the
-  scene through the countdown, so a second memorize phase would be redundant; shuffle starts
-  immediately after capture.
-- Needs a new `NSCameraUsageDescription` entry in `Info.plist` — today only
-  `NSPhotoLibraryUsageDescription` exists. Camera access can be denied or the device may have
-  no camera (Simulator); fall back to `ImageSourceError`-style messaging and grey the mode out
-  in the menu the same way `.numbers` is only shown conditionally in `MediaSourcePickerView`.
-- Runs on `ClassicEngine` (Swap) — no new `GameMode` rules, no fail state, no stats/streak
-  exemption.
 
 ---
 
@@ -233,29 +99,21 @@ without redesigning anything.
 
 ## 3. Game Center / Online
 
-The biggest new capability, and the cheapest path to "online": GameKit needs no custom
-backend. Prerequisite is Game Center configuration in App Store Connect (leaderboard and
-achievement IDs).
+GameKit needs no custom backend. Prerequisite is Game Center configuration in App Store
+Connect (leaderboard and achievement IDs). The dashboard access point has shipped
+(`GKAccessPoint`, see `ARCHITECTURE.md`); submission is still outstanding.
 
 ### Leaderboards — **M**
 The stats are already tracked in `StatsStore`; submission is a thin `GameCenterService`:
 - Best moves per difficulty (six leaderboards, one per grid size)
 - All-time best streak
-- Daily challenge: recurring leaderboard for moves (and time, once Time Attack exists)
+- Daily challenge: recurring leaderboard for moves (and time)
 
 ### Achievements sync — **M**
-Mirror the 10 local achievements (`Resources/achievements.json`) to Game Center, reporting
+Mirror the 39 local achievements (`Resources/achievements.json`) to Game Center, reporting
 on unlock. Keep the local system as the source of truth so the game still works fully
 offline. While in this area: `AchievementService.remoteURL` still points at
 `example.com` — either wire up a real hosted JSON or remove the remote path.
-
-### [X] Access point — **S** *(shipped June 2026)*
-A `gamecontroller` toolbar button on the menu screen (visible only when authenticated) opens
-the native Game Center dashboard via `GKAccessPoint.trigger(handler:)` — the iOS 26
-replacement for the deprecated `GKGameCenterViewController`. The access point widget itself
-(`GKAccessPoint.isActive`) is kept inactive so the system-provided icon never appears;
-authentication is handled by `GameCenterService` (injected app-wide) at startup.
-Prerequisite: Game Center capability must be enabled under Signing & Capabilities.
 
 ### Friend challenges — **L** *(defer)*
 Send a friend the same seeded puzzle and compare move counts. Builds directly on the
@@ -293,37 +151,11 @@ aggregates. This is the natural point to introduce **SwiftData**; render trends 
 achievement flags. If SwiftData lands for stats history, CloudKit-backed sync becomes the
 fuller option.
 
-[X] ### Widgets — **M** *(shipped July 2026)*
-Three home-screen widgets in the existing `NineTilesPuzzleWidgetsExtension` bundle (the
-target and App Group already existed for the Live Activity):
-
-- **Daily Challenge** — systemSmall/Medium. Shows done/not-done, today's mode + grid size,
-  calendar streak + best. The widget computes today's identity itself via the target-shared
-  `DailyChallengeSeeder` and schedules a midnight timeline entry, so the day rolls over with
-  zero app involvement.
-- **Streaks & Records** — systemSmall/Medium, configurable via `AppIntentConfiguration`
-  (widget-local `WidgetGameMode`/`WidgetGridSize` AppEnums; Zen omitted — no streaks by
-  design). Current streak, best streak, best moves/time (best score for Time Trial).
-- **Resume Puzzle** — systemSmall/Medium with the actual board snapshot (its own
-  `widget-board-<UUID>.png` pipeline — Live Activity PNGs are deleted at exactly the wrong
-  moments), progress, move count; "Start a new puzzle" empty state. Saves older than 14 days
-  read as empty rather than nagging forever.
-
-Data rides a single Codable `WidgetSnapshot` in the App Group defaults
-(`Shared/WidgetDataStore.swift`), written only by `Services/WidgetDataController.swift` with
-per-section Hashable diffing and `reloadTimelines(ofKind:)` scoped per widget — hooks fire at
-game start/solve/fail/leave/background/reset, never per move (refresh budget). Deep links
-shipped alongside: `ninetilespuzzle://daily|resume|mode/<mode>/<size>`
-(`Shared/DeepLink.swift`, routed in `MenuView.handleDeepLink`); resume bypasses
-`PuzzleView`'s wipe-and-restart lifecycle via `GameSession.requestResume()`/
-`consumePendingResume()`. All three home-screen widgets force `.colorScheme(.dark)` on their
-content so they render dark-only regardless of iOS's per-widget light/dark appearance
-setting (which otherwise flips `.primary`/`.secondary` to light values against the fixed
-dark card background, per a Simulator screenshot showing black-on-black text — fixed July
-2026). Lock Screen accessory families were tried on the Daily widget and removed by request
-— home-screen only for now. See `ARCHITECTURE.md` §Home-screen widgets. Still deferred:
+### Widgets — follow-ups
+Three home-screen widgets (Daily Challenge, Streaks & Records, Resume Puzzle) plus deep
+links have shipped — see `ARCHITECTURE.md` §Home-screen widgets. Still outstanding:
 - `widgetURL`/deep link on the Live Activity itself (a tap currently just opens the app;
-  routing it through `ninetilespuzzle://resume` would reuse the new plumbing).
+  routing it through `ninetilespuzzle://resume` would reuse the existing plumbing).
 - Lock Screen / StandBy accessory widgets, if revisited later.
 - StandBy/tinted-mode polish pass on real hardware (accented rendering is wired via
   `widgetAccentedRenderingMode(.accentedDesaturated)` but only Simulator-verified).
@@ -334,108 +166,19 @@ StoreKit 2. Nothing in the current architecture blocks this; the power-up econom
 packs are designed to make it bolt-on.
 
 ### Smaller polish — **S each**
-- [X] Pause timers when the app is backgrounded — `PuzzleView` monitors `scenePhase` and
-  calls `session.pauseTimers()` / `session.resumeTimers()` (shipped June 2026).
-- [X] Share a completed puzzle as an image via `ShareLink` — toolbar share button appears in
-  `PuzzleView` once the puzzle is solved; exports a PNG of the completed image via a custom
-  `Transferable` type and `SharePreview` (required in iOS 26). *(shipped June 2026)*
 - [ ] Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
   select-then-place via accessibility actions).
 
-[X] ### Performance pass — **S/M** *(shipped July 2026)*
-A profiling-driven pass targeting the main-actor hot paths that showed up during gameplay,
-not asset bloat (the asset catalog is ~108 KB). Five changes, no behavior change:
-- **Per-move image re-encode removed** — `GameSession.registerMove()` used to call a full
-  save that JPEG-re-encoded the entire source image on *every* tile tap, even though the
-  image never changes mid-game. Split into `saveDynamicState()` (cheap, per-move) vs
-  `saveToUserDefaults()` (full, once per new game), with shared JSON coders. See
-  `ARCHITECTURE.md` §Persistence.
-- **Fog Mode consolidated** — up to ~63 independent per-tile `TimelineView`+`Canvas` particle
-  loops at 60 fps collapsed into a single board-level `PuzzleFogLayer` at 30 fps
-  (`FogField` + `PuzzleFogLayer`). See the Haze section in `ARCHITECTURE.md`.
-- **`ImageRenderer` off the render path** — the solved-share PNG is now rendered once in a
-  `Task` and cached in `@State` instead of re-rendering on every body pass; the Wall of Fame
-  capture is likewise deferred.
-- **View-body work precomputed** — achievement counts/grouping (`unlockedCount`,
-  `achievementsByCategory`) and the stats mode list are computed once instead of filtered
-  per render.
-- **Cork texture cached** — `CorkTextureView` is now `Equatable`/`.equatable()` so its
-  generation loop runs once (see §4 Wall of Fame → Cork texture).
+### Performance pass — follow-ups
+A profiling-driven pass shipped (see `ARCHITECTURE.md` §Persistence and the Haze section for
+details). Still deferred: Instruments before/after captures on a Release build (Time
+Profiler around `registerMove`, Animation Hitches on an 8×8 Fog board) to quantify the wins.
 
-Verification: full unit suite green (169 `@Test` functions), plus new
-`GameSessionPersistenceTests` pinning the save split and a true save→restore round-trip.
-Still deferred: Instruments before/after captures on a Release build (Time Profiler around
-`registerMove`, Animation Hitches on an 8×8 Fog board) to quantify the wins.
-
-[X] ### Wall of Fame — **M** *(shipped June 2026)*
-A cork-board view where every personal record is automatically pinned as a polaroid card.
-25 slots in six sections, defined by `Models/WallOfFameSlot.swift`:
-`bestMoves(gridSize: 3…8)`, `bestTime(gridSize: 3…8)`, `dailyBestMoves`, `dailyBestTime`,
-`calendarStreak`, `ladderStage(1…10)` *(Gauntlet Ladder section, added July 2026 — one card
-per stage, capturing whenever a clear beats that stage's own best score)*. At the moment any
-record is set `PuzzleView` renders `ShareCardView` via
-`ImageRenderer` at scale 3, converts the result to a `CGImage`, and calls
-`WallOfFameStore.save(_:for:)` — which writes a PNG to
-`Documents/wall_of_fame/<slot>.png` using ImageIO (no UIKit) and caches the `CGImage`
-in memory. Cards are auto-pinned; no manual curation.
-
-Visual design:
-- `WallOfFamePinnedCard`: 160 × 192 pt image, clipped at 3pt corner radius,
-  seeded base rotation ±6° (derived from `slot.seedValue × 1_000_003 % 13`),
-  📍 emoji pin at top edge, shadow offset tracks live swing angle.
-- **Pendulum physics** (June 2026+): a single shared `WallOfFameSwingEngine` steps all
-  visible cards' springs from one `TimelineView(.animation(minimumInterval: 1/60))` rather
-  than 15 independent timelines. Spring-damper loop per card:
-  `velocity += (target − angle) × stiffness − velocity × damping` (stiffness = 0.025,
-  damping = 0.11 gives lazy, heavy swing). Only writes `angle` when motion > 0.01° and
-  distance-to-target > 0.01°, so settled cards stop re-rendering entirely until the next
-  tilt. Cards register on `.onAppear` / unregister on `.onDisappear`, so off-screen cards
-  incur no physics cost. `MotionManager.roll` sets the equilibrium angle.
-- **Gyroscope** (June 2026+): `Services/MotionManager.swift` wraps
-  `CMMotionManager.startDeviceMotionUpdates` at 60 Hz (pull model: no callback queue,
-  samples poll on-demand). Derives roll/pitch from `CMDeviceMotion.gravity` (absolute,
-  accelerometer-fused, drift-free) rather than calibrating to a reference attitude, so
-  cards hang toward real "down" regardless of starting orientation. Near-flat guard
-  (minPlanarGravity = 0.05) prevents jitter when device is flat. Roll/pitch clamped to
-  ±0.14 rad and normalized to −1…1. Static functions `normalizedRoll(...)` /
-  `normalizedPitch(...)` are CoreMotion-free and unit-testable.
-- **Cork texture**: `CorkTextureView` is a multi-layer `Canvas` drawing using a seeded LCG
-  PRNG (`SeededRNG`) for per-pixel noise — ochre base, diagonal grain streaks, scattered
-  darker specks — no bundled asset. It conforms to `Equatable` (always equal) and is applied
-  via `.equatable()`, so SwiftUI renders it once and never re-runs the generation loop on
-  later parent updates (e.g. card zoom/unzoom) — a July 2026 perf fix.
-- **Empty slots**: dashed rounded-rect outline (`WallOfFameEmptySlot`) so the board reads
-  as something to fill in. Ladder stages are sequential, so an empty one distinguishes
-  "Locked" (dimmer border, small lock glyph — `stage > bestLadderStageReached + 1`) from
-  the ordinary "not yet earned" placeholder every other slot uses (July 2026).
-- **Difficulty Highlights** (July 2026): a section ahead of Best Moves/Fastest Solve
-  showing one "hero" card per grid size (3…8) — whichever of that size's `.bestMoves`/
-  `.bestTime` card was captured most recently, via `WallOfFameStore.heroSlot(forGridSize:)`.
-  Avoids duplicating the full moves/time breakdown while still giving each difficulty a
-  single representative photo.
-- **Tap to zoom**: tapping a pinned card sets `zoomedSlot`/`zoomedCardImage` state in the
-  root `ZStack`. The dark backdrop and card content are sibling views so each can carry
-  its own transition — backdrop fades (`.opacity`), card scales + fades
-  (`.scale(0.82).combined(.opacity)`) — both driven by a single
-  `.animation(.spring(response: 0.38, dampingFraction: 0.85), value: zoomedCardImage == nil)`.
-  A transparent `Color.clear.contentShape(.rect)` dismiss button avoids the button-press
-  color flash that a tinted label would cause.
-- **Share from zoom**: a `ShareLink` `ToolbarItem` appears in the nav bar when a card is
-  zoomed, referencing the on-disk PNG URL from `WallOfFameStore.fileURL(for:)`.
-
-Stats moved from `MenuView` sheet to `SettingsView` push-navigation (June 2026). Stats
-button removed from the menu; `StatsView` is now a plain `List` (no `NavigationStack` of
-its own) pushed via `NavigationLink` from inside `SettingsView`'s `NavigationStack`.
-
-Still deferred:
+### Wall of Fame — follow-ups
+The cork-board of auto-pinned personal records has shipped (see `ARCHITECTURE.md`). Still
+deferred:
 - Manual curation (long-press to unpin / rearrange slots).
 - Tapping a card's share button from the zoomed overlay (currently only the nav bar item).
-
-### [X] Menu stats card — **S** *(shipped June 2026 as `MenuStatsCardView`)*
-Re-added with per-mode content: three-stat card (streak / best streak / best moves) for
-Swap/Slide/Haze/Chaos; two-stat card (best score / best moves) for Time Trial; two-stat card
-(best moves / best time) for Limited Moves; two-stat card (best score / best stage) for
-Gauntlet Ladder; hidden entirely for Zen. Lives in `Views/Streak/MenuStatsCardView.swift`.
 
 ---
 
@@ -443,31 +186,8 @@ Gauntlet Ladder; hidden entirely for Zen. Lives in `Views/Streak/MenuStatsCardVi
 
 Take inspiration from Apple Fitness awards: badges grouped by category, tiered medals with
 progress shown toward the next tier, earned dates, and occasional limited-edition awards.
-Today the system is 10 flat achievements with a binary `isUnlocked` flag and a hardcoded
-`switch` in `AchievementsStore.checkAchievements(using:)` — most of this section starts
-with making definitions data-driven.
-
-### [X] Data-driven model with progress — **M** *(foundation for everything below)*
-`Achievement` now carries `category: AchievementCategory`, `metric: AchievementMetric`,
-`target: Int`, `comparison: AchievementComparison`, and `unlockedDate: Date?`. The old
-hardcoded `switch` in `checkAchievements` is gone — the generic loop evaluates
-`metric.value(in: stats) comparison target` for every entry. `achievements.json` drives all
-34 achievements across 6 categories; existing UserDefaults keys are unchanged (no migration
-needed). `AchievementMetric` encodes as a dotted string (e.g. `personalBestMoves.3.swap`)
-so the JSON stays hand-editable. `AchievementComparison` is `greaterThanOrEqual` or
-`lessThanOrEqual` — move-count efficiency achievements use the latter.
-
-### [X] Categories — **S** *(after the model work)*
-Group `AchievementsView` into sections, Fitness-style:
-
-| Category | What lives there |
-|---|---|
-| **Milestones** | First Solve, total puzzles completed |
-| **Difficulty** | First clear of each grid size (3×3 → 8×8 — add the missing 6×6 and 7×7) |
-| **Efficiency** | Move-count records per grid size |
-| **Streaks** | Move-streak tiers, perfect games |
-| **Explorer** | Image sources, modes, variety play |
-| **Special** | Hidden + limited-edition awards |
+The data-driven model, categories, and progress bars have all shipped (see
+`ARCHITECTURE.md`). Outstanding:
 
 ### Tiered achievements (bronze / silver / gold) — **M**
 Collapse "count ladder" achievements into one badge with tiers, like Fitness's Move Goal
@@ -483,19 +203,11 @@ Optionally a platinum tier as the long-tail goal. The toast (`AchievementToastVi
 which tier was just reached. If Game Center sync (§3) lands, each tier maps to its own GC
 achievement, or to one achievement using `percentComplete`.
 
-### [X] Progress bars — **S** *(falls out of the data-driven model)*
-Show progress toward the next locked tier wherever an achievement appears:
-`AchievementRowView` gets a `ProgressView(value:)` or circular `Gauge` ("37/50 puzzles"),
-and locked badges render greyed-out with the bar underneath — exactly how Fitness shows
-unearned awards. One-shot achievements (e.g. "solve an 8×8") stay binary, no bar.
-
-### [X] New achievements — **S each** *(once the model is data-driven, these are JSON entries)*
-All roadmap achievements shipped as JSON entries (June 2026): Perfectionist, Marathon,
-Night Owl, Early Bird, Personal Touch, Comeback, Full House, plus Zen/Time Trial/Limited
-Moves/Haze/Chaos/Ladder first-clears. Still deferred:
+### New achievements — follow-ups
 - **Sharpshooter** (beat personal best 3× on same grid size) — needs a new `StatsStore`
   counter; deferred until §3 leaderboard work makes per-grid-size tracking richer.
-- Daily-challenge calendar streaks (7 / 30 days) — blocked on §1 Daily Challenge.
+- Daily-challenge calendar streaks (7 / 30 days) — blocked on Daily Challenge leaderboard
+  work above.
 
 ### Fitness-style extras — **M** *(later, once the above ships)*
 - **Limited-edition awards**: seasonal badges (New Year solve, app anniversary) — this is
@@ -521,24 +233,18 @@ Current structure (directory layout, store boundaries, persistence, testing) is 
 in `ARCHITECTURE.md`, not duplicated here — that file is the single source of truth so the
 two docs don't drift out of sync with each other again.
 
-**Open question, revisited with Time Trial and Limited Moves both shipped (June 2026):**
-`GameMode` is 7 cases, and mode-specific behavior (`isZenMode`, `isTimeTrialMode`,
-`isLimitedMovesMode`, `selectedGameMode == .slide`, debug-overlay gating) is still scattered
-conditionals inside `GameSession` and `PuzzleView`/`PuzzleGridView` rather than a single
-abstraction. A small composable `GameModeRules` was considered a third time now that Limited
-Moves exists — the predicted pairing happened (Time Trial and Limited Moves do share a real
-"budget + fail condition, checked after the solved branch" axis, unlike Zen, which only
-disables tracking) — but conditionals won again, more narrowly: the two budgets differ
-enough in kind (mutable wall-clock time with a combo score vs. a flat decrementing move
-count with no score) that a shared struct would carry fields meaningless to one conformer or
-the other, for a payoff of collapsing two small `if`/`else if` branches. See
-`ARCHITECTURE.md`'s §6 resolution for the full reasoning. The Gauntlet Ladder still doesn't
-add a data point here — it's deliberately modeled as a boolean flag on top of Time Trial
-(`isLadderMode`), not a new `GameMode`. Chaos Mode shipped since (June 2026) but doesn't add
-a data point either — it's a visual-only whole-image transform with no budget or fail state,
-playing like Swap underneath. Revisit the `GameModeRules` question again if a third
-budget-based mode arrives. Fog/Reveal also shipped June 2026 (also visual-twist, not
-budget-shaped) — all planned modes are now live; that third budget-based data point still
-doesn't exist.
+**Open question:** `GameMode` is 7 cases, and mode-specific behavior (`isZenMode`,
+`isTimeTrialMode`, `isLimitedMovesMode`, `selectedGameMode == .slide`, debug-overlay gating)
+is still scattered conditionals inside `GameSession` and `PuzzleView`/`PuzzleGridView` rather
+than a single abstraction. A small composable `GameModeRules` has been considered multiple
+times — Time Trial and Limited Moves do share a real "budget + fail condition, checked after
+the solved branch" axis, unlike Zen, which only disables tracking — but conditionals won
+each time: the two budgets differ enough in kind (mutable wall-clock time with a combo score
+vs. a flat decrementing move count with no score) that a shared struct would carry fields
+meaningless to one conformer or the other, for a payoff of collapsing two small `if`/`else
+if` branches. See `ARCHITECTURE.md`'s §6 resolution for the full reasoning. Gauntlet Ladder,
+Chaos, and Haze don't add a data point either — none are budget-based. All originally-planned
+modes are now live except Gravity Mode (§1); revisit the `GameModeRules` question if Gravity
+Mode turns out to need a third budget-based shape, or defer it again if it doesn't.
 
 ---
