@@ -72,10 +72,10 @@ struct GameSessionLimitedMovesTests {
     // MARK: - Fail state
 
     @Test func runningOutOfMovesFailsAndLocksTheGrid() async {
-        let session = await makeSession() // 3×3 → 12-move budget.
+        let session = await makeSession() // 3×3 → 10-move budget.
         setBoard(session, idsAtIndex: [5, 6, 7, 8, 0, 1, 2, 3, 4])
 
-        for _ in 0..<12 {
+        for _ in 0..<10 {
             session.swapTiles(from: 0, to: 1)
         }
 
@@ -91,7 +91,7 @@ struct GameSessionLimitedMovesTests {
 
     @Test func aMoveThatExhaustsTheBudgetAndSolvesCountsAsAWinNotAFail() async {
         let session = await makeSession()
-        let budget = session.movesBudgetForCurrentSize // 12
+        let budget = session.movesBudgetForCurrentSize // 10
 
         setBoard(session, idsAtIndex: [5, 6, 7, 8, 0, 1, 2, 3, 4])
         for _ in 0..<(budget - 1) {
@@ -140,7 +140,7 @@ struct GameSessionLimitedMovesTests {
         let session = await makeSession(settingsStore: settings)
 
         setBoard(session, idsAtIndex: [5, 6, 7, 8, 0, 1, 2, 3, 4])
-        for _ in 0..<12 {
+        for _ in 0..<10 {
             session.swapTiles(from: 0, to: 1)
         }
 
