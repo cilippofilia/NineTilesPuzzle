@@ -14,12 +14,12 @@ enum LimitedMovesRules {
     /// Total moves allowed for a fresh Limited Moves puzzle at `gridSize`.
     static func moveBudget(forGridSize gridSize: Int) -> Int {
         switch gridSize {
-        case 3: 12
-        case 4: 24
-        case 5: 40
-        case 6: 60
-        case 7: 85
-        default: 115 // covers 8 and any larger size
+        case 3: 10
+        case 4: 20
+        case 5: 34
+        case 6: 50
+        case 7: 70
+        default: 95 // covers 8 and any larger size
         }
     }
 }

@@ -11,15 +11,15 @@ import Testing
 @Suite("LimitedMovesRules")
 struct LimitedMovesRulesTests {
     @Test func moveBudgetMatchesTheSpecForEveryGridSize() {
-        #expect(LimitedMovesRules.moveBudget(forGridSize: 3) == 12)
-        #expect(LimitedMovesRules.moveBudget(forGridSize: 4) == 24)
-        #expect(LimitedMovesRules.moveBudget(forGridSize: 5) == 40)
-        #expect(LimitedMovesRules.moveBudget(forGridSize: 6) == 60)
-        #expect(LimitedMovesRules.moveBudget(forGridSize: 7) == 85)
-        #expect(LimitedMovesRules.moveBudget(forGridSize: 8) == 115)
+        #expect(LimitedMovesRules.moveBudget(forGridSize: 3) == 10)
+        #expect(LimitedMovesRules.moveBudget(forGridSize: 4) == 20)
+        #expect(LimitedMovesRules.moveBudget(forGridSize: 5) == 34)
+        #expect(LimitedMovesRules.moveBudget(forGridSize: 6) == 50)
+        #expect(LimitedMovesRules.moveBudget(forGridSize: 7) == 70)
+        #expect(LimitedMovesRules.moveBudget(forGridSize: 8) == 95)
     }
 
     @Test func moveBudgetFallsBackToTheLargestTierBeyondEightByEight() {
-        #expect(LimitedMovesRules.moveBudget(forGridSize: 9) == 115)
+        #expect(LimitedMovesRules.moveBudget(forGridSize: 9) == 95)
     }
 }

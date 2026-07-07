@@ -53,4 +53,23 @@ struct SwapEngine: GameEngine {
             tiles[targetOffset].isLocked = true
         }
     }
+
+    /// Reshuffles only the unlocked tiles into a new derangement among their own occupied
+    /// positions, leaving every locked tile exactly where it is. Used by the Re-shuffle
+    /// power-up when the player is stuck. No-ops if fewer than two tiles are unlocked, since a
+    /// derangement of one tile is impossible.
+    func reshuffleUnlocked(_ tiles: inout [TileModel]) {
+        let unlockedOffsets = tiles.indices.filter { !tiles[$0].isLocked }
+        guard unlockedOffsets.count > 1 else { return }
+
+        let positions = unlockedOffsets.map { tiles[$0].currentIndex }
+        var shuffledPositions: [Int]
+        repeat {
+            shuffledPositions = positions.shuffled()
+        } while zip(unlockedOffsets, shuffledPositions).contains { offset, position in tiles[offset].id == position }
+
+        for (offset, position) in zip(unlockedOffsets, shuffledPositions) {
+            tiles[offset].currentIndex = position
+        }
+    }
 }

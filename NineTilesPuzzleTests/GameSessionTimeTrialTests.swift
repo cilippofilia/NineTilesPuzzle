@@ -86,11 +86,11 @@ struct GameSessionTimeTrialTests {
     // MARK: - Fail state
 
     @Test func runningOutOfTimeFailsAndLocksTheGrid() async {
-        let session = await makeSession() // 3×3 → 45s base limit, 2s penalty per move.
+        let session = await makeSession() // 3×3 → 35s base limit, 2s penalty per move.
         setBoard(session, idsAtIndex: [5, 6, 7, 8, 0, 1, 2, 3, 4])
 
-        // ceil(45 / 2) = 23 penalty moves drains the clock to zero.
-        for _ in 0..<23 {
+        // ceil(35 / 2) = 18 penalty moves drains the clock to zero.
+        for _ in 0..<18 {
             session.swapTiles(from: 0, to: 1)
         }
 
@@ -117,8 +117,8 @@ struct GameSessionTimeTrialTests {
         #expect(session.isNewTimeTrialScoreRecord)
         // Solving doesn't also apply a bonus/penalty to the score-affecting remaining time
         // (see `applyTimeTrialMoveOutcome`'s `guard !isSolved`), so the score reflects the
-        // full base limit (no other moves preceded this one): 45 * 100 * (3 / 3) = 4500.
-        #expect(session.timeTrialScore == 4500)
+        // full base limit (no other moves preceded this one): 35 * 100 * (3 / 3) = 3500.
+        #expect(session.timeTrialScore == 3500)
     }
 
     @Test func secondLowerScoreIsNotANewRecord() async {
@@ -128,7 +128,7 @@ struct GameSessionTimeTrialTests {
         #expect(session.isNewTimeTrialScoreRecord)
 
         await session.startNewGame()
-        // A misplay first, so the eventual solve scores lower than the first run's 4500.
+        // A misplay first, so the eventual solve scores lower than the first run's 3500.
         setBoard(session, idsAtIndex: [5, 6, 7, 8, 0, 2, 1, 3, 4])
         session.swapTiles(from: 0, to: 1)
         setBoard(session, idsAtIndex: [1, 0, 2, 3, 4, 5, 6, 7, 8])

@@ -13,6 +13,7 @@ struct TileView: View {
     let tileSize: CGFloat
     let gridSize: Int
     let isFogMode: Bool
+    let isHinted: Bool
     let hapticsEnabled: Bool
     let debugOverlayEnabled: Bool
     let onDragStarted: () -> Void
@@ -49,6 +50,13 @@ struct TileView: View {
         .shadow(radius: isDragging ? 8 : 0)
         .sensoryFeedback(.impact(flexibility: .rigid, intensity: 0.7), trigger: tile.isCorrect) { _, newValue in
             newValue && hapticsEnabled
+        }
+        .overlay {
+            if isHinted {
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(.yellow, lineWidth: 3)
+                    .shadow(color: .yellow, radius: 6)
+            }
         }
         .overlay(alignment: .topLeading) {
             if debugOverlayEnabled {

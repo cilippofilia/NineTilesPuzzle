@@ -13,16 +13,16 @@ struct TimeTrialRulesTests {
     // MARK: - baseTimeLimit
 
     @Test func baseTimeLimitMatchesTheSpecForEveryGridSize() {
-        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 3) == 45)
-        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 4) == 45)
-        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 5) == 75)
-        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 6) == 110)
-        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 7) == 140)
-        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 8) == 180)
+        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 3) == 35)
+        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 4) == 35)
+        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 5) == 60)
+        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 6) == 90)
+        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 7) == 115)
+        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 8) == 150)
     }
 
     @Test func baseTimeLimitFallsBackToTheLargestTierBeyondEightByEight() {
-        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 9) == 180)
+        #expect(TimeTrialRules.baseTimeLimit(forGridSize: 9) == 150)
     }
 
     // MARK: - combo amounts

@@ -27,6 +27,7 @@ final class GameSession {
     private let widgetData: WidgetDataController
     private var previewSleepTask: Task<Void, Never>?
     private var peekSleepTask: Task<Void, Never>?
+    private var hintSleepTask: Task<Void, Never>?
 
     /// Reused across every save/restore so we don't pay a fresh coder allocation on each
     /// move. Both are stateless for our value types, so sharing them is safe on the actor.
@@ -53,6 +54,9 @@ final class GameSession {
     /// True while a Peek power-up is showing the full image mid-game. Transient like
     /// `isPreviewing` — not persisted, so a force-quit simply loses the remaining peek time.
     var isPeeking = false
+    /// The tile a Hint power-up is currently highlighting, along with its home cell.
+    /// Transient like `isPeeking` — not persisted.
+    var hintedTileID: Int?
     var isSolved = false
     var isNewRecord: Bool = false
     var currentMoveCount: Int = 0
@@ -452,6 +456,10 @@ final class GameSession {
         isNewLadderStageBestRecord = false
         isLimitedMovesFailed = false
         hasHadWastedMoveThisGame = false
+        skipPeek()
+        hintSleepTask?.cancel()
+        hintSleepTask = nil
+        hintedTileID = nil
         // Otherwise this stays stuck from a previous Time Trial run that ended in failure —
         // `startTimeTrialCountdown()` only resets it when re-entering Time Trial itself, so
         // every other mode's `swapTiles` (which guards on this flag regardless of mode)
@@ -653,7 +661,7 @@ final class GameSession {
     func usePeekPowerUp() -> Bool {
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed, !isPeeking else { return false }
         guard previewImage != nil else { return false }
-        guard powerUpStore.consume(.peek) else { return false }
+        guard settingsStore.debugInfinitePowerUps || powerUpStore.consume(.peek) else { return false }
 
         isPeeking = true
         peekSleepTask = Task {
@@ -682,11 +690,62 @@ final class GameSession {
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
         guard selectedGameMode != .slide else { return false }
         guard let target = tiles.filter({ !$0.isLocked }).randomElement() else { return false }
-        guard powerUpStore.consume(.autoPlace) else { return false }
+        guard settingsStore.debugInfinitePowerUps || powerUpStore.consume(.autoPlace) else { return false }
 
         let correctBefore = tiles.filter { $0.isCorrect }.count
         swapEngine.swap(&tiles, from: target.currentIndex, to: target.id)
         registerMove(correctBefore: correctBefore)
+        return true
+    }
+
+    /// Spends a Hint power-up to highlight one out-of-place tile and its home cell for
+    /// `PowerUpRules.hintDuration` seconds — purely informational, doesn't move anything or
+    /// touch move count/streak/stats. Works in every mode, including Slide, but never picks
+    /// Slide's blank cell (highlighting "the gap belongs here" would be meaningless).
+    @discardableResult
+    func useHintPowerUp() -> Bool {
+        guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
+        let blankID = tiles.count - 1
+        let eligible = tiles.filter { !$0.isCorrect && !(selectedGameMode == .slide && $0.id == blankID) }
+        guard let target = eligible.randomElement() else { return false }
+        guard settingsStore.debugInfinitePowerUps || powerUpStore.consume(.hint) else { return false }
+
+        hintSleepTask?.cancel()
+        hintedTileID = target.id
+        hintSleepTask = Task {
+            try? await Task.sleep(for: .seconds(PowerUpRules.hintDuration))
+            guard !Task.isCancelled else { return }
+            hintedTileID = nil
+            hintSleepTask = nil
+        }
+        return true
+    }
+
+    /// Spends a Streak Freeze power-up to cancel the current streak countdown so it can't
+    /// expire this round — the next scored move starts a fresh full countdown as normal, the
+    /// same way it would after any streak-preserving move. No-ops if no countdown is running.
+    @discardableResult
+    func useStreakFreezePowerUp() -> Bool {
+        guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed, isTimerRunning else { return false }
+        guard settingsStore.debugInfinitePowerUps || powerUpStore.consume(.streakFreeze) else { return false }
+        stopCountdown()
+        return true
+    }
+
+    /// Spends a Re-shuffle power-up to scramble only the unlocked tiles among their own
+    /// occupied positions — a fresh derangement, so the player is never left exactly as stuck.
+    /// Not available in Slide mode (no locked tiles to leave in place). Deliberately doesn't
+    /// route through `registerMove`: it isn't a move, so it must not cost a move, break the
+    /// streak, or count against a Limited Moves budget.
+    @discardableResult
+    func useReshufflePowerUp() -> Bool {
+        guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
+        guard selectedGameMode != .slide else { return false }
+        guard tiles.filter({ !$0.isLocked }).count > 1 else { return false }
+        guard settingsStore.debugInfinitePowerUps || powerUpStore.consume(.reshuffle) else { return false }
+
+        swapEngine.reshuffleUnlocked(&tiles)
+        saveDynamicState()
         return true
     }
 

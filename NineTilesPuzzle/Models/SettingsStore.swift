@@ -28,6 +28,9 @@ final class SettingsStore {
     /// them in.
     var peekDuration: Double = PowerUpRules.peekDuration
     var streakMilestoneInterval: Int = PowerUpRules.streakMilestoneInterval
+    /// When true, every `GameSession.use...PowerUp()` method skips `PowerUpStore.consume`
+    /// entirely — power-ups can be spammed for testing without touching real inventory.
+    var debugInfinitePowerUps: Bool = false
 
     init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
@@ -92,6 +95,11 @@ final class SettingsStore {
         defaults.set(interval, forKey: Keys.streakMilestoneInterval)
     }
 
+    func setDebugInfinitePowerUps(_ value: Bool) {
+        debugInfinitePowerUps = value
+        defaults.set(value, forKey: Keys.debugInfinitePowerUps)
+    }
+
     func resetSettings() {
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
@@ -113,6 +121,7 @@ private extension SettingsStore {
         static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
         static let peekDuration = "puzzle.peekDuration"
         static let streakMilestoneInterval = "puzzle.streakMilestoneInterval"
+        static let debugInfinitePowerUps = "puzzle.debugInfinitePowerUps"
     }
 
     func restoreFromUserDefaults() {
@@ -139,6 +148,9 @@ private extension SettingsStore {
         }
         if defaults.object(forKey: Keys.streakMilestoneInterval) != nil {
             streakMilestoneInterval = defaults.integer(forKey: Keys.streakMilestoneInterval)
+        }
+        if defaults.object(forKey: Keys.debugInfinitePowerUps) != nil {
+            debugInfinitePowerUps = defaults.bool(forKey: Keys.debugInfinitePowerUps)
         }
     }
 }

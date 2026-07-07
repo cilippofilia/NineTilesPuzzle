@@ -15,13 +15,13 @@ struct GauntletLadderRulesTests {
 
     @Test func stagesTableMatchesTheSpecForEveryStage() {
         let expected: [(gridSize: Int, baseTimeLimit: TimeInterval, multiplier: Double)] = [
-            (3, 60, 1.0),
-            (3, 50, 1.1),
-            (4, 60, 1.3),
-            (4, 55, 1.5),
-            (5, 100, 2.0),
-            (5, 90, 2.2),
-            (6, 140, 2.8),
+            (3, 48, 1.0),
+            (3, 40, 1.1),
+            (4, 48, 1.3),
+            (4, 44, 1.5),
+            (5, 80, 2.0),
+            (5, 72, 2.2),
+            (6, 112, 2.8),
             (7, 180, 3.5),
             (8, 240, 4.2),
             (8, 210, 5.0),

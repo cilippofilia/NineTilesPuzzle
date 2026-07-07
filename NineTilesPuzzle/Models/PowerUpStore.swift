@@ -49,6 +49,16 @@ final class PowerUpStore {
         defaults.set(current - 1, forKey: Keys.inventory(for: type))
         return true
     }
+
+    /// Refills every power-up back to `PowerUpRules.startingInventory` — used both to seed a
+    /// fresh install (see `restoreFromUserDefaults()`) and as a debug utility to top inventory
+    /// back up for testing.
+    func resetToDefaults() {
+        for type in PowerUpType.allCases {
+            inventory[type] = PowerUpRules.startingInventory
+            defaults.set(PowerUpRules.startingInventory, forKey: Keys.inventory(for: type))
+        }
+    }
 }
 
 private extension PowerUpStore {
@@ -56,10 +66,17 @@ private extension PowerUpStore {
         static func inventory(for type: PowerUpType) -> String { "powerup.inventory.\(type.rawValue)" }
     }
 
+    /// A type that's never been persisted (fresh install, or a case added in a later update)
+    /// starts at `PowerUpRules.startingInventory` rather than zero — distinguished from an
+    /// already-persisted zero (earned then fully spent) via `object(forKey:)`, the same
+    /// pattern `SettingsStore` uses for its optional-override preferences.
     func restoreFromUserDefaults() {
         for type in PowerUpType.allCases {
-            let count = defaults.integer(forKey: Keys.inventory(for: type))
-            if count > 0 { inventory[type] = count }
+            if defaults.object(forKey: Keys.inventory(for: type)) != nil {
+                inventory[type] = defaults.integer(forKey: Keys.inventory(for: type))
+            } else {
+                inventory[type] = PowerUpRules.startingInventory
+            }
         }
     }
 }

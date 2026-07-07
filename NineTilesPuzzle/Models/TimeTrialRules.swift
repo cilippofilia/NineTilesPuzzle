@@ -14,12 +14,12 @@ enum TimeTrialRules {
     /// Starting countdown for a fresh Time Trial puzzle at `gridSize`, in seconds.
     static func baseTimeLimit(forGridSize gridSize: Int) -> TimeInterval {
         switch gridSize {
-        case 3: 45
-        case 4: 45
-        case 5: 75
-        case 6: 110
-        case 7: 140
-        default: 180 // covers 8 and any larger size
+        case 3: 35
+        case 4: 35
+        case 5: 60
+        case 6: 90
+        case 7: 115
+        default: 150 // covers 8 and any larger size
         }
     }
 

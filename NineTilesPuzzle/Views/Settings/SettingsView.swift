@@ -12,6 +12,7 @@ struct SettingsView: View {
     @Environment(StatsStore.self) private var statsStore
     @Environment(SettingsStore.self) private var settings
     @Environment(DailyChallengeStore.self) private var dailyStore
+    @Environment(PowerUpStore.self) private var powerUpStore
     @Environment(SoundService.self) private var soundService
     @Environment(GameCenterService.self) private var gameCenterService
     @Environment(\.dismiss) private var dismiss
@@ -62,6 +63,11 @@ struct SettingsView: View {
                     }
 
                     Section {
+                        Toggle("Infinite Power-ups", isOn: Binding(
+                            get: { settings.debugInfinitePowerUps },
+                            set: { settings.setDebugInfinitePowerUps($0) }
+                        ))
+
                         Stepper(
                             "Peek duration: \(Int(settings.peekDuration))s",
                             value: Binding(
@@ -79,10 +85,14 @@ struct SettingsView: View {
                             ),
                             in: 1...20
                         )
+
+                        Button("Refill Power-ups (3 each)") {
+                            powerUpStore.resetToDefaults()
+                        }
                     } header: {
                         Text("Power-ups")
                     } footer: {
-                        Text("Tunes how long a Peek shows the image and how often a streak milestone earns a power-up, so the defaults in PowerUpRules can be tried out on device.")
+                        Text("Infinite Power-ups lets every power-up be used without spending inventory. The steppers tune how long a Peek/Hint shows and how often a streak milestone earns a power-up. Refill tops every power-up back up to 3 for testing.")
                     }
                 }
                 #endif

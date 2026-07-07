@@ -42,6 +42,7 @@ struct PuzzleGridView: View {
                                     tileSize: calculatedTileSize,
                                     gridSize: session.gridSize,
                                     isFogMode: session.isFogMode,
+                                    isHinted: tile.id == session.hintedTileID,
                                     hapticsEnabled: settings.hapticsEnabled,
                                     debugOverlayEnabled: settings.debugOverlayEnabled,
                                     onDragStarted: { draggingTileID = tile.id },
@@ -57,6 +58,23 @@ struct PuzzleGridView: View {
                                 )
                                 .zIndex(draggingTileID == tile.id ? 1000 : 0)
                             }
+                        }
+
+                        // Hint power-up: marks the highlighted tile's home cell (the tile
+                        // itself is highlighted directly in `TileView`, above).
+                        if let hintedID = session.hintedTileID {
+                            let homeCol = hintedID % session.gridSize
+                            let homeRow = hintedID / session.gridSize
+                            RoundedRectangle(cornerRadius: 4)
+                                .strokeBorder(.yellow, lineWidth: 3)
+                                .frame(width: calculatedTileSize, height: calculatedTileSize)
+                                .position(
+                                    x: (CGFloat(homeCol) * calculatedTileSize) + (calculatedTileSize / 2),
+                                    y: (CGFloat(homeRow) * calculatedTileSize) + (calculatedTileSize / 2)
+                                )
+                                .allowsHitTesting(false)
+                                .transition(.opacity)
+                                .zIndex(1500)
                         }
 
                         if session.isFogMode {

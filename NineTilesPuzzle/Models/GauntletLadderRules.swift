@@ -24,14 +24,17 @@ enum GauntletLadderRules {
     static let stageCount = 10
 
     /// 1-indexed table from the spec; `stages[0]` is Stage 1.
+    // Stages 1-7 (3×3 through 6×6) had their base time limits cut ~20% — they played easy
+    // once Time Trial's own single-puzzle base times were shortened by the same ratio.
+    // Stages 8-10 (7×7 and 8×8) are unchanged.
     static let stages: [Stage] = [
-        Stage(number: 1, gridSize: 3, baseTimeLimit: 60, difficultyMultiplier: 1.0),
-        Stage(number: 2, gridSize: 3, baseTimeLimit: 50, difficultyMultiplier: 1.1),
-        Stage(number: 3, gridSize: 4, baseTimeLimit: 60, difficultyMultiplier: 1.3),
-        Stage(number: 4, gridSize: 4, baseTimeLimit: 55, difficultyMultiplier: 1.5),
-        Stage(number: 5, gridSize: 5, baseTimeLimit: 100, difficultyMultiplier: 2.0),
-        Stage(number: 6, gridSize: 5, baseTimeLimit: 90, difficultyMultiplier: 2.2),
-        Stage(number: 7, gridSize: 6, baseTimeLimit: 140, difficultyMultiplier: 2.8),
+        Stage(number: 1, gridSize: 3, baseTimeLimit: 48, difficultyMultiplier: 1.0),
+        Stage(number: 2, gridSize: 3, baseTimeLimit: 40, difficultyMultiplier: 1.1),
+        Stage(number: 3, gridSize: 4, baseTimeLimit: 48, difficultyMultiplier: 1.3),
+        Stage(number: 4, gridSize: 4, baseTimeLimit: 44, difficultyMultiplier: 1.5),
+        Stage(number: 5, gridSize: 5, baseTimeLimit: 80, difficultyMultiplier: 2.0),
+        Stage(number: 6, gridSize: 5, baseTimeLimit: 72, difficultyMultiplier: 2.2),
+        Stage(number: 7, gridSize: 6, baseTimeLimit: 112, difficultyMultiplier: 2.8),
         Stage(number: 8, gridSize: 7, baseTimeLimit: 180, difficultyMultiplier: 3.5),
         Stage(number: 9, gridSize: 8, baseTimeLimit: 240, difficultyMultiplier: 4.2),
         Stage(number: 10, gridSize: 8, baseTimeLimit: 210, difficultyMultiplier: 5.0),

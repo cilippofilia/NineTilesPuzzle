@@ -13,11 +13,17 @@ import Foundation
 enum PowerUpType: String, CaseIterable, Codable {
     case peek
     case autoPlace
+    case hint
+    case streakFreeze
+    case reshuffle
 
     var title: String {
         switch self {
         case .peek: "Peek"
         case .autoPlace: "Auto-place"
+        case .hint: "Hint"
+        case .streakFreeze: "Streak Freeze"
+        case .reshuffle: "Re-shuffle"
         }
     }
 
@@ -25,6 +31,9 @@ enum PowerUpType: String, CaseIterable, Codable {
         switch self {
         case .peek: "eye.fill"
         case .autoPlace: "wand.and.stars"
+        case .hint: "lightbulb.fill"
+        case .streakFreeze: "snowflake"
+        case .reshuffle: "shuffle"
         }
     }
 }
