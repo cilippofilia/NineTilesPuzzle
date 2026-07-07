@@ -705,12 +705,15 @@ final class GameSession {
     @discardableResult
     func useHintPowerUp() -> Bool {
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
+        // Only one Hint may be active at a time — a fresh tap while one is already showing
+        // is rejected rather than silently replacing it, so a second power-up is never
+        // spent on top of an unexpired one.
+        guard hintedTileID == nil else { return false }
         let blankID = tiles.count - 1
         let eligible = tiles.filter { !$0.isCorrect && !(selectedGameMode == .slide && $0.id == blankID) }
         guard let target = eligible.randomElement() else { return false }
         guard settingsStore.debugInfinitePowerUps || powerUpStore.consume(.hint) else { return false }
 
-        hintSleepTask?.cancel()
         hintedTileID = target.id
         hintSleepTask = Task {
             try? await Task.sleep(for: .seconds(PowerUpRules.hintDuration))

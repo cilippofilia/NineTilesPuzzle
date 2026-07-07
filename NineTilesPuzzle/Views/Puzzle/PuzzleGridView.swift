@@ -56,7 +56,10 @@ struct PuzzleGridView: View {
                                     x: (CGFloat(col) * calculatedTileSize) + (calculatedTileSize / 2),
                                     y: (CGFloat(row) * calculatedTileSize) + (calculatedTileSize / 2)
                                 )
-                                .zIndex(draggingTileID == tile.id ? 1000 : 0)
+                                // The hinted tile pulses (scales up + shakes) and must render
+                                // above every ordinary tile it might otherwise dip behind;
+                                // an active drag still wins over it.
+                                .zIndex(draggingTileID == tile.id ? 1000 : (tile.id == session.hintedTileID ? 500 : 0))
                             }
                         }
 

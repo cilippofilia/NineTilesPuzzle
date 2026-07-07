@@ -69,7 +69,11 @@ struct TileView: View {
         .rotationEffect(.degrees(hintRotationDegrees))
         .onChange(of: isHinted) { _, newValue in
             if newValue {
-                withAnimation(.easeInOut(duration: 0.35).repeatForever(autoreverses: true)) {
+                // Bounded rather than `repeatForever`: this is a safety net in case the
+                // `isHinted` clear below is ever missed, so the pulse always self-terminates
+                // instead of animating indefinitely. Comfortably outlasts
+                // `PowerUpRules.hintDuration` (each repeat is one 0.35s there-and-back cycle).
+                withAnimation(.easeInOut(duration: 0.35).repeatCount(8, autoreverses: true)) {
                     isHintPulsing = true
                 }
             } else {
