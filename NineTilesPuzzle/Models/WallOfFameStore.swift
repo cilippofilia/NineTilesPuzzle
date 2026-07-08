@@ -25,9 +25,17 @@ final class WallOfFameStore {
     /// capture immediately outranks older ones this session, before the async disk write
     /// lands. Backs `heroSlot(forGridSize:)`.
     @ObservationIgnored private var lastModified: [WallOfFameSlot: Date] = [:]
-    /// Bumped by `save()` only. Read at the top of every lazily-caching accessor so views
-    /// still re-query when a new record card lands while the wall is visible.
+    /// Bumped whenever a card lands in `cache` (a `save()` or a finished background
+    /// thumbnail decode). Read at the top of every lazily-caching accessor so views
+    /// re-query when new images become available.
     private var revision = 0
+
+    /// Slots with a background thumbnail decode in flight, so `cardImage(for:)` doesn't
+    /// spawn a duplicate task on every body re-evaluation while one is already running.
+    @ObservationIgnored private var pendingThumbnails: Set<WallOfFameSlot> = []
+    /// Filenames present in the wall directory — listed once, then kept in sync by `save()`
+    /// and failed decodes. Backs `hasCard(for:)` without a per-slot disk hit.
+    @ObservationIgnored private var storedFileNames: Set<String>?
 
     /// Longest display edge of a pinned card (192pt) at the maximum screen scale — grid
     /// thumbnails are decoded at this size instead of the ~3× capture resolution, which
@@ -48,25 +56,60 @@ final class WallOfFameStore {
         wallDirectory.appending(path: "\(slot.fileName).png")
     }
 
-    /// Returns the stored card image for `slot` at grid-display size, or `nil` if no record
-    /// has been pinned yet. Decoded eagerly as a thumbnail so first display doesn't trigger
-    /// a deferred full-resolution decode mid-scroll; the zoom overlay uses
+    /// Whether a card has ever been captured for `slot` — i.e. `cardImage(for:)` will
+    /// eventually return non-`nil`, even if its thumbnail is still decoding. Lets views
+    /// distinguish "loading" from "never earned".
+    func hasCard(for slot: WallOfFameSlot) -> Bool {
+        _ = revision
+        if cache[slot] != nil { return true }
+        return storedCardFileNames().contains("\(slot.fileName).png")
+    }
+
+    /// Returns the stored card image for `slot` at grid-display size, `nil` if no record has
+    /// been pinned yet — or `nil` *while a background decode is in flight*, in which case a
+    /// `revision` bump re-invalidates the caller once the thumbnail is ready. Decoding
+    /// happens off the main actor: 20+ synchronous decodes used to land inside the wall's
+    /// first body evaluation, stalling the push transition. The zoom overlay uses
     /// `fullResCardImage(for:)` instead.
     func cardImage(for slot: WallOfFameSlot) -> CGImage? {
         _ = revision
         if let cached = cache[slot] { return cached }
+        guard hasCard(for: slot), !pendingThumbnails.contains(slot) else { return nil }
+        pendingThumbnails.insert(slot)
         let url = fileURL(for: slot)
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: Self.thumbnailMaxPixelSize
-        ]
-        guard
-            let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-            let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
-        else { return nil }
-        cache[slot] = image
-        return image
+        Task.detached(priority: .userInitiated) {
+            let options: [CFString: Any] = await [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: Self.thumbnailMaxPixelSize
+            ]
+            let image = CGImageSourceCreateWithURL(url as CFURL, nil).flatMap {
+                CGImageSourceCreateThumbnailAtIndex($0, 0, options as CFDictionary)
+            }
+            await self.finishThumbnailDecode(for: slot, image: image)
+        }
+        return nil
+    }
+
+    private func finishThumbnailDecode(for slot: WallOfFameSlot, image: CGImage?) {
+        pendingThumbnails.remove(slot)
+        if let image {
+            cache[slot] = image
+        } else {
+            // Undecodable (corrupt/deleted) file: forget it so `hasCard` stops reporting a
+            // card that can never render — otherwise every body pass would retry forever.
+            storedFileNames?.remove("\(slot.fileName).png")
+        }
+        revision += 1
+    }
+
+    /// One directory listing, memoized for the session.
+    private func storedCardFileNames() -> Set<String> {
+        if let storedFileNames { return storedFileNames }
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: wallDirectory.path)) ?? []
+        let set = Set(names)
+        storedFileNames = set
+        return set
     }
 
     /// The full-resolution card for `slot`, decoded from disk on demand — used by the zoom
@@ -87,6 +130,7 @@ final class WallOfFameStore {
     func save(_ cgImage: CGImage, for slot: WallOfFameSlot) {
         cache[slot] = cgImage
         lastModified[slot] = Date()
+        storedFileNames?.insert("\(slot.fileName).png")
         revision += 1
         let url = wallDirectory.appending(path: "\(slot.fileName).png")
         Task.detached(priority: .utility) {

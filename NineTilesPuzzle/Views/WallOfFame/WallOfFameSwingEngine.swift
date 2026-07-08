@@ -20,9 +20,10 @@ final class WallOfFameSwingEngine {
     @ObservationIgnored private let stiffness = 0.025
     @ObservationIgnored private let damping = 0.11
     /// Below this much motion (degrees) a card is settled and skips its state write.
-    /// Loose enough (~1/20°) to actually be reachable; the previous 0.01 combined with a
-    /// raw roll target meant cards effectively never rested.
-    @ObservationIgnored private let restThreshold = 0.05
+    /// Half a degree of resting tilt is imperceptible on a pinned card, and the looser the
+    /// window the sooner cards stop re-rendering; the previous 0.01 combined with a raw
+    /// roll target meant they effectively never rested.
+    @ObservationIgnored private let restThreshold = 0.5
     /// Device roll (−1…1) maps to this many degrees of equilibrium swing.
     @ObservationIgnored private let rollToDegrees = 6.0
     /// Roll is quantized to steps of this size before becoming a target. A hand-held
