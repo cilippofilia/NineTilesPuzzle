@@ -18,6 +18,14 @@ struct MediaSourcePickerView: View {
     var body: some View {
         List {
             MediaSourceRowView(
+                title: MediaSourceType.numbers.label,
+                subtitle: "No picture — tiles show the number they belong at",
+                isSelected: session.mediaSourceType == .numbers
+            ) {
+                session.setMediaSourceType(.numbers)
+            }
+
+            MediaSourceRowView(
                 title: MediaSourceType.random.label,
                 subtitle: "A new image from the internet each game",
                 isSelected: session.mediaSourceType == .random
@@ -43,18 +51,8 @@ struct MediaSourcePickerView: View {
                 requestPhotoAccess()
             }
 
-            if session.selectedGameMode == .slide {
-                MediaSourceRowView(
-                    title: MediaSourceType.numbers.label,
-                    subtitle: "No picture — tiles show the number they belong at",
-                    isSelected: session.mediaSourceType == .numbers
-                ) {
-                    session.setMediaSourceType(.numbers)
-                }
-            }
-
             // Only offered when the device actually has a camera — greyed out entirely on
-            // hardware (or the Simulator) that can't shoot, the same way Numbers is Slide-only.
+            // hardware (or the Simulator) that can't shoot.
             if QuickSnapCameraSession.isCameraAvailable {
                 MediaSourceRowView(
                     title: MediaSourceType.camera.label,

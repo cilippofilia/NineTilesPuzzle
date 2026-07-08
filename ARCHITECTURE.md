@@ -697,16 +697,13 @@ a budget-exhausted-but-also-solved win/fail tie-break) end to end against a real
 layouts to engineer specific moves deterministically, since these tests
 never `await` a real sleep and so the countdown's background tick task never gets scheduled
 mid-test. One thing this pattern doesn't cover: a true persistence round-trip (write, then
-reconstruct a second `GameSession` and read back) isn't practical for a session using
-`.numbers` media outside Slide mode, since `restoreFromUserDefaults()`'s existing "Numbers
-is Slide-only" guard resets `mediaSourceType` away from `.numbers` on restore — correct
-production behavior, but it trips the tile-restore guard chain for this test shape, so the
-Gauntlet Ladder's persistence test instead asserts directly against the in-memory
-`PersistenceStore` fake. `GameSessionPersistenceTests` (added in the July 2026 perf pass) does
-get a true write→reconstruct round-trip by using `.random` (image-backed) media instead of
-`.numbers`, which sidesteps that guard and lets it assert the sliced `tileImages` are rebuilt
-on restore; it also pins the new static/dynamic save split (`saveDynamicState()` never touches
-the image key, `saveToUserDefaults()` does). The widget work (July 2026) added three suites:
+reconstruct a second `GameSession` and read back) isn't exercised for the Gauntlet Ladder's
+`.numbers`-media session shape, so that persistence test instead asserts directly against the
+in-memory `PersistenceStore` fake. `GameSessionPersistenceTests` (added in the July 2026 perf
+pass) does get a true write→reconstruct round-trip by using `.random` (image-backed) media
+instead of `.numbers`, letting it assert the sliced `tileImages` are rebuilt on restore; it
+also pins the new static/dynamic save split (`saveDynamicState()` never touches the image key,
+`saveToUserDefaults()` does). The widget work (July 2026) added three suites:
 `WidgetSnapshotTests` (JSON round-trip, missing-optional-sections tolerance,
 `WidgetDataStore` save/load through a throwaway `UserDefaults` suite, corrupt-data
 resilience), `DailyChallengeSeederTests` (same-calendar-day determinism — what the Daily

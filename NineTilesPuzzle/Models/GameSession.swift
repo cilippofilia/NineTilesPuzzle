@@ -1179,7 +1179,6 @@ extension GameSession {
 
     func setMediaSourceType(_ type: MediaSourceType) {
         guard type != mediaSourceType else { return }
-        guard type != .numbers || selectedGameMode == .slide else { return }
         mediaSourceType = type
         defaults.set(type.rawValue, forKey: Keys.mediaSourceType)
     }
@@ -1201,11 +1200,6 @@ extension GameSession {
         guard mode.isAvailable, mode != selectedGameMode else { return }
         selectedGameMode = mode
         defaults.set(mode.rawValue, forKey: Keys.gameMode)
-
-        // Numbers media mode is Slide-only for now; fall back if it's no longer valid.
-        if mediaSourceType == .numbers && mode != .slide {
-            setMediaSourceType(.random)
-        }
     }
 
     func resetConfiguration() {
@@ -1290,10 +1284,6 @@ private extension GameSession {
         if let rawSource = defaults.string(forKey: Keys.mediaSourceType),
            let savedSource = MediaSourceType(rawValue: rawSource) {
             mediaSourceType = savedSource
-        }
-        // Numbers media mode is Slide-only for now.
-        if mediaSourceType == .numbers && selectedGameMode != .slide {
-            mediaSourceType = .random
         }
 
         guard
