@@ -13,18 +13,15 @@ final class TileModel: Identifiable, Equatable {
     let id: Int
     var currentIndex: Int
     var isLocked: Bool
-    var hasBeenMoved: Bool
 
     init(
         id: Int,
         currentIndex: Int,
-        isLocked: Bool,
-        hasBeenMoved: Bool = false
+        isLocked: Bool
     ) {
         self.id = id
         self.currentIndex = currentIndex
         self.isLocked = isLocked
-        self.hasBeenMoved = hasBeenMoved
     }
 
     /// Whether this tile currently sits on its target grid position, regardless of `isLocked`.
@@ -42,7 +39,6 @@ extension TileModel: Codable {
         case id
         case currentIndex
         case isLocked
-        case hasBeenMoved
     }
 
     convenience init(from decoder: any Decoder) throws {
@@ -50,8 +46,7 @@ extension TileModel: Codable {
         try self.init(
             id: container.decode(Int.self, forKey: .id),
             currentIndex: container.decode(Int.self, forKey: .currentIndex),
-            isLocked: container.decode(Bool.self, forKey: .isLocked),
-            hasBeenMoved: (try? container.decode(Bool.self, forKey: .hasBeenMoved)) ?? false
+            isLocked: container.decode(Bool.self, forKey: .isLocked)
         )
     }
 
@@ -60,6 +55,5 @@ extension TileModel: Codable {
         try container.encode(id, forKey: .id)
         try container.encode(currentIndex, forKey: .currentIndex)
         try container.encode(isLocked, forKey: .isLocked)
-        try container.encode(hasBeenMoved, forKey: .hasBeenMoved)
     }
 }

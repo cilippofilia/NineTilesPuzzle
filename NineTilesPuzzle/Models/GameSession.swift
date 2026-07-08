@@ -149,7 +149,6 @@ final class GameSession {
     // MARK: - Daily Challenge
 
     var dailyCalendarStreak: Int { dailyChallengeStore.calendarStreak }
-    var dailyBestCalendarStreak: Int { dailyChallengeStore.bestCalendarStreak }
     var isDailyCompletedToday: Bool { dailyChallengeStore.isDailyCompletedToday }
     var dailyBestMoves: Int? { dailyChallengeStore.bestMoves }
     var dailyBestTime: TimeInterval? { dailyChallengeStore.bestTime }
@@ -644,12 +643,6 @@ final class GameSession {
 
         let correctBefore = tiles.filter { $0.isCorrect }.count
         swapEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
-        if isFogMode {
-            withAnimation(.easeInOut(duration: 0.45)) {
-                source.hasBeenMoved = true
-                target.hasBeenMoved = true
-            }
-        }
         registerMove(correctBefore: correctBefore)
     }
 
