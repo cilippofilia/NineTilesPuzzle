@@ -82,6 +82,15 @@ struct WallOfFameView: View {
         .navigationTitle("Wall of Fame")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // The nav bar sits transparent over the light cork texture, so the default
+            // white inline title washes out. A custom principal title lets us add weight
+            // and a drop shadow to keep it legible against the busy background.
+            ToolbarItem(placement: .principal) {
+                Text("Wall of Fame")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.55), radius: 3, x: 0, y: 1)
+            }
             if let url = zoomedShareURL {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: url, preview: SharePreview("Record Card")) {
@@ -128,10 +137,23 @@ struct WallOfFameView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Styled as a dark "tag" chip pinned to the board: low-opacity white text
+            // vanished into the light cork texture, so the section labels now carry their
+            // own translucent backing to guarantee contrast wherever they land.
             Text(title)
-                .font(.caption)
-                .bold()
-                .foregroundStyle(.white.opacity(0.6))
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.black.opacity(0.5))
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5)
+                )
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
 
             LazyVGrid(columns: columns, spacing: 20) {
                 content()
