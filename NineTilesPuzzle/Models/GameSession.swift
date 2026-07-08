@@ -266,7 +266,12 @@ final class GameSession {
                     stopCountdown()
                     return
                 }
-                timerRemaining = remaining
+                // Publish only when the displayed second changes: every consumer renders
+                // whole seconds, so writing at 100ms granularity just invalidated the HUD
+                // ten times as often as it could visibly change.
+                if Int(remaining.rounded(.up)) != Int(timerRemaining.rounded(.up)) {
+                    timerRemaining = remaining
+                }
             }
         }
     }
@@ -307,7 +312,11 @@ final class GameSession {
                     saveToUserDefaults()
                     return
                 }
-                timeTrialRemaining = remaining
+                // Same whole-second gate as the streak countdown — the timer text, and
+                // the score estimate derived from this value, both resolve to seconds.
+                if Int(remaining.rounded(.up)) != Int(timeTrialRemaining.rounded(.up)) {
+                    timeTrialRemaining = remaining
+                }
             }
         }
     }
@@ -394,7 +403,12 @@ final class GameSession {
                     stopCountdown()
                     return
                 }
-                timerRemaining = remaining
+                // Publish only when the displayed second changes: every consumer renders
+                // whole seconds, so writing at 100ms granularity just invalidated the HUD
+                // ten times as often as it could visibly change.
+                if Int(remaining.rounded(.up)) != Int(timerRemaining.rounded(.up)) {
+                    timerRemaining = remaining
+                }
             }
         }
     }
@@ -418,7 +432,11 @@ final class GameSession {
                     saveToUserDefaults()
                     return
                 }
-                timeTrialRemaining = remaining
+                // Same whole-second gate as the streak countdown — the timer text, and
+                // the score estimate derived from this value, both resolve to seconds.
+                if Int(remaining.rounded(.up)) != Int(timeTrialRemaining.rounded(.up)) {
+                    timeTrialRemaining = remaining
+                }
             }
         }
     }

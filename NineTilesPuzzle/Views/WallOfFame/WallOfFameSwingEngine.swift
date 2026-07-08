@@ -20,9 +20,16 @@ final class WallOfFameSwingEngine {
     @ObservationIgnored private let stiffness = 0.025
     @ObservationIgnored private let damping = 0.11
     /// Below this much motion (degrees) a card is settled and skips its state write.
-    @ObservationIgnored private let restThreshold = 0.01
+    /// Loose enough (~1/20°) to actually be reachable; the previous 0.01 combined with a
+    /// raw roll target meant cards effectively never rested.
+    @ObservationIgnored private let restThreshold = 0.05
     /// Device roll (−1…1) maps to this many degrees of equilibrium swing.
     @ObservationIgnored private let rollToDegrees = 6.0
+    /// Roll is quantized to steps of this size before becoming a target. A hand-held
+    /// device's roll never sits perfectly still, so an unquantized target kept nudging
+    /// every card's equilibrium each tick — no card ever settled, and all of them
+    /// re-rendered at 60fps for as long as the wall was on screen.
+    @ObservationIgnored private let rollStep = 0.02
 
     /// Starts advancing `swing` on each `step`. Keyed by identity, so calling it
     /// more than once for the same instance is a harmless no-op.
@@ -37,7 +44,8 @@ final class WallOfFameSwingEngine {
 
     /// Advances every registered card one frame toward the gravity-driven target.
     func step(roll: Double) {
-        let target = -roll * rollToDegrees
+        let quantizedRoll = (roll / rollStep).rounded() * rollStep
+        let target = -quantizedRoll * rollToDegrees
         for swing in swings.values {
             let springForce  = (target - swing.angle) * stiffness
             let dampingForce = -swing.velocity * damping

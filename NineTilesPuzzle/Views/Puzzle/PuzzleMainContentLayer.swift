@@ -46,14 +46,25 @@ struct PuzzleMainContentLayer: View {
                             .opacity(session.isZenMode ? completion.zenGlowOpacity : 0)
                     }
                     .overlay {
-                        GeometryReader { proxy in
-                            ForEach(completion.zenSparkles) { sparkle in
-                                ZenSparkleView(size: sparkle.size, color: sparkle.color, delay: sparkle.delay)
-                                    .position(x: sparkle.x * proxy.size.width, y: sparkle.y * proxy.size.height)
+                        // Inserted only while the Zen glow is actually visible: each sparkle
+                        // runs a `repeatForever` twinkle from the moment it appears, so
+                        // keeping the cluster alive at opacity 0 (as an always-present
+                        // overlay used to) meant ten invisible views animating for the
+                        // whole game — in every mode, not just Zen.
+                        if session.isZenMode, completion.zenGlowOpacity > 0 {
+                            GeometryReader { proxy in
+                                ForEach(completion.zenSparkles) { sparkle in
+                                    ZenSparkleView(size: sparkle.size, color: sparkle.color, delay: sparkle.delay)
+                                        .position(x: sparkle.x * proxy.size.width, y: sparkle.y * proxy.size.height)
+                                }
                             }
+                            .opacity(completion.zenGlowOpacity)
+                            .allowsHitTesting(false)
+                            // The exhale animates `zenGlowOpacity` back to 0, which removes
+                            // this view at the *start* of that animation — the opacity
+                            // transition hands the fade-out to the removal instead.
+                            .transition(.opacity)
                         }
-                        .opacity(session.isZenMode ? completion.zenGlowOpacity : 0)
-                        .allowsHitTesting(false)
                     }
                     .shadow(color: .teal.opacity(session.isZenMode ? completion.zenGlowOpacity * 0.7 : 0), radius: 28)
                     .scaleEffect(session.isZenMode ? completion.zenBreathScale : 1)

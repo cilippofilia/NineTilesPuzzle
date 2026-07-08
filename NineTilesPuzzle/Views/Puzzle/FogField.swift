@@ -12,28 +12,53 @@ import SwiftUI
 /// Factored out of `FogTileOverlay` so the whole board can be drawn by a *single* grid-level
 /// `Canvas` (see `PuzzleFogLayer`) instead of one `TimelineView`+`Canvas` per tile.
 enum FogField {
-    /// Draws one tile's worth of sparkles into `rect` for the given animation `time`.
-    /// `seed` keeps each tile's particle field deterministic and distinct.
-    static func draw(in rect: CGRect, context: GraphicsContext, seed: Float, time: Float) {
-        let area = Float(rect.width * rect.height)
-        let count = max(640, Int(area / 6.875))
+    /// A particle's time-invariant attributes. Position/frequency/phase are derived from
+    /// `sin()`-based hashes, so they're precomputed once per tile (see `makeParticles`)
+    /// rather than re-derived inside every 30fps `Canvas` pass — per frame, only the one
+    /// brightness oscillation below remains.
+    struct Particle {
+        /// Position normalized to 0...1 within the tile, so a precomputed field stays
+        /// valid as its tile slides between grid cells.
+        let nx: CGFloat
+        let ny: CGFloat
+        let freq: Float
+        let phase: Float
+    }
 
-        for i in 0..<count {
+    /// Particle count for one tile covering `area` square points, capped so large tiles
+    /// (small grids) don't scale into thousands of particles each.
+    static func particleCount(forArea area: CGFloat) -> Int {
+        min(640, Int(Float(area) / 6.875))
+    }
+
+    /// Builds one tile's deterministic particle field. `seed` keeps each tile's field
+    /// distinct.
+    static func makeParticles(seed: Float, count: Int) -> [Particle] {
+        (0..<count).map { i in
             let fi = Float(i) + seed * 1000
+            return Particle(
+                nx: CGFloat(hash(fi * 127.1 + 0.5)),
+                ny: CGFloat(hash(fi * 311.7 + 0.5)),
+                freq: 0.6 + hash(fi * 53.9) * 2.8, // 0.6–3.4 Hz
+                phase: hash(fi * 91.7)             // random start phase
+            )
+        }
+    }
 
-            let px = rect.minX + CGFloat(hash(fi * 127.1 + 0.5)) * rect.width
-            let py = rect.minY + CGFloat(hash(fi * 311.7 + 0.5)) * rect.height
-
+    /// Draws one tile's precomputed `particles` into `rect` for the given animation `time`.
+    /// Takes any sequence so callers can pass a prefix slice of a larger pool without copying.
+    static func draw(particles: some Sequence<Particle>, in rect: CGRect, context: GraphicsContext, time: Float) {
+        for particle in particles {
             // Each particle oscillates independently in brightness
-            let freq = 0.6 + hash(fi * 53.9) * 2.8 // 0.6–3.4 Hz
-            let phase = hash(fi * 91.7) // random start phase
-            let raw = (sin(time * freq * .pi * 2 + phase * .pi * 2) + 1) * 0.5
+            let raw = (sin(time * particle.freq * .pi * 2 + particle.phase * .pi * 2) + 1) * 0.5
             let brightness = raw * raw // squared: makes twinkle snappier
 
             guard brightness > 0.3 else { continue }
 
             let alpha = Double((brightness - 0.3) / 0.7)
             let radius = CGFloat(0.25 + alpha * 0.9)
+            let px = rect.minX + particle.nx * rect.width
+            let py = rect.minY + particle.ny * rect.height
             let dot = CGRect(
                 x: px - radius,
                 y: py - radius,

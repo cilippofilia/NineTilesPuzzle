@@ -159,8 +159,11 @@ struct WallOfFameView: View {
     private func cardSlot(for slot: WallOfFameSlot) -> some View {
         if let image = wallOfFameStore.cardImage(for: slot) {
             Button {
+                // The grid vends display-size thumbnails; the zoomed card wants the
+                // capture-resolution PNG, decoded only now that one is actually needed.
+                let fullRes = wallOfFameStore.fullResCardImage(for: slot) ?? image
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.85)) {
-                    zoomedCardImage = image
+                    zoomedCardImage = fullRes
                     zoomedShareURL = wallOfFameStore.fileURL(for: slot)
                     zoomedSlot = slot
                 }
