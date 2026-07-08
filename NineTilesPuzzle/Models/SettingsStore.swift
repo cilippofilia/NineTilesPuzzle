@@ -35,6 +35,9 @@ final class SettingsStore {
     /// When true, every `GameSession.use...PowerUp()` method skips `PowerUpStore.consume`
     /// entirely — power-ups can be spammed for testing without touching real inventory.
     var debugInfinitePowerUps: Bool = false
+    /// The name shown to friends on a sent Challenge Friends puzzle. Empty until the
+    /// player is prompted the first time they try to send a challenge.
+    var senderDisplayName: String = ""
 
     init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
@@ -109,6 +112,11 @@ final class SettingsStore {
         defaults.set(value, forKey: Keys.debugInfinitePowerUps)
     }
 
+    func setSenderDisplayName(_ name: String) {
+        senderDisplayName = name
+        defaults.set(name, forKey: Keys.senderDisplayName)
+    }
+
     func resetSettings() {
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
@@ -132,6 +140,7 @@ private extension SettingsStore {
         static let peekDuration = "puzzle.peekDuration"
         static let streakMilestoneInterval = "puzzle.streakMilestoneInterval"
         static let debugInfinitePowerUps = "puzzle.debugInfinitePowerUps"
+        static let senderDisplayName = "puzzle.senderDisplayName"
     }
 
     func restoreFromUserDefaults() {
@@ -164,6 +173,9 @@ private extension SettingsStore {
         }
         if defaults.object(forKey: Keys.debugInfinitePowerUps) != nil {
             debugInfinitePowerUps = defaults.bool(forKey: Keys.debugInfinitePowerUps)
+        }
+        if let name = defaults.string(forKey: Keys.senderDisplayName) {
+            senderDisplayName = name
         }
     }
 }

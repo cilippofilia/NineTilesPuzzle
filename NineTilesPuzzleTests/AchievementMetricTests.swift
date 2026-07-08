@@ -48,6 +48,9 @@ struct AchievementMetricTests {
             ("maxGamesInOneDay", .maxGamesInOneDay),
             ("bestLadderStageReached", .bestLadderStageReached),
             ("bestLadderScore", .bestLadderScore),
+            ("challengesSent", .challengesSent),
+            ("challengesWon", .challengesWon),
+            ("challengesPlayed", .challengesPlayed),
             ("soloedInHourRange.0.5", .soloedInHourRange(start: 0, end: 5)),
             ("completionist", .completionist)
         ]
@@ -146,5 +149,35 @@ struct AchievementMetricTests {
     @Test func completionistMetricAlwaysReportsZero() {
         let stats = makeStats()
         #expect(AchievementMetric.completionist.value(in: stats, justSolved: true, now: .now) == 0)
+    }
+
+    // MARK: - Challenge Friends metrics
+
+    @Test func challengeMetricsDefaultToZeroWithoutAChallengeStore() {
+        let stats = makeStats()
+        #expect(AchievementMetric.challengesSent.value(in: stats, justSolved: false, now: .now) == 0)
+        #expect(AchievementMetric.challengesWon.value(in: stats, justSolved: false, now: .now) == 0)
+        #expect(AchievementMetric.challengesPlayed.value(in: stats, justSolved: false, now: .now) == 0)
+    }
+
+    @Test func challengeMetricsReadFromChallengeStore() {
+        let stats = makeStats()
+        let challenges = ChallengeStore(defaults: InMemoryPersistenceStore())
+        let sent = FriendChallenge(
+            senderName: "Me", gameMode: .swap, gridSize: 3, seed: 1,
+            imageData: Data([0xFF, 0xD8, 0xFF]), senderMoves: 10, senderTime: 20
+        )
+        challenges.registerSent(sent, opponentLabel: "Alex", transport: .file)
+
+        let won = FriendChallenge(
+            senderName: "Alex", gameMode: .swap, gridSize: 3, seed: 2,
+            imageData: Data([0xFF, 0xD8, 0xFF]), senderMoves: 30, senderTime: 20
+        )
+        challenges.registerReceived(won, transport: .file)
+        challenges.recordCompletion(challengeID: won.id, moves: 10, time: 5)
+
+        #expect(AchievementMetric.challengesSent.value(in: stats, challengeStore: challenges, justSolved: false, now: .now) == 1)
+        #expect(AchievementMetric.challengesWon.value(in: stats, challengeStore: challenges, justSolved: false, now: .now) == 1)
+        #expect(AchievementMetric.challengesPlayed.value(in: stats, challengeStore: challenges, justSolved: false, now: .now) == 1)
     }
 }

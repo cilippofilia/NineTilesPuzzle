@@ -19,6 +19,7 @@ final class GameSession {
     private let settingsStore: SettingsStore
     private let dailyChallengeStore: DailyChallengeStore
     private let powerUpStore: PowerUpStore
+    private let challengeStore: ChallengeStore
     private let defaults: PersistenceStore
 
     private let swapEngine = SwapEngine()
@@ -200,6 +201,35 @@ final class GameSession {
         quickSnapImage = image
     }
 
+    /// True while the player is playing a received Challenge Friends puzzle. Transient like
+    /// `isDailyGameActive`/`isQuickSnapActive` — not persisted, so a force-quit resumes as an
+    /// ordinary game in whatever mode/size/image was already generically persisted, but won't
+    /// credit `ChallengeStore` on solve. Sending a challenge needs none of this — it's just a
+    /// share action packaging up an already-ordinary finished game's values.
+    private(set) var isChallengeGameActive: Bool = false
+    /// The user's `selectedGameMode` before entering a challenge, restored in `leaveGame()`.
+    private var preChallengeGameMode: GameMode? = nil
+    /// The challenge being played, consumed by `startNewGame()` in place of a network/camera
+    /// fetch and a locally-rolled shuffle. Kept until `leaveGame()`.
+    private(set) var activeChallenge: FriendChallenge?
+    /// Set once `registerMove()` records a challenge's completion — `nil` before solving.
+    private(set) var challengeOutcome: ChallengeRecord.Outcome?
+
+    /// Marks this session as a Challenge Friends game using the received `challenge`. Must be
+    /// called before navigating to `PuzzleView` — `startNewGame()` checks `isChallengeGameActive`
+    /// to decode the embedded image and apply the challenge's seeded shuffle instead of the
+    /// regular source/engine path. Mirrors `enterQuickSnapMode(with:)`.
+    func enterChallengeMode(with challenge: FriendChallenge) {
+        preChallengeGameMode = selectedGameMode
+        selectedGameMode = challenge.gameMode
+        gridSize = challenge.gridSize
+        // A challenge is always a single puzzle, never a ladder run.
+        isLadderMode = false
+        activeChallenge = challenge
+        challengeOutcome = nil
+        isChallengeGameActive = true
+    }
+
     /// Total moves allowed this game; Limited Moves' flat budget per grid size.
     var movesBudgetForCurrentSize: Int { LimitedMovesRules.moveBudget(forGridSize: gridSize) }
     /// Moves left before `isLimitedMovesFailed` trips — every move costs 1, regardless of
@@ -223,6 +253,7 @@ final class GameSession {
         settingsStore: SettingsStore,
         dailyChallengeStore: DailyChallengeStore,
         powerUpStore: PowerUpStore,
+        challengeStore: ChallengeStore,
         defaults: PersistenceStore = UserDefaults.standard
     ) {
         self.statsStore = statsStore
@@ -230,6 +261,7 @@ final class GameSession {
         self.settingsStore = settingsStore
         self.dailyChallengeStore = dailyChallengeStore
         self.powerUpStore = powerUpStore
+        self.challengeStore = challengeStore
         self.defaults = defaults
         // Widget syncing writes to the real App Group suite, so it only runs when this
         // session persists to real UserDefaults too — tests injecting an in-memory store
@@ -240,10 +272,10 @@ final class GameSession {
         reconcileLiveActivityOnLaunch()
         syncResumeWidget()
         widgetData.syncAll(dailyStore: dailyChallengeStore, statsStore: statsStore)
-        achievementsStore.checkAchievements(using: statsStore)
+        achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore)
         Task {
             await achievementsStore.refreshAchievementsFromRemote()
-            achievementsStore.checkAchievements(using: statsStore)
+            achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore)
         }
     }
 
@@ -447,6 +479,8 @@ final class GameSession {
         // table) > random > user-selected. Each overrides the one below it.
         if isDailyGameActive {
             gridSize = DailyChallengeSeeder.gridSize(for: activeDailyDate)
+        } else if isChallengeGameActive, let challenge = activeChallenge {
+            gridSize = challenge.gridSize
         } else if isGauntletLadderMode {
             gridSize = GauntletLadderRules.stage(currentLadderStage).gridSize
         } else if useRandomSize {
@@ -494,9 +528,10 @@ final class GameSession {
             TileModel(id: $0, currentIndex: $0, isLocked: false)
         }
 
-        // Daily and Quick Snap always play with a real image (seeded remote / camera frame)
-        // regardless of the user's media preference, so bypass the numbers-only fast path.
-        guard mediaSourceType != .numbers || isDailyGameActive || isQuickSnapActive else {
+        // Daily, Quick Snap, and Challenge always play with a real image (seeded remote /
+        // camera frame / embedded challenge photo) regardless of the user's media preference,
+        // so bypass the numbers-only fast path.
+        guard mediaSourceType != .numbers || isDailyGameActive || isQuickSnapActive || isChallengeGameActive else {
             isLoading = false
             tiles = activeEngine.shuffle(initial, gridSize: gridSize)
             if currentStreakForCurrentSize > 0 { startCountdown() }
@@ -515,6 +550,13 @@ final class GameSession {
                     throw ImageSourceError.providerUnavailable
                 }
                 image = captured
+            } else if isChallengeGameActive {
+                // The challenge's image already traveled in the payload; there is no
+                // headless source to fetch from, so decode it directly.
+                guard let challenge = activeChallenge, let decoded = ChallengeImageCodec.decode(challenge.imageData) else {
+                    throw ImageSourceError.providerUnavailable
+                }
+                image = decoded
             } else if isDailyGameActive {
                 do {
                     image = try await DailyImageSource(date: activeDailyDate).fetchImage()
@@ -560,7 +602,11 @@ final class GameSession {
             // on restore, so a transformed image survives backgrounding for free with no
             // extra persistence key, and never re-rolls to a different transform than the
             // one the player's tiles were actually shuffled against.
-            if selectedGameMode == .chaos {
+            // A challenge's embedded image is already the sender's final crop — and already
+            // Chaos-transformed if applicable, since only the post-transform bytes travel in
+            // the payload — so re-rolling a fresh transform here would show a different image
+            // than the one the challenge's tiles were actually seeded against.
+            if selectedGameMode == .chaos && !isChallengeGameActive {
                 workingImage = ChaosTransform.random().apply(to: workingImage)
             }
             sourceImage = workingImage
@@ -588,13 +634,30 @@ final class GameSession {
                 // check; swap/limited-moves use a simpler derangement.
                 let seed = DailyChallengeSeeder.seed(for: activeDailyDate)
                 if selectedGameMode == .slide {
-                    let board = DailyChallengeSeeder.shuffledSlideBoard(count: initial.count, gridSize: gridSize, seed: seed)
+                    let board = SeededShuffle.shuffledSlideBoard(count: initial.count, gridSize: gridSize, seed: seed)
                     for position in initial.indices {
                         initial[board[position]].currentIndex = position
                         initial[board[position]].isLocked = false
                     }
                 } else {
-                    let positions = DailyChallengeSeeder.shuffledPositions(count: initial.count, seed: seed)
+                    let positions = SeededShuffle.shuffledPositions(count: initial.count, seed: seed)
+                    for i in initial.indices {
+                        initial[i].currentIndex = positions[i]
+                        initial[i].isLocked = false
+                    }
+                }
+                tiles = initial
+            } else if isChallengeGameActive, let challenge = activeChallenge {
+                // Apply the shuffle seeded by the challenge itself so the receiver's board
+                // is identical to the one the sender's result was measured against.
+                if selectedGameMode == .slide {
+                    let board = SeededShuffle.shuffledSlideBoard(count: initial.count, gridSize: gridSize, seed: challenge.seed)
+                    for position in initial.indices {
+                        initial[board[position]].currentIndex = position
+                        initial[board[position]].isLocked = false
+                    }
+                } else {
+                    let positions = SeededShuffle.shuffledPositions(count: initial.count, seed: challenge.seed)
                     for i in initial.indices {
                         initial[i].currentIndex = positions[i]
                         initial[i].isLocked = false
@@ -646,6 +709,12 @@ final class GameSession {
 
         let correctBefore = tiles.filter { $0.isCorrect }.count
         swapEngine.swap(&tiles, from: sourceIndex, to: targetIndex)
+        if isFogMode {
+            withAnimation(.easeInOut(duration: 0.45)) {
+                source.hasBeenMoved = true
+                target.hasBeenMoved = true
+            }
+        }
         registerMove(correctBefore: correctBefore)
     }
 
@@ -848,6 +917,15 @@ final class GameSession {
                         powerUpStore.earnRandom()
                     }
                 }
+            } else if isChallengeGameActive, let challenge = activeChallenge {
+                // Challenge Friends is kept fully separate from `StatsStore`, like Daily —
+                // a challenge's embedded photo/provenance shouldn't pollute the receiver's
+                // own personal-best tables.
+                if !debugOverlayEnabled {
+                    challengeOutcome = challengeStore.recordCompletion(
+                        challengeID: challenge.id, moves: currentMoveCount, time: elapsedTime
+                    )
+                }
             } else if isZenMode {
                 statsStore.recordGamePlayed(for: key)
             } else if !debugOverlayEnabled {
@@ -892,10 +970,11 @@ final class GameSession {
                 if selectedGameMode != .slide && !hasHadWastedMoveThisGame {
                     statsStore.recordZeroWasteSolve()
                 }
-                // Daily always uses a seeded remote image, not the player's chosen media source,
-                // so it never counts toward the per-source explorer achievements. Quick Snap is
-                // its own source even though it captures through the camera.
-                if !isDailyGameActive {
+                // Daily and Challenge always use a seeded/embedded image, not the player's
+                // chosen media source, so neither counts toward the per-source explorer
+                // achievements. Quick Snap is its own source even though it captures through
+                // the camera.
+                if !isDailyGameActive && !isChallengeGameActive {
                     let solvedSource: MediaSourceType = isQuickSnapActive ? .camera : mediaSourceType
                     statsStore.recordMediaSourceSolve(solvedSource)
                 }
@@ -907,7 +986,7 @@ final class GameSession {
             applyTimeTrialMoveOutcome(newlyCorrect: newlyCorrect)
         } else if isLimitedMovesMode {
             applyLimitedMovesBudgetCheck()
-        } else if !isZenMode && !isDailyGameActive {
+        } else if !isZenMode && !isDailyGameActive && !isChallengeGameActive {
             if newlyCorrect > 0 {
                 let result = statsStore.recordStreakIncrement(for: key, trackRecord: !debugOverlayEnabled)
                 if !isSolved { startCountdown() }
@@ -930,7 +1009,7 @@ final class GameSession {
         // touches `StatsStore` records above, so it shouldn't unlock achievements either.
         if !debugOverlayEnabled {
             let unlockedBefore = achievementsStore.unlockedCount
-            achievementsStore.checkAchievements(using: statsStore, justSolved: isSolved)
+            achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore, justSolved: isSolved)
             if settingsStore.powerUpsEnabled {
                 for _ in 0..<(achievementsStore.unlockedCount - unlockedBefore) {
                     powerUpStore.earnRandom()
@@ -1063,10 +1142,17 @@ final class GameSession {
             selectedGameMode = backup
             preQuickSnapGameMode = nil
         }
+        if let backup = preChallengeGameMode {
+            selectedGameMode = backup
+            preChallengeGameMode = nil
+        }
         isDailyGameActive = false
         dailyGameDate = nil
         isQuickSnapActive = false
         quickSnapImage = nil
+        isChallengeGameActive = false
+        activeChallenge = nil
+        challengeOutcome = nil
         stopCountdown()
         stopTimeTrialCountdown()
         stopStopwatch()
@@ -1363,7 +1449,7 @@ private extension GameSession {
         CGImageDestinationAddImage(
             destination,
             image,
-            [kCGImageDestinationLossyCompressionQuality: 0.8] as CFDictionary
+            [kCGImageDestinationLossyCompressionQuality: 0.92] as CFDictionary
         )
         return CGImageDestinationFinalize(destination) ? (data as Data) : nil
     }

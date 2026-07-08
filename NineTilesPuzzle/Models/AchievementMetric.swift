@@ -30,6 +30,9 @@ enum AchievementMetric: Equatable {
     case maxGamesInOneDay
     case bestLadderStageReached
     case bestLadderScore
+    case challengesSent
+    case challengesWon
+    case challengesPlayed
     /// True only on the exact `checkAchievements` call that just solved a puzzle, and only
     /// if the wall-clock hour falls in `start..<end` — the one metric pair that reads "now"
     /// instead of `StatsStore`.
@@ -41,7 +44,9 @@ enum AchievementMetric: Equatable {
     case completionist
 
     /// Current value of this metric, compared against an achievement's `target`.
-    func value(in stats: StatsStore, justSolved: Bool, now: Date) -> Int {
+    /// `challengeStore` is optional — only the three Challenge Friends metrics read it,
+    /// so existing call sites that don't have one on hand can omit it.
+    func value(in stats: StatsStore, challengeStore: ChallengeStore? = nil, justSolved: Bool, now: Date) -> Int {
         switch self {
         case .totalGamesPlayed:
             return stats.gamesPlayed.values.reduce(0, +)
@@ -79,6 +84,12 @@ enum AchievementMetric: Equatable {
             return stats.bestLadderStageReached
         case .bestLadderScore:
             return stats.bestLadderScore
+        case .challengesSent:
+            return challengeStore?.count(direction: .sent) ?? 0
+        case .challengesWon:
+            return challengeStore?.count(outcome: .won) ?? 0
+        case .challengesPlayed:
+            return challengeStore?.playedReceivedCount ?? 0
         case .soloedInHourRange(let start, let end):
             guard justSolved else { return 0 }
             let hour = Calendar.current.component(.hour, from: now)
@@ -138,6 +149,12 @@ extension AchievementMetric: Codable {
             self = .bestLadderStageReached
         case "bestLadderScore":
             self = .bestLadderScore
+        case "challengesSent":
+            self = .challengesSent
+        case "challengesWon":
+            self = .challengesWon
+        case "challengesPlayed":
+            self = .challengesPlayed
         case "soloedInHourRange":
             guard parts.count == 3, let start = size(1), let end = size(2) else { throw Self.malformed(raw) }
             self = .soloedInHourRange(start: start, end: end)
@@ -173,6 +190,9 @@ extension AchievementMetric: Codable {
         case .maxGamesInOneDay: "maxGamesInOneDay"
         case .bestLadderStageReached: "bestLadderStageReached"
         case .bestLadderScore: "bestLadderScore"
+        case .challengesSent: "challengesSent"
+        case .challengesWon: "challengesWon"
+        case .challengesPlayed: "challengesPlayed"
         case .soloedInHourRange(let start, let end): "soloedInHourRange.\(start).\(end)"
         case .completionist: "completionist"
         }

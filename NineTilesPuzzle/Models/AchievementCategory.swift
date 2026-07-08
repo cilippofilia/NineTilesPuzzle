@@ -14,6 +14,7 @@ enum AchievementCategory: String, Codable, CaseIterable {
     case streaks
     case explorer
     case special
+    case social
 
     var title: String {
         switch self {
@@ -23,6 +24,7 @@ enum AchievementCategory: String, Codable, CaseIterable {
         case .streaks: "Streaks"
         case .explorer: "Explorer"
         case .special: "Special"
+        case .social: "Social"
         }
     }
 }

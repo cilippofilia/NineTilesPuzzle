@@ -380,6 +380,36 @@
         "comparison": "greaterThanOrEqual"
     },
     {
+        "id": "firstChallengeSent",
+        "title": "Sent It",
+        "description": "Send your first Challenge Friends puzzle",
+        "systemImage": "paperplane.fill",
+        "category": "social",
+        "metric": "challengesSent",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "firstChallengeWon",
+        "title": "Beat a Friend",
+        "description": "Win your first Challenge Friends puzzle",
+        "systemImage": "flag.checkered",
+        "category": "social",
+        "metric": "challengesWon",
+        "target": 1,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
+        "id": "challengeChampion",
+        "title": "Challenge Champion",
+        "description": "Win 10 Challenge Friends puzzles",
+        "systemImage": "medal.fill",
+        "category": "social",
+        "metric": "challengesWon",
+        "target": 10,
+        "comparison": "greaterThanOrEqual"
+    },
+    {
         "id": "completionist",
         "title": "Completionist",
         "description": "Unlock every other achievement",

@@ -64,6 +64,7 @@
 			membershipExceptions = (
 				Models/DailyChallengeSeeder.swift,
 				Models/GameMode.swift,
+				Models/SeededShuffle.swift,
 				"Models/TimeInterval-Formatting-Ext.swift",
 				Shared/DeepLink.swift,
 				Shared/LiveActivityStore.swift,

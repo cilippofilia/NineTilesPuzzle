@@ -61,6 +61,6 @@ struct PuzzlePowerUpToolbarView: View {
     powerUps.earn(.reshuffle, amount: 1)
 
     return PuzzlePowerUpToolbarView()
-        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: powerUps))
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: powerUps, challengeStore: ChallengeStore()))
         .environment(powerUps)
 }

@@ -44,13 +44,16 @@ final class AchievementsStore {
 
     /// Re-evaluates every achievement's metric against current `stats` and unlocks any that
     /// newly qualify. `justSolved` and `now` only matter to the handful of metrics that read
-    /// them (e.g. time-of-day solves) — every other metric ignores them.
-    func checkAchievements(using stats: StatsStore, justSolved: Bool = false, now: Date = Date()) {
+    /// them (e.g. time-of-day solves) — every other metric ignores them. `challengeStore` is
+    /// optional, read only by the three Challenge Friends metrics.
+    func checkAchievements(
+        using stats: StatsStore, challengeStore: ChallengeStore? = nil, justSolved: Bool = false, now: Date = Date()
+    ) {
         for i in achievements.indices {
             guard achievements[i].id != Self.completionistId else { continue }
             guard !achievements[i].isUnlocked else { continue }
 
-            let value = achievements[i].metric.value(in: stats, justSolved: justSolved, now: now)
+            let value = achievements[i].metric.value(in: stats, challengeStore: challengeStore, justSolved: justSolved, now: now)
             guard achievements[i].comparison.isSatisfied(value: value, target: achievements[i].target) else { continue }
 
             unlock(at: i, now: now)

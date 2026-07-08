@@ -32,6 +32,12 @@ struct PuzzleView: View {
     /// re-run through `ImageRenderer` on every toolbar/body re-evaluation while the completion
     /// banner is on screen.
     @State private var solvedPNG: SolvedPuzzleImage?
+    @State private var showChallengeSendSheet = false
+    /// Set by "Challenge Them Back" before starting the fresh game its reply needs — a
+    /// rechallenge can't reuse the just-played challenge's embedded image/seed (requirement:
+    /// "new image/seed, same mode+grid"), so this survives across that new game and
+    /// auto-opens the send sheet once it solves.
+    @State private var pendingRechallenge: (opponentName: String, parentChallengeID: UUID)?
 
     var body: some View {
         // Split into two independently type-checked expressions to avoid the compiler's
@@ -49,7 +55,12 @@ struct PuzzleView: View {
             // Zen mode, which shows nothing but the puzzle itself.
             if !session.isZenMode {
                 PuzzleStatusOverlayLayer(completion: completion, showTimeTrialDelta: showTimeTrialDelta)
-                PuzzleCompletionOverlayView(completion: completion, continueAction: handleContinue, dismissAction: leaveDailyChallenge)
+                PuzzleCompletionOverlayView(
+                    completion: completion,
+                    continueAction: handleContinue,
+                    dismissAction: leaveDailyChallenge,
+                    rechallengeAction: rechallengeActionIfChallengeActive
+                )
             }
 
             // Layer 3b: Time Trial fail overlay — shown instead of the completion banner
@@ -167,6 +178,7 @@ struct PuzzleView: View {
             // new game via `startNewGame()`.
             if solved {
                 Task { solvedPNG = renderSolvedPNG() }
+                if pendingRechallenge != nil { showChallengeSendSheet = true }
             } else {
                 solvedPNG = nil
             }
@@ -200,7 +212,9 @@ struct PuzzleView: View {
         .onChange(of: session.isLimitedMovesFailed) { _, failed in
             completion.handleLimitedMovesFailedChange(failed)
         }
-        return gameView
+        // Third independently type-checked expression — the toolbar/sheet modifiers below
+        // pushed the previous single chain over the compiler's expression complexity limit.
+        let toolbarView = gameView
         .navigationTitle(session.isDailyGameActive ? "Daily Challenge" : (session.isZenMode ? "" : "Puzzle"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isGameActive)
@@ -235,6 +249,15 @@ struct PuzzleView: View {
                     }
                 }
             }
+
+            if completion.showCompletion, isChallengeEligible {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Challenge a Friend", systemImage: "person.2.fill") {
+                        showChallengeSendSheet = true
+                    }
+                    .labelStyle(.iconOnly)
+                }
+            }
         }
         .fullScreenCover(isPresented: $showQuickSnapRecapture) {
             QuickSnapCameraView(
@@ -251,6 +274,20 @@ struct PuzzleView: View {
                     leaveDailyChallenge()
                 }
             )
+        }
+        return toolbarView
+        .sheet(isPresented: $showChallengeSendSheet, onDismiss: { pendingRechallenge = nil }) {
+            if let cgImage = session.croppedSourceImage {
+                ChallengeSendSheet(
+                    gameMode: session.selectedGameMode,
+                    gridSize: session.gridSize,
+                    image: cgImage,
+                    moves: session.currentMoveCount,
+                    time: session.elapsedTime,
+                    opponentLabel: pendingRechallenge?.opponentName,
+                    parentChallengeID: pendingRechallenge?.parentChallengeID
+                )
+            }
         }
         .alert("Quit this run?", isPresented: $showQuitAlert) {
             Button("Quit", role: .destructive) {
@@ -312,6 +349,35 @@ struct PuzzleView: View {
 
     private var isGameActive: Bool {
         (!session.tiles.isEmpty || session.isPreviewing) && !session.isSolved && !session.isTimeTrialFailed && !session.isLimitedMovesFailed
+    }
+
+    private var rechallengeActionIfChallengeActive: (() -> Void)? {
+        guard session.isChallengeGameActive else { return nil }
+        return challengeThemBack
+    }
+
+    /// Whether the just-finished game can be packaged into a Challenge Friends puzzle —
+    /// Zen has no natural win/lose metric, and a Gauntlet Ladder run isn't a single
+    /// reproducible puzzle instance.
+    private var isChallengeEligible: Bool {
+        ChallengeStore.eligibleGameModes.contains(session.selectedGameMode)
+            && !session.isGauntletLadderMode
+            && session.croppedSourceImage != nil
+    }
+
+    /// "Challenge Them Back": a rechallenge needs a fresh image/seed, not the one just played,
+    /// so this starts a brand-new ordinary game in the same mode/grid size and defers opening
+    /// the send sheet until that new game solves (see the `onChange(of: session.isSolved)`
+    /// handler above and `pendingRechallenge`).
+    private func challengeThemBack() {
+        guard let challenge = session.activeChallenge else { return }
+        let mode = challenge.gameMode
+        let size = challenge.gridSize
+        pendingRechallenge = (challenge.senderName, challenge.id)
+        session.leaveGame()
+        session.setGameMode(mode)
+        session.setGridSize(size)
+        startNewGame()
     }
 
     private var showSolveButton: Bool {
@@ -416,7 +482,7 @@ struct PuzzleView: View {
     let achievements = AchievementsStore()
     let powerUps = PowerUpStore()
     PuzzleView()
-        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: powerUps))
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: powerUps, challengeStore: ChallengeStore()))
         .environment(settings)
         .environment(achievements)
         .environment(powerUps)

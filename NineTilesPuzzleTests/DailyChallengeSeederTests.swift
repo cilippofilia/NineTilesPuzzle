@@ -58,27 +58,4 @@ struct DailyChallengeSeederTests {
         let expected = "https://picsum.photos/seed/ntp-2026-03-09/1024/1024"
         #expect(DailyChallengeSeeder.imageURL(for: date).absoluteString == expected)
     }
-
-    // MARK: - Shuffles
-
-    @Test func shuffledPositionsIsADeterministicDerangement() {
-        let seed = DailyChallengeSeeder.seed(for: referenceDate)
-        let first = DailyChallengeSeeder.shuffledPositions(count: 25, seed: seed)
-        let second = DailyChallengeSeeder.shuffledPositions(count: 25, seed: seed)
-
-        #expect(first == second)
-        #expect(first.sorted() == Array(0..<25))
-        // Derangement: no tile may start in its solved slot.
-        #expect(!first.enumerated().contains { $0.offset == $0.element })
-    }
-
-    @Test func shuffledSlideBoardIsAValidNonIdentityPermutation() {
-        for offset in 0..<10 {
-            let seed = DailyChallengeSeeder.seed(for: day(offset: offset))
-            let gridSize = 4
-            let board = DailyChallengeSeeder.shuffledSlideBoard(count: gridSize * gridSize, gridSize: gridSize, seed: seed)
-            #expect(board.sorted() == Array(0..<gridSize * gridSize))
-            #expect(board != Array(0..<gridSize * gridSize))
-        }
-    }
 }

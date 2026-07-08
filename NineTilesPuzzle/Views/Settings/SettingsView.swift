@@ -144,6 +144,17 @@ struct SettingsView: View {
                     ))
                 }
 
+                Section {
+                    TextField("Your Name", text: Binding(
+                        get: { settings.senderDisplayName },
+                        set: { settings.setSenderDisplayName($0) }
+                    ))
+                } header: {
+                    Text("Challenges")
+                } footer: {
+                    Text("Shown to friends when you send them a Challenge Friends puzzle.")
+                }
+
                 Section("Widgets") {
                     NavigationLink {
                         WidgetsGuideView()
@@ -220,7 +231,7 @@ struct SettingsView: View {
     Color.clear
         .sheet(isPresented: .constant(true)) {
             SettingsView()
-                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily, powerUpStore: powerUps))
+                .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily, powerUpStore: powerUps, challengeStore: ChallengeStore()))
                 .environment(stats)
                 .environment(settings)
                 .environment(daily)

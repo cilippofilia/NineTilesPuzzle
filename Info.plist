@@ -16,6 +16,19 @@
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Nine Tiles Puzzle Challenge</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>cilia.filippo.NineTilesPuzzle.challenge</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -33,12 +46,41 @@
 	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.puzzle-games</string>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_ntp-challenge._tcp</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Quick Snap uses the camera to turn whatever's in front of you into a puzzle.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Nine Tiles Puzzle uses your local network to find nearby friends for Challenge mode.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app uses a random photo from your library as the puzzle image.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>cilia.filippo.NineTilesPuzzle.challenge</string>
+			<key>UTTypeDescription</key>
+			<string>Nine Tiles Puzzle Challenge</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.content</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>ntpchallenge</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

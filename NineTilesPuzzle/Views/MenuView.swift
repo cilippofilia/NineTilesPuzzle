@@ -16,17 +16,20 @@ enum GameRoute: Hashable {
     case gameModes
     case mediaPicker
     case dailyCalendar
+    case challengeHome
 }
 
 struct MenuView: View {
     @Environment(GameSession.self) private var session
     @Environment(AchievementsStore.self) private var achievementsStore
     @Environment(DailyChallengeStore.self) private var dailyChallengeStore
+    @Environment(ChallengeStore.self) private var challengeStore
     @Environment(\.openURL) private var openURL
     @State private var path: [GameRoute] = []
     @State private var showSettings = false
     @State private var showTipsAlert = false
     @State private var showQuickSnapCamera = false
+    @State private var incomingChallenge: FriendChallenge?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -153,6 +156,23 @@ struct MenuView: View {
                         .contentShape(.rect)
                     }
                     .foregroundStyle(.primary)
+
+                    Divider()
+
+                    Button {
+                        path.append(.challengeHome)
+                    } label: {
+                        HStack {
+                            Label("Challenge Friends", systemImage: "person.2.fill")
+                            Spacer()
+                            Image(systemName: "chevron.forward")
+                                .imageScale(.small)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .contentShape(.rect)
+                    }
+                    .foregroundStyle(.primary)
                 }
                 .background(.quaternary, in: .rect(cornerRadius: 20))
                 .padding(.horizontal)
@@ -195,6 +215,22 @@ struct MenuView: View {
                     onCancel: { showQuickSnapCamera = false }
                 )
             }
+            .fullScreenCover(item: $incomingChallenge) { challenge in
+                ChallengeInviteView(
+                    challenge: challenge,
+                    onAccept: {
+                        let challenge = incomingChallenge
+                        incomingChallenge = nil
+                        guard let challenge else { return }
+                        if path.last == .game { path.removeLast() }
+                        session.enterChallengeMode(with: challenge)
+                        session.tiles = []
+                        session.isLoading = true
+                        path.append(.game)
+                    },
+                    onDecline: { incomingChallenge = nil }
+                )
+            }
             .navigationDestination(for: GameRoute.self) { route in
                 switch route {
                 case .game:
@@ -216,6 +252,20 @@ struct MenuView: View {
                         session.isLoading = true
                         path.append(.game)
                     }
+                case .challengeHome:
+                    ChallengeHomeView(
+                        onPlay: {
+                            session.tiles = []
+                            session.isLoading = true
+                            path.append(.game)
+                        },
+                        onAcceptChallenge: { challenge in
+                            session.enterChallengeMode(with: challenge)
+                            session.tiles = []
+                            session.isLoading = true
+                            path.append(.game)
+                        }
+                    )
                 }
             }
             .toolbar {
@@ -243,6 +293,11 @@ struct MenuView: View {
                 Text("For a curated experience with your own photos, create a dedicated album in the Photos app with only the images you'd like to use as puzzles, then grant Nine Tiles access to that album only.")
             }
             .onOpenURL { url in
+                if url.isFileURL, let challenge = ChallengeFileCoder.decode(fileAt: url) {
+                    challengeStore.registerReceived(challenge, transport: .file)
+                    incomingChallenge = challenge
+                    return
+                }
                 guard let link = DeepLink(url: url) else { return }
                 handleDeepLink(link)
             }
@@ -317,11 +372,13 @@ struct MenuView: View {
     let achievements = AchievementsStore()
     let daily = DailyChallengeStore()
     let powerUps = PowerUpStore()
+    let challenges = ChallengeStore()
     MenuView()
-        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily, powerUpStore: powerUps))
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily, powerUpStore: powerUps, challengeStore: challenges))
         .environment(stats)
         .environment(settings)
         .environment(achievements)
         .environment(daily)
         .environment(powerUps)
+        .environment(challenges)
 }

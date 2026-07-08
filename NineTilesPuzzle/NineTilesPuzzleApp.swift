@@ -14,6 +14,7 @@ struct NineTilesPuzzleApp: App {
     @State private var achievementsStore: AchievementsStore
     @State private var dailyChallengeStore: DailyChallengeStore
     @State private var powerUpStore: PowerUpStore
+    @State private var challengeStore: ChallengeStore
     @State private var gameSession: GameSession
     @State private var soundService = SoundService()
     @State private var gameCenterService = GameCenterService()
@@ -27,17 +28,20 @@ struct NineTilesPuzzleApp: App {
         let achievementsStore = AchievementsStore()
         let dailyChallengeStore = DailyChallengeStore()
         let powerUpStore = PowerUpStore()
+        let challengeStore = ChallengeStore()
         _statsStore = State(initialValue: statsStore)
         _settingsStore = State(initialValue: settingsStore)
         _achievementsStore = State(initialValue: achievementsStore)
         _dailyChallengeStore = State(initialValue: dailyChallengeStore)
         _powerUpStore = State(initialValue: powerUpStore)
+        _challengeStore = State(initialValue: challengeStore)
         _gameSession = State(initialValue: GameSession(
             statsStore: statsStore,
             achievementsStore: achievementsStore,
             settingsStore: settingsStore,
             dailyChallengeStore: dailyChallengeStore,
-            powerUpStore: powerUpStore
+            powerUpStore: powerUpStore,
+            challengeStore: challengeStore
         ))
     }
 
@@ -51,6 +55,7 @@ struct NineTilesPuzzleApp: App {
                     .environment(achievementsStore)
                     .environment(dailyChallengeStore)
                     .environment(powerUpStore)
+                    .environment(challengeStore)
                     .environment(soundService)
                     .environment(gameCenterService)
                     .environment(wallOfFameStore)

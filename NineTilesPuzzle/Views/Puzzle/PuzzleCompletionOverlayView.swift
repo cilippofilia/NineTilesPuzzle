@@ -15,6 +15,7 @@ struct PuzzleCompletionOverlayView: View {
     let completion: PuzzleCompletionViewModel
     let continueAction: () -> Void
     let dismissAction: () -> Void
+    var rechallengeAction: (() -> Void)? = nil
 
     private var continueButtonLabel: String {
         guard session.isGauntletLadderMode else { return "Continue" }
@@ -95,6 +96,22 @@ struct PuzzleCompletionOverlayView: View {
                 .padding(.bottom)
                 .offset(completion.bannerOffset)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            if completion.showCompletion, session.isChallengeGameActive, let outcome = session.challengeOutcome,
+               let challenge = session.activeChallenge {
+                ChallengeOutcomeView(
+                    outcome: outcome,
+                    opponentName: challenge.senderName,
+                    yourMoves: session.currentMoveCount,
+                    yourTime: session.elapsedTime,
+                    opponentMoves: challenge.senderMoves,
+                    opponentTime: challenge.senderTime,
+                    onRechallenge: rechallengeAction
+                )
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+                .offset(completion.bannerOffset)
             }
 
             if session.isDailyGameActive {
