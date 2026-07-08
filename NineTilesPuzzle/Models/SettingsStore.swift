@@ -22,6 +22,10 @@ final class SettingsStore {
     /// Which camera Quick Snap opens with, remembered across sessions. `false` is the back camera.
     var quickSnapUsesFrontCamera: Bool = false
     var hapticsEnabled: Bool = true
+    /// Master switch for the power-ups system (Peek, Hint, Streak Freeze, Re-shuffle,
+    /// Auto-place). Still being tuned, so it ships hidden — there's no user-facing control,
+    /// only the toggle in Settings' Dev Tools section.
+    var powerUpsEnabled: Bool = false
     var debugOverlayEnabled: Bool = false
     /// Debug-tunable power-up values, surfaced in Settings' Dev Tools section so the
     /// defaults in `PowerUpRules` can be tried out and adjusted on device before locking
@@ -78,6 +82,11 @@ final class SettingsStore {
         defaults.set(value, forKey: Keys.hapticsEnabled)
     }
 
+    func setPowerUpsEnabled(_ value: Bool) {
+        powerUpsEnabled = value
+        defaults.set(value, forKey: Keys.powerUpsEnabled)
+    }
+
     func setDebugOverlayEnabled(_ value: Bool) {
         debugOverlayEnabled = value
         defaults.set(value, forKey: Keys.debugOverlayEnabled)
@@ -118,6 +127,7 @@ private extension SettingsStore {
         static let quickSnapDuration = "puzzle.quickSnapDuration"
         static let quickSnapUsesFrontCamera = "puzzle.quickSnapUsesFrontCamera"
         static let hapticsEnabled = "puzzle.hapticsEnabled"
+        static let powerUpsEnabled = "puzzle.powerUpsEnabled"
         static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
         static let peekDuration = "puzzle.peekDuration"
         static let streakMilestoneInterval = "puzzle.streakMilestoneInterval"
@@ -139,6 +149,9 @@ private extension SettingsStore {
         }
         if defaults.object(forKey: Keys.hapticsEnabled) != nil {
             hapticsEnabled = defaults.bool(forKey: Keys.hapticsEnabled)
+        }
+        if defaults.object(forKey: Keys.powerUpsEnabled) != nil {
+            powerUpsEnabled = defaults.bool(forKey: Keys.powerUpsEnabled)
         }
         if defaults.object(forKey: Keys.debugOverlayEnabled) != nil {
             debugOverlayEnabled = defaults.bool(forKey: Keys.debugOverlayEnabled)

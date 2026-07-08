@@ -63,6 +63,11 @@ struct SettingsView: View {
                     }
 
                     Section {
+                        Toggle("Enable Power-ups", isOn: Binding(
+                            get: { settings.powerUpsEnabled },
+                            set: { settings.setPowerUpsEnabled($0) }
+                        ))
+
                         Toggle("Infinite Power-ups", isOn: Binding(
                             get: { settings.debugInfinitePowerUps },
                             set: { settings.setDebugInfinitePowerUps($0) }
@@ -92,7 +97,7 @@ struct SettingsView: View {
                     } header: {
                         Text("Power-ups")
                     } footer: {
-                        Text("Infinite Power-ups lets every power-up be used without spending inventory. The steppers tune how long a Peek/Hint shows and how often a streak milestone earns a power-up. Refill tops every power-up back up to 3 for testing.")
+                        Text("Enable Power-ups turns on the power-up system in-game — it's off by default while still being tuned. Infinite Power-ups lets every power-up be used without spending inventory. The steppers tune how long a Peek/Hint shows and how often a streak milestone earns a power-up. Refill tops every power-up back up to 3 for testing.")
                     }
                 }
                 #endif

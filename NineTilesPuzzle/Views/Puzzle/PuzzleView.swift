@@ -97,7 +97,7 @@ struct PuzzleView: View {
         // in progress. Hidden in Zen mode along with the rest of the HUD — Zen is meant to be
         // nothing but the puzzle.
         .safeAreaInset(edge: .bottom) {
-            if !session.isZenMode && isGameActive {
+            if settings.powerUpsEnabled && !session.isZenMode && isGameActive {
                 PuzzlePowerUpToolbarView()
                     .padding(.bottom, 8)
             }

@@ -659,6 +659,7 @@ final class GameSession {
     /// no image to show (numbers mode never sets `previewImage`).
     @discardableResult
     func usePeekPowerUp() -> Bool {
+        guard settingsStore.powerUpsEnabled else { return false }
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed, !isPeeking else { return false }
         guard previewImage != nil else { return false }
         guard settingsStore.debugInfinitePowerUps || powerUpStore.consume(.peek) else { return false }
@@ -687,6 +688,7 @@ final class GameSession {
     /// would for a manual move.
     @discardableResult
     func useAutoPlacePowerUp() -> Bool {
+        guard settingsStore.powerUpsEnabled else { return false }
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
         guard selectedGameMode != .slide else { return false }
         guard let target = tiles.filter({ !$0.isLocked }).randomElement() else { return false }
@@ -704,6 +706,7 @@ final class GameSession {
     /// Slide's blank cell (highlighting "the gap belongs here" would be meaningless).
     @discardableResult
     func useHintPowerUp() -> Bool {
+        guard settingsStore.powerUpsEnabled else { return false }
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
         // Only one Hint may be active at a time — a fresh tap while one is already showing
         // is rejected rather than silently replacing it, so a second power-up is never
@@ -733,6 +736,7 @@ final class GameSession {
     /// same way it would after any streak-preserving move. No-ops if no countdown is running.
     @discardableResult
     func useStreakFreezePowerUp() -> Bool {
+        guard settingsStore.powerUpsEnabled else { return false }
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed, isTimerRunning else { return false }
         guard settingsStore.debugInfinitePowerUps || powerUpStore.consume(.streakFreeze) else { return false }
         stopCountdown()
@@ -752,6 +756,7 @@ final class GameSession {
     /// game is left stuck with no completion screen.
     @discardableResult
     func useReshufflePowerUp() -> Bool {
+        guard settingsStore.powerUpsEnabled else { return false }
         guard !isSolved, !isTimeTrialFailed, !isLimitedMovesFailed else { return false }
         guard selectedGameMode != .slide else { return false }
         guard tiles.filter({ !$0.isLocked }).count > 1 else { return false }
@@ -800,7 +805,9 @@ final class GameSession {
                     isNewMovesRecord = result.isNewMovesRecord
                     isNewBestTime = result.isNewTimeRecord
                     isNewCalendarStreakRecord = result.isNewCalendarStreakRecord
-                    powerUpStore.earnRandom()
+                    if settingsStore.powerUpsEnabled {
+                        powerUpStore.earnRandom()
+                    }
                 }
             } else if isZenMode {
                 statsStore.recordGamePlayed(for: key)
@@ -868,7 +875,8 @@ final class GameSession {
                 if result.isNewRecord { isNewRecord = true }
                 // Claimed only at solve time so a puzzle whose moves cross several milestone
                 // multiples still grants at most one power-up, not one per multiple crossed.
-                if isSolved && !debugOverlayEnabled && statsStore.claimStreakMilestone(for: key, interval: settingsStore.streakMilestoneInterval) {
+                if isSolved && !debugOverlayEnabled && settingsStore.powerUpsEnabled
+                    && statsStore.claimStreakMilestone(for: key, interval: settingsStore.streakMilestoneInterval) {
                     powerUpStore.earnRandom()
                 }
             } else {
@@ -884,8 +892,10 @@ final class GameSession {
         if !debugOverlayEnabled {
             let unlockedBefore = achievementsStore.unlockedCount
             achievementsStore.checkAchievements(using: statsStore, justSolved: isSolved)
-            for _ in 0..<(achievementsStore.unlockedCount - unlockedBefore) {
-                powerUpStore.earnRandom()
+            if settingsStore.powerUpsEnabled {
+                for _ in 0..<(achievementsStore.unlockedCount - unlockedBefore) {
+                    powerUpStore.earnRandom()
+                }
             }
         }
         // Widget sync happens only on the solving move (never per move — refresh budget),
