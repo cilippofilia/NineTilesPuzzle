@@ -13,24 +13,37 @@ struct PuzzlePowerUpToolbarView: View {
     @Environment(PowerUpStore.self) private var powerUpStore
 
     var body: some View {
+        // Only the power-ups whose purpose actually applies to the current game mode are
+        // shown — e.g. a Slide + numbers board has no image to Peek at and no locked tiles
+        // for Auto-place/Re-shuffle, so those buttons are omitted rather than left to no-op.
         HStack(spacing: 16) {
-            PowerUpBadgeButton(type: .peek, count: powerUpStore.count(for: .peek)) {
-                session.usePeekPowerUp()
-            }
-            PowerUpBadgeButton(type: .autoPlace, count: powerUpStore.count(for: .autoPlace)) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    _ = session.useAutoPlacePowerUp()
+            if session.isPowerUpApplicable(.peek) {
+                PowerUpBadgeButton(type: .peek, count: powerUpStore.count(for: .peek)) {
+                    session.usePeekPowerUp()
                 }
             }
-            PowerUpBadgeButton(type: .hint, count: powerUpStore.count(for: .hint)) {
-                session.useHintPowerUp()
+            if session.isPowerUpApplicable(.autoPlace) {
+                PowerUpBadgeButton(type: .autoPlace, count: powerUpStore.count(for: .autoPlace)) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        _ = session.useAutoPlacePowerUp()
+                    }
+                }
             }
-            PowerUpBadgeButton(type: .streakFreeze, count: powerUpStore.count(for: .streakFreeze)) {
-                session.useStreakFreezePowerUp()
+            if session.isPowerUpApplicable(.hint) {
+                PowerUpBadgeButton(type: .hint, count: powerUpStore.count(for: .hint)) {
+                    session.useHintPowerUp()
+                }
             }
-            PowerUpBadgeButton(type: .reshuffle, count: powerUpStore.count(for: .reshuffle)) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    _ = session.useReshufflePowerUp()
+            if session.isPowerUpApplicable(.streakFreeze) {
+                PowerUpBadgeButton(type: .streakFreeze, count: powerUpStore.count(for: .streakFreeze)) {
+                    session.useStreakFreezePowerUp()
+                }
+            }
+            if session.isPowerUpApplicable(.reshuffle) {
+                PowerUpBadgeButton(type: .reshuffle, count: powerUpStore.count(for: .reshuffle)) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        _ = session.useReshufflePowerUp()
+                    }
                 }
             }
         }
