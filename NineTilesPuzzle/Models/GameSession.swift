@@ -473,6 +473,9 @@ final class GameSession {
         isNewLadderStageBestRecord = false
         isLimitedMovesFailed = false
         hasHadWastedMoveThisGame = false
+        // The just-finished game's award flourish has run its course on the completion banner;
+        // wipe the tally so it doesn't animate again over this fresh round.
+        powerUpStore.clearRecentlyEarned()
         skipPeek()
         hintSleepTask?.cancel()
         hintSleepTask = nil

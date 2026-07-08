@@ -17,6 +17,11 @@ final class PowerUpStore {
 
     var inventory: [PowerUpType: Int] = [:]
 
+    /// Power-ups awarded during the current game, keyed by type. Purely transient (never
+    /// persisted) — surfaced so the completion banner can play the "earned" flourish. Populated
+    /// by `earnRandom()` and cleared by `GameSession` when a fresh game starts.
+    var recentlyEarned: [PowerUpType: Int] = [:]
+
     init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
         restoreFromUserDefaults()
@@ -38,6 +43,14 @@ final class PowerUpStore {
     func earnRandom() {
         guard let type = PowerUpType.allCases.randomElement() else { return }
         earn(type)
+        recentlyEarned[type, default: 0] += 1
+    }
+
+    /// Discards the `recentlyEarned` tally once the completion banner's flourish has had its
+    /// moment — called by `GameSession` at the start of each new game so the animation doesn't
+    /// replay against a stale award.
+    func clearRecentlyEarned() {
+        recentlyEarned = [:]
     }
 
     /// Spends one `type` if available. Returns whether a power-up was actually consumed.
