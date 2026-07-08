@@ -10,6 +10,7 @@ import SwiftUI
 struct PuzzleCompletionOverlayView: View {
     @Environment(GameSession.self) private var session
     @Environment(SettingsStore.self) private var settings
+    @Environment(PowerUpStore.self) private var powerUpStore
 
     let completion: PuzzleCompletionViewModel
     let continueAction: () -> Void
@@ -18,6 +19,15 @@ struct PuzzleCompletionOverlayView: View {
     private var continueButtonLabel: String {
         guard session.isGauntletLadderMode else { return "Continue" }
         return session.isLadderRunComplete ? "New Run" : "Next Stage"
+    }
+
+    /// The power-ups awarded this game, in `PowerUpType` declaration order so a multi-award solve
+    /// (e.g. a streak milestone plus an achievement unlock) renders its badges deterministically.
+    private var earnedPowerUps: [(type: PowerUpType, amount: Int)] {
+        PowerUpType.allCases.compactMap { type in
+            guard let amount = powerUpStore.recentlyEarned[type], amount > 0 else { return nil }
+            return (type, amount)
+        }
     }
 
     var body: some View {
@@ -71,6 +81,21 @@ struct PuzzleCompletionOverlayView: View {
             }
 
             Spacer()
+
+            if completion.showCompletion && !earnedPowerUps.isEmpty {
+                HStack(alignment: .top, spacing: 24) {
+                    ForEach(earnedPowerUps, id: \.type) { earned in
+                        EarnedPowerUpBadgeView(
+                            type: earned.type,
+                            amount: earned.amount,
+                            finalCount: powerUpStore.count(for: earned.type)
+                        )
+                    }
+                }
+                .padding(.bottom)
+                .offset(completion.bannerOffset)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
 
             if session.isDailyGameActive {
                 Button("Back to Menu", action: dismissAction)
