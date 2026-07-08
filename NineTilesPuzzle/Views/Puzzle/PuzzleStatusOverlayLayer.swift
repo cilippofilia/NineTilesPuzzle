@@ -46,6 +46,7 @@ struct PuzzleStatusOverlayLayer: View {
             .opacity(streakVisible ? 1 : 0)
             .animation(.easeInOut(duration: 0.35), value: session.isLoading)
             .animation(.easeInOut(duration: 0.35), value: session.isPreviewing)
+            .animation(.easeInOut(duration: 0.35), value: session.isPeeking)
             .animation(.spring(response: 0.5, dampingFraction: 0.75), value: completion.showCompletion)
             .animation(.spring(response: 0.5, dampingFraction: 0.75), value: completion.showTimeTrialFail)
             .animation(.spring(response: 0.5, dampingFraction: 0.75), value: completion.showLimitedMovesFail)
@@ -63,6 +64,6 @@ struct PuzzleStatusOverlayLayer: View {
 
     private var streakVisible: Bool {
         !completion.showCompletion && !completion.showTimeTrialFail && !completion.showLimitedMovesFail
-            && !session.isLoading && !session.isPreviewing && session.error == nil
+            && !session.isLoading && !session.isPreviewing && !session.isPeeking && session.error == nil
     }
 }
