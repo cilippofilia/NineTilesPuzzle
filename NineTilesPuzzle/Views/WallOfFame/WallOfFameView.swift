@@ -137,9 +137,6 @@ struct WallOfFameView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Styled as a dark "tag" chip pinned to the board: low-opacity white text
-            // vanished into the light cork texture, so the section labels now carry their
-            // own translucent backing to guarantee contrast wherever they land.
             Text(title)
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(.white)
@@ -147,13 +144,9 @@ struct WallOfFameView: View {
                 .padding(.vertical, 6)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(Color.black.opacity(0.5))
+                        .fill(.ultraThinMaterial)
                 )
-                .overlay(
-                    Capsule(style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5)
-                )
-                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.5), radius: 8, x: 0, y: 4)
 
             LazyVGrid(columns: columns, spacing: 20) {
                 content()

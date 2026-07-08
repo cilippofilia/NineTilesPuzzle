@@ -29,27 +29,28 @@ struct WallOfFameEmptySlot: View {
     }
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 4)
+        Rectangle()
             .stroke(
-                Color.white.opacity(isLocked ? 0.12 : 0.25),
-                style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                Color.white.opacity(0.001),
+                style: StrokeStyle(lineWidth: 2, dash: [6, 4])
             )
             .frame(width: 160, height: 192)
+            .background(.ultraThinMaterial.opacity(0.6))
             .overlay {
                 if isLocked {
                     Image(systemName: "lock.fill")
                         .font(.title2)
-                        .foregroundStyle(.white.opacity(0.2))
+                        .foregroundStyle(.white)
                 }
             }
             .overlay(alignment: .bottom) {
                 Text(bottomText)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(isLocked ? 0.25 : 0.35))
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 6)
-                    .padding(.bottom, 8)
+                    .padding(6)
             }
+            .clipShape(.rect(cornerRadius: 8, style: .continuous))
     }
 }
 
