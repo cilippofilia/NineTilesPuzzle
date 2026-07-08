@@ -22,6 +22,14 @@ final class StatsStore {
     var currentStreak: [StatsKey: Int] = [:]
     var allTimeHighStreak: [StatsKey: Int] = [:]
 
+    /// `currentStreak[key]` as of the last streak-milestone power-up claim, per key. Lets
+    /// `claimStreakMilestone` grant at most one power-up per completed puzzle even when a
+    /// puzzle's moves cross more than one milestone multiple, while still catching every
+    /// multiple crossed since the last claim rather than only ones a solving move happens to
+    /// land on exactly. Not persisted — worst case a backgrounded app re-claims one already-
+    /// rewarded multiple after relaunch, which is an acceptable one-time edge case.
+    private var streakMilestoneBaseline: [StatsKey: Int] = [:]
+
     /// All-time best cumulative score / furthest stage reached across every Gauntlet
     /// Ladder run. Not scoped to a `StatsKey` — a ladder run spans every grid size in the
     /// stage table, so there's no single (gridSize, gameMode) pair to key it by.
@@ -182,6 +190,21 @@ final class StatsStore {
         }
         currentStreak[key] = 0
         defaults.set(0, forKey: Keys.currentStreak(for: key.gridSize, mode: key.gameMode))
+        streakMilestoneBaseline[key] = 0
+    }
+
+    /// Returns whether `currentStreak[key]` has crossed a new multiple of `interval` since the
+    /// last claim (or since the streak last reset), advancing the baseline so the same
+    /// crossing is never claimed twice. Call once per completed puzzle — checking only at
+    /// solve time is what caps a puzzle that crosses several milestone multiples to a single
+    /// claim, rather than one per multiple crossed.
+    func claimStreakMilestone(for key: StatsKey, interval: Int) -> Bool {
+        guard interval > 0 else { return false }
+        let streak = currentStreak[key, default: 0]
+        let baseline = streakMilestoneBaseline[key, default: 0]
+        guard streak / interval > baseline / interval else { return false }
+        streakMilestoneBaseline[key] = streak
+        return true
     }
 
     /// Marks that a puzzle was solved without a single wasted move — every move locked a
@@ -252,6 +275,7 @@ final class StatsStore {
         gamesPlayed = [:]
         currentStreak = [:]
         allTimeHighStreak = [:]
+        streakMilestoneBaseline = [:]
         bestLadderScore = 0
         bestLadderStageReached = 0
         bestLadderStageScores = [:]

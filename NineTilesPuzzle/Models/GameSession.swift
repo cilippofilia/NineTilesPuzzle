@@ -866,7 +866,9 @@ final class GameSession {
                 let result = statsStore.recordStreakIncrement(for: key, trackRecord: !debugOverlayEnabled)
                 if !isSolved { startCountdown() }
                 if result.isNewRecord { isNewRecord = true }
-                if !debugOverlayEnabled && settingsStore.streakMilestoneInterval > 0 && result.streak % settingsStore.streakMilestoneInterval == 0 {
+                // Claimed only at solve time so a puzzle whose moves cross several milestone
+                // multiples still grants at most one power-up, not one per multiple crossed.
+                if isSolved && !debugOverlayEnabled && statsStore.claimStreakMilestone(for: key, interval: settingsStore.streakMilestoneInterval) {
                     powerUpStore.earnRandom()
                 }
             } else {

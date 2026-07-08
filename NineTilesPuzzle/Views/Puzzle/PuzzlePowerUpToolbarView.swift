@@ -34,8 +34,20 @@ struct PuzzlePowerUpToolbarView: View {
                 }
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: .capsule)
     }
+}
+
+#Preview {
+    let stats = StatsStore()
+    let settings = SettingsStore()
+    let achievements = AchievementsStore()
+    let powerUps = PowerUpStore()
+    powerUps.earn(.peek, amount: 2)
+    powerUps.earn(.autoPlace, amount: 1)
+    powerUps.earn(.hint, amount: 3)
+    powerUps.earn(.reshuffle, amount: 1)
+
+    return PuzzlePowerUpToolbarView()
+        .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: powerUps))
+        .environment(powerUps)
 }

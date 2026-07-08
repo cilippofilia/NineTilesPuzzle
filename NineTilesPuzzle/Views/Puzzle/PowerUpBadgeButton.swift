@@ -16,19 +16,45 @@ struct PowerUpBadgeButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(type.title, systemImage: type.icon, action: action)
-            .labelStyle(.iconOnly)
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.circle)
-            .overlay(alignment: .topTrailing) {
-                if count > 0 {
-                    Text(count, format: .number)
-                        .font(.caption2.bold())
-                        .padding(4)
-                        .background(.red, in: .circle)
-                        .offset(x: 6, y: -6)
-                }
+        VStack(spacing: 30) {
+            Button(action: action) {
+                Label(type.title, systemImage: type.icon)
+                    .labelStyle(.iconOnly)
+                    .frame(width: 48, height: 48)
+                    .background(.ultraThinMaterial)
+                    .clipShape(.rect(cornerRadius: 12, style: .continuous))
+                    .overlay(alignment: .topTrailing) {
+                        if count > 0 {
+                            Text("\(count)")
+                                .font(.caption2.bold())
+                                .padding(4)
+                                .frame(minWidth: 24)
+                                .background(.red, in: .circle)
+                                .offset(x: 6, y: -6)
+                                .contentTransition(.numericText(value: Double(count)))
+                        } else {
+                            // this will be added back in when IAP is implemented
+//                            Text("+")
+//                                .font(.caption2.bold())
+//                                .padding(3)
+//                                .background(.red, in: .circle)
+//                                .offset(x: 6, y: -6)
+                        }
+                    }
             }
-            .disabled(count == 0)
+            .buttonStyle(.plain)
+            .disabled(count == 0) // this will be removed when IAP is implemented
+        }
     }
+}
+
+#Preview {
+    HStack(spacing: 16) {
+        PowerUpBadgeButton(type: .peek, count: 2) {}
+        PowerUpBadgeButton(type: .autoPlace, count: 1) {}
+        PowerUpBadgeButton(type: .hint, count: 99) {}
+        PowerUpBadgeButton(type: .streakFreeze, count: 0) {}
+        PowerUpBadgeButton(type: .reshuffle, count: 101) {}
+    }
+    .padding()
 }
