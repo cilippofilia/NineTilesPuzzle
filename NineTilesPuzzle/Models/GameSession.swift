@@ -664,6 +664,31 @@ final class GameSession {
 
     // MARK: - Power-ups
 
+    /// Whether `type`'s effect can actually accomplish anything in the current game
+    /// configuration — used by the toolbar to hide power-ups whose purpose doesn't apply
+    /// here, so a Slide + numbers board (for instance) no longer offers Peek, Auto-place or
+    /// Re-shuffle buttons that would only ever no-op. This is about *fit*, not *inventory*:
+    /// a power-up can be owned yet inapplicable, and each `use…PowerUp()` method still keeps
+    /// its own runtime guard as a backstop.
+    func isPowerUpApplicable(_ type: PowerUpType) -> Bool {
+        switch type {
+        case .peek:
+            // Peek re-reveals the reference image; a numbers puzzle has none to show.
+            return previewImage != nil
+        case .autoPlace, .reshuffle:
+            // Both permanently lock a tile into its home cell — a notion Slide's
+            // blank-cell shuffling doesn't have.
+            return selectedGameMode != .slide
+        case .hint:
+            // A purely informational highlight, meaningful in every mode.
+            return true
+        case .streakFreeze:
+            // Only the streak-countdown modes run a streak that can expire mid-round.
+            // Time Trial, Limited Moves, Zen and Daily games have no such countdown to freeze.
+            return !isTimeTrialMode && !isLimitedMovesMode && !isZenMode && !isDailyGameActive
+        }
+    }
+
     /// Spends a Peek power-up to re-show the full image for `settingsStore.peekDuration`
     /// seconds, reusing the same `previewImage` `ImagePreviewView` shows pre-shuffle. No-ops
     /// (without consuming inventory) once the puzzle is over, already peeking, or when there's
