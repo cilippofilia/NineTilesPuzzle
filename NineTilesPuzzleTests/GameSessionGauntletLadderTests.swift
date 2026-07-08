@@ -208,11 +208,9 @@ struct GameSessionGauntletLadderTests {
 
     /// Verifies `saveToUserDefaults()` writes the four new ladder keys with the right
     /// values. A true write-then-reconstruct round-trip (as `StatsStoreTests` does) isn't
-    /// practical here: restoring a second `GameSession` re-runs the existing "Numbers media
-    /// is Slide-only" guard in `restoreFromUserDefaults()`, which resets `mediaSourceType`
-    /// away from `.numbers` for a `.timeTrial` session — correct production behavior (that
-    /// combination can never be reached via the real UI), but it trips the tile-restore
-    /// guard chain for a session deliberately using `.numbers` to stay synchronous in tests.
+    /// exercised here — this session deliberately uses `.numbers` to stay synchronous in
+    /// tests, and a second `GameSession` restoring from the same defaults would need its own
+    /// board/persistence setup unrelated to what this test is checking.
     @Test func ladderProgressIsPersistedToUserDefaults() async {
         let defaults = InMemoryPersistenceStore()
         let session = GameSession(

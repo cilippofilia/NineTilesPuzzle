@@ -34,7 +34,7 @@ final class GameSession {
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
 
-    var gridSize: Int = 3
+    var gridSize: Int = 4
     var useRandomSize: Bool = false
     var mediaSourceType: MediaSourceType = .numbers
     var tiles: [TileModel] = []
@@ -1179,7 +1179,6 @@ extension GameSession {
 
     func setMediaSourceType(_ type: MediaSourceType) {
         guard type != mediaSourceType else { return }
-        guard type != .numbers || selectedGameMode == .slide else { return }
         mediaSourceType = type
         defaults.set(type.rawValue, forKey: Keys.mediaSourceType)
     }
@@ -1201,16 +1200,11 @@ extension GameSession {
         guard mode.isAvailable, mode != selectedGameMode else { return }
         selectedGameMode = mode
         defaults.set(mode.rawValue, forKey: Keys.gameMode)
-
-        // Numbers media mode is Slide-only for now; fall back if it's no longer valid.
-        if mediaSourceType == .numbers && mode != .slide {
-            setMediaSourceType(.random)
-        }
     }
 
     func resetConfiguration() {
-        setGridSize(3)
-        setMediaSourceType(.random)
+        setGridSize(4)
+        setMediaSourceType(.numbers)
         useRandomSize = false
         defaults.set(false, forKey: Keys.useRandomSize)
     }
@@ -1290,10 +1284,6 @@ private extension GameSession {
         if let rawSource = defaults.string(forKey: Keys.mediaSourceType),
            let savedSource = MediaSourceType(rawValue: rawSource) {
             mediaSourceType = savedSource
-        }
-        // Numbers media mode is Slide-only for now.
-        if mediaSourceType == .numbers && selectedGameMode != .slide {
-            mediaSourceType = .random
         }
 
         guard
