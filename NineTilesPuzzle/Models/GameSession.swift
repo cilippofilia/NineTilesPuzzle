@@ -34,7 +34,7 @@ final class GameSession {
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
 
-    var gridSize: Int = 3
+    var gridSize: Int = 4
     var useRandomSize: Bool = false
     var mediaSourceType: MediaSourceType = .numbers
     var tiles: [TileModel] = []
@@ -1209,8 +1209,8 @@ extension GameSession {
     }
 
     func resetConfiguration() {
-        setGridSize(3)
-        setMediaSourceType(.random)
+        setGridSize(4)
+        setMediaSourceType(.numbers)
         useRandomSize = false
         defaults.set(false, forKey: Keys.useRandomSize)
     }
