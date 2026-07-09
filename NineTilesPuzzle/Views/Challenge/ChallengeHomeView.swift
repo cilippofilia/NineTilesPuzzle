@@ -73,13 +73,15 @@ struct ChallengeHomeView: View {
                             Text("See All \(challengeStore.records.count) Challenges")
                         }
                     }
+                }
+            }
 
-
-                    Section {
-                        Button("Clear History", role: .destructive) {
-                            showClearHistoryAlert = true
-                        }
+            Section {
+                if challengeStore.records.isEmpty {
+                    Button("Clear History", systemImage: "trash", role: .destructive) {
+                        showClearHistoryAlert = true
                     }
+                    .foregroundStyle(.red)
                 }
             }
         }
@@ -123,6 +125,8 @@ struct ChallengeHomeView: View {
 }
 
 struct ChallengeHistoryRow: View {
+    @Environment(ChallengeStore.self) private var challengeStore
+
     let record: ChallengeRecord
 
     private var directionIcon: String {
@@ -131,6 +135,12 @@ struct ChallengeHistoryRow: View {
 
     private var directionTint: Color {
         record.direction == .sent ? .blue : .purple
+    }
+
+    private var opponentLabel: String {
+        record.direction == .sent
+            ? "To \(record.opponentName)"
+            : "From \(record.opponentName)"
     }
 
     private var outcomeLabel: String {
@@ -153,14 +163,10 @@ struct ChallengeHistoryRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: directionIcon)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(directionTint)
-                .frame(width: 36, height: 36)
-                .background(directionTint.opacity(0.15), in: .circle)
+            thumbnail
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(record.opponentName)
+                Text(opponentLabel)
                     .font(.body.weight(.medium))
                 Text("\(record.gameMode.title) · \(record.gridSize)×\(record.gridSize)")
                     .font(.caption)
@@ -183,6 +189,31 @@ struct ChallengeHistoryRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    /// The challenge's puzzle image at row scale, with a small direction badge overlaid so
+    /// sent vs. received stays legible even once the thumbnail has loaded in.
+    private var thumbnail: some View {
+        ZStack {
+            if let image = challengeStore.image(for: record.id) {
+                Image(decorative: image, scale: 1)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                directionTint.opacity(0.15)
+            }
+        }
+        .frame(width: 44, height: 44)
+        .clipShape(.rect(cornerRadius: 10))
+        .overlay(alignment: .bottomTrailing) {
+            Image(systemName: directionIcon)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 18, height: 18)
+                .background(directionTint, in: .circle)
+                .overlay(Circle().strokeBorder(.background, lineWidth: 1.5))
+                .offset(x: 4, y: 4)
+        }
     }
 }
 

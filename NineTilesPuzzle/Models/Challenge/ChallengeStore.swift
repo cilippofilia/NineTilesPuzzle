@@ -150,6 +150,12 @@ final class ChallengeStore {
         )
     }
 
+    /// Longest edge of a history row's thumbnail (44pt) at the maximum screen scale —
+    /// mirrors `WallOfFameStore.thumbnailMaxPixelSize`. History can hold up to `historyCap`
+    /// records, so decoding every row at full camera resolution would keep far more texture
+    /// memory alive than a scrolling list ever needs.
+    private static let thumbnailMaxPixelSize = 44 * 3
+
     /// The challenge's image, decoded off the main actor and cached for the session —
     /// mirrors `WallOfFameStore.cardImage(for:)`. Returns `nil` while a decode is in flight;
     /// `revision` bumps to re-invalidate callers once it lands.
@@ -160,8 +166,13 @@ final class ChallengeStore {
         pendingDecodes.insert(id)
         let url = fileURL(for: id)
         Task.detached(priority: .userInitiated) {
+            let options: [CFString: Any] = await [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: Self.thumbnailMaxPixelSize
+            ]
             let image = CGImageSourceCreateWithURL(url as CFURL, nil).flatMap {
-                CGImageSourceCreateImageAtIndex($0, 0, nil)
+                CGImageSourceCreateThumbnailAtIndex($0, 0, options as CFDictionary)
             }
             await self.finishImageDecode(for: id, image: image)
         }
