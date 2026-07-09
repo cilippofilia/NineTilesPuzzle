@@ -195,6 +195,17 @@ final class ChallengeStore {
         persistRecords()
     }
 
+    /// Removes every history record and its cached image, restoring an empty history state.
+    func clearAll() {
+        for record in records {
+            try? FileManager.default.removeItem(at: fileURL(for: record.id))
+        }
+        records = []
+        imageCache = [:]
+        pendingDecodes = []
+        persistRecords()
+    }
+
     private func pruneHistoryIfNeeded() {
         guard records.count > Self.historyCap else { return }
         for stale in records.suffix(from: Self.historyCap) {

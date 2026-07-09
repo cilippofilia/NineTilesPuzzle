@@ -17,6 +17,7 @@ enum GameRoute: Hashable {
     case mediaPicker
     case dailyCalendar
     case challengeHome
+    case challengeHistory
 }
 
 struct MenuView: View {
@@ -33,274 +34,281 @@ struct MenuView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            VStack {
-                Spacer()
+            ScrollView {
+                VStack {
+                    Spacer()
 
-                BrandMarkView()
-                    .padding()
-
-                DailyChallengeCardView(
-                    onPlay: {
-                        session.enterDailyMode()
-                        session.tiles = []
-                        session.isLoading = true
-                        path.append(.game)
-                    },
-                    onShowCalendar: {
-                        path.append(.dailyCalendar)
-                    }
-                )
-                .padding([.horizontal, .bottom])
-
-                VStack(spacing: 0) {
-                    if session.selectedGameMode != .zen {
-                        MenuStatsCardView()
-                            .frame(height: 55)
-
-                        Divider()
-                    }
-
-                    Button {
-                        path.append(.gameModes)
-                    } label: {
-                        HStack {
-                            Label("Game Mode", systemImage: "gamecontroller")
-                            Spacer()
-                            Text(session.selectedGameMode.title)
-                                .foregroundStyle(.secondary)
-                            Image(systemName: "chevron.forward")
-                                .imageScale(.small)
-                                .foregroundStyle(.secondary)
-                        }
+                    BrandMarkView()
                         .padding()
-                        .contentShape(.rect)
-                    }
-                    .foregroundStyle(.primary)
 
-                    Divider()
-
-                    Button {
-                        path.append(.mediaPicker)
-                    } label: {
-                        HStack {
-                            Label("Media", systemImage: "photo.tv")
-                            Spacer()
-                            Text(session.mediaSourceType.label)
-                                .foregroundStyle(.secondary)
-                            Image(systemName: "chevron.forward")
-                                .imageScale(.small)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .contentShape(.rect)
-                    }
-                    .foregroundStyle(.primary)
-
-                    Divider()
-
-                    Button {
-                        guard !session.isGauntletLadderMode else { return }
-                        path.append(.gridSizePicker)
-                    } label: {
-                        HStack {
-                            Label("Grid Size", systemImage: "square.grid.3x3.square")
-                            Spacer()
-                            Text(session.isGauntletLadderMode
-                                 ? "Stage \(session.currentLadderStage) of \(GauntletLadderRules.stageCount)"
-                                 : session.difficultyDisplayValue)
-                                .foregroundStyle(.secondary)
-                            if !session.isGauntletLadderMode {
-                                Image(systemName: "chevron.forward")
-                                    .imageScale(.small)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding()
-                        .contentShape(.rect)
-                    }
-                    .foregroundStyle(session.isGauntletLadderMode ? .secondary : .primary)
-                    .disabled(session.isGauntletLadderMode)
-
-                    Divider()
-
-                    Button {
-                        path.append(.achievements)
-                    } label: {
-                        HStack {
-                            Label("Achievements", systemImage: "trophy.fill")
-                            Spacer()
-                            Text("\(achievementsStore.unlockedCount)/\(achievementsStore.achievements.count)")
-                                .foregroundStyle(.secondary)
-                            Image(systemName: "chevron.forward")
-                                .imageScale(.small)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .contentShape(.rect)
-                    }
-                    .foregroundStyle(.primary)
-
-                    Divider()
-
-                    Button {
-                        path.append(.wallOfFame)
-                    } label: {
-                        HStack {
-                            Label("Wall of Fame", systemImage: "photo.artframe")
-                            Spacer()
-                            Image(systemName: "chevron.forward")
-                                .imageScale(.small)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .contentShape(.rect)
-                    }
-                    .foregroundStyle(.primary)
-
-                    Divider()
-
-                    Button {
-                        path.append(.challengeHome)
-                    } label: {
-                        HStack {
-                            Label("Challenge Friends", systemImage: "person.2.fill")
-                            Spacer()
-                            Image(systemName: "chevron.forward")
-                                .imageScale(.small)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .contentShape(.rect)
-                    }
-                    .foregroundStyle(.primary)
-                }
-                .background(.quaternary, in: .rect(cornerRadius: 20))
-                .padding(.horizontal)
-
-                Button {
-                    // Quick Snap needs the camera capture step before there's an image to
-                    // play with, so it opens the capture sheet instead of pushing the puzzle.
-                    if session.mediaSourceType == .camera {
-                        showQuickSnapCamera = true
-                    } else {
-                        session.tiles = []
-                        session.isLoading = true
-                        path.append(.game)
-                    }
-                } label: {
-                    Label("Play", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding()
-                        .contentShape(.rect(cornerRadius: 20))
-                }
-                .foregroundStyle(.white)
-                .background(.blue, in: .rect(cornerRadius: 20))
-                .padding()
-
-                Spacer()
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-            }
-            .fullScreenCover(isPresented: $showQuickSnapCamera) {
-                QuickSnapCameraView(
-                    shotDuration: session.currentQuickSnapDuration,
-                    onCapture: { image in
-                        showQuickSnapCamera = false
-                        session.enterQuickSnapMode(with: image)
-                        session.tiles = []
-                        session.isLoading = true
-                        path.append(.game)
-                    },
-                    onCancel: { showQuickSnapCamera = false }
-                )
-            }
-            .fullScreenCover(item: $incomingChallenge) { challenge in
-                ChallengeInviteView(
-                    challenge: challenge,
-                    onAccept: {
-                        let challenge = incomingChallenge
-                        incomingChallenge = nil
-                        guard let challenge else { return }
-                        if path.last == .game { path.removeLast() }
-                        session.enterChallengeMode(with: challenge)
-                        session.tiles = []
-                        session.isLoading = true
-                        path.append(.game)
-                    },
-                    onDecline: { incomingChallenge = nil }
-                )
-            }
-            .navigationDestination(for: GameRoute.self) { route in
-                switch route {
-                case .game:
-                    PuzzleView()
-                case .gridSizePicker:
-                    GridSizePickerView()
-                case .achievements:
-                    AchievementsView()
-                case .wallOfFame:
-                    WallOfFameView()
-                case .gameModes:
-                    GameModeView()
-                case .mediaPicker:
-                    MediaSourcePickerView()
-                case .dailyCalendar:
-                    DailyChallengeCalendarView { day in
-                        session.enterDailyMode(for: day)
-                        session.tiles = []
-                        session.isLoading = true
-                        path.append(.game)
-                    }
-                case .challengeHome:
-                    ChallengeHomeView(
+                    DailyChallengeCardView(
                         onPlay: {
+                            session.enterDailyMode()
                             session.tiles = []
                             session.isLoading = true
                             path.append(.game)
                         },
-                        onAcceptChallenge: { challenge in
-                            session.enterChallengeMode(with: challenge)
+                        onShowCalendar: {
+                            path.append(.dailyCalendar)
+                        }
+                    )
+                    .padding([.horizontal, .bottom])
+
+                    VStack(spacing: 0) {
+                        if session.selectedGameMode != .zen {
+                            MenuStatsCardView()
+                                .frame(height: 55)
+
+                            Divider()
+                        }
+
+                        Button {
+                            path.append(.gameModes)
+                        } label: {
+                            HStack {
+                                Label("Game Mode", systemImage: "gamecontroller")
+                                Spacer()
+                                Text(session.selectedGameMode.title)
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "chevron.forward")
+                                    .imageScale(.small)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                            .contentShape(.rect)
+                        }
+                        .foregroundStyle(.primary)
+
+                        Divider()
+
+                        Button {
+                            path.append(.mediaPicker)
+                        } label: {
+                            HStack {
+                                Label("Media", systemImage: "photo.tv")
+                                Spacer()
+                                Text(session.mediaSourceType.label)
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "chevron.forward")
+                                    .imageScale(.small)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                            .contentShape(.rect)
+                        }
+                        .foregroundStyle(.primary)
+
+                        Divider()
+
+                        Button {
+                            guard !session.isGauntletLadderMode else { return }
+                            path.append(.gridSizePicker)
+                        } label: {
+                            HStack {
+                                Label("Grid Size", systemImage: "square.grid.3x3.square")
+                                Spacer()
+                                Text(session.isGauntletLadderMode
+                                     ? "Stage \(session.currentLadderStage) of \(GauntletLadderRules.stageCount)"
+                                     : session.difficultyDisplayValue)
+                                .foregroundStyle(.secondary)
+                                if !session.isGauntletLadderMode {
+                                    Image(systemName: "chevron.forward")
+                                        .imageScale(.small)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding()
+                            .contentShape(.rect)
+                        }
+                        .foregroundStyle(session.isGauntletLadderMode ? .secondary : .primary)
+                        .disabled(session.isGauntletLadderMode)
+
+                        Divider()
+
+                        Button {
+                            path.append(.achievements)
+                        } label: {
+                            HStack {
+                                Label("Achievements", systemImage: "trophy.fill")
+                                Spacer()
+                                Text("\(achievementsStore.unlockedCount)/\(achievementsStore.achievements.count)")
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "chevron.forward")
+                                    .imageScale(.small)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                            .contentShape(.rect)
+                        }
+                        .foregroundStyle(.primary)
+
+                        Divider()
+
+                        Button {
+                            path.append(.wallOfFame)
+                        } label: {
+                            HStack {
+                                Label("Wall of Fame", systemImage: "photo.artframe")
+                                Spacer()
+                                Image(systemName: "chevron.forward")
+                                    .imageScale(.small)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                            .contentShape(.rect)
+                        }
+                        .foregroundStyle(.primary)
+
+                        Divider()
+
+                        Button {
+                            path.append(.challengeHome)
+                        } label: {
+                            HStack {
+                                Label("Challenge Nearby Friends", systemImage: "person.2.fill")
+                                Spacer()
+                                Image(systemName: "chevron.forward")
+                                    .imageScale(.small)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                            .contentShape(.rect)
+                        }
+                        .foregroundStyle(.primary)
+                    }
+                    .background(.quaternary, in: .rect(cornerRadius: 20))
+                    .padding(.horizontal)
+
+                    Button {
+                        // Quick Snap needs the camera capture step before there's an image to
+                        // play with, so it opens the capture sheet instead of pushing the puzzle.
+                        if session.mediaSourceType == .camera {
+                            showQuickSnapCamera = true
+                        } else {
                             session.tiles = []
                             session.isLoading = true
                             path.append(.game)
                         }
+                    } label: {
+                        Label("Play", systemImage: "play.fill")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                            .contentShape(.rect(cornerRadius: 20))
+                    }
+                    .foregroundStyle(.white)
+                    .background(.blue, in: .rect(cornerRadius: 20))
+                    .padding()
+
+                    Spacer()
+                }
+                .sheet(isPresented: $showSettings) {
+                    SettingsView()
+                }
+                .fullScreenCover(isPresented: $showQuickSnapCamera) {
+                    QuickSnapCameraView(
+                        shotDuration: session.currentQuickSnapDuration,
+                        onCapture: { image in
+                            showQuickSnapCamera = false
+                            session.enterQuickSnapMode(with: image)
+                            session.tiles = []
+                            session.isLoading = true
+                            path.append(.game)
+                        },
+                        onCancel: { showQuickSnapCamera = false }
                     )
                 }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Settings", systemImage: "gearshape.fill") {
-                        showSettings = true
+                .fullScreenCover(item: $incomingChallenge) { challenge in
+                    ChallengeInviteView(
+                        challenge: challenge,
+                        onAccept: {
+                            let challenge = incomingChallenge
+                            incomingChallenge = nil
+                            guard let challenge else { return }
+                            if path.last == .game { path.removeLast() }
+                            session.enterChallengeMode(with: challenge)
+                            session.tiles = []
+                            session.isLoading = true
+                            path.append(.game)
+                        },
+                        onDecline: { incomingChallenge = nil }
+                    )
+                }
+                .navigationDestination(for: GameRoute.self) { route in
+                    switch route {
+                    case .game:
+                        PuzzleView()
+                    case .gridSizePicker:
+                        GridSizePickerView()
+                    case .achievements:
+                        AchievementsView()
+                    case .wallOfFame:
+                        WallOfFameView()
+                    case .gameModes:
+                        GameModeView()
+                    case .mediaPicker:
+                        MediaSourcePickerView()
+                    case .dailyCalendar:
+                        DailyChallengeCalendarView { day in
+                            session.enterDailyMode(for: day)
+                            session.tiles = []
+                            session.isLoading = true
+                            path.append(.game)
+                        }
+                    case .challengeHome:
+                        ChallengeHomeView(
+                            onAcceptChallenge: { challenge in
+                                session.enterChallengeMode(with: challenge)
+                                session.tiles = []
+                                session.isLoading = true
+                                path.append(.game)
+                            }
+                        )
+                    case .challengeHistory:
+                        ChallengeHistoryListView(
+                            onAcceptChallenge: { challenge in
+                                session.enterChallengeMode(with: challenge)
+                                session.tiles = []
+                                session.isLoading = true
+                                path.append(.game)
+                            }
+                        )
                     }
-                    .labelStyle(.iconOnly)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Tips", systemImage: "lightbulb.max") {
-                        showTipsAlert = true
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Settings", systemImage: "gearshape.fill") {
+                            showSettings = true
+                        }
+                        .labelStyle(.iconOnly)
                     }
-                    .labelStyle(.iconOnly)
-                }
-            }
-            .alert("Quick Tip", isPresented: $showTipsAlert) {
-                Button("Open Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        openURL(url)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Tips", systemImage: "lightbulb.max") {
+                            showTipsAlert = true
+                        }
+                        .labelStyle(.iconOnly)
                     }
                 }
-                Button("Got It", role: .cancel) { }
-            } message: {
-                Text("For a curated experience with your own photos, create a dedicated album in the Photos app with only the images you'd like to use as puzzles, then grant Nine Tiles access to that album only.")
-            }
-            .onOpenURL { url in
-                if url.isFileURL, let challenge = ChallengeFileCoder.decode(fileAt: url) {
-                    challengeStore.registerReceived(challenge, transport: .file)
-                    incomingChallenge = challenge
-                    return
+                .alert("Quick Tip", isPresented: $showTipsAlert) {
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            openURL(url)
+                        }
+                    }
+                    Button("Got It", role: .cancel) { }
+                } message: {
+                    Text("For a curated experience with your own photos, create a dedicated album in the Photos app with only the images you'd like to use as puzzles, then grant Nine Tiles access to that album only.")
                 }
-                guard let link = DeepLink(url: url) else { return }
-                handleDeepLink(link)
+                .onOpenURL { url in
+                    if url.isFileURL, let challenge = ChallengeFileCoder.decode(fileAt: url) {
+                        challengeStore.registerReceived(challenge, transport: .file)
+                        incomingChallenge = challenge
+                        return
+                    }
+                    guard let link = DeepLink(url: url) else { return }
+                    handleDeepLink(link)
+                }
             }
+            .scrollBounceBehavior(.basedOnSize)
         }
     }
 

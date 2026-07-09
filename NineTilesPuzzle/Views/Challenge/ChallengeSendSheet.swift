@@ -69,8 +69,12 @@ struct ChallengeSendSheet: View {
                         ) {
                             Label("Share Challenge", systemImage: "square.and.arrow.up")
                         }
+                        .simultaneousGesture(TapGesture().onEnded {
+                            registerSentIfNeeded(challenge, transport: .file)
+                        })
 
                         Button {
+                            registerSentIfNeeded(challenge, transport: .nearby)
                             showNearby = true
                         } label: {
                             Label("Send to Nearby Friend", systemImage: "wifi")
@@ -116,17 +120,19 @@ struct ChallengeSendSheet: View {
             parentChallengeID: parentChallengeID
         ) else { return }
         challenge = built
-        registerSentIfNeeded(built)
     }
 
-    private func registerSentIfNeeded(_ challenge: FriendChallenge) {
+    /// Records the history entry the moment the user actually taps a send action — not while
+    /// the challenge is merely being prepared — so the label they typed into "Friend's Name"
+    /// has had a chance to be filled in before it's read.
+    private func registerSentIfNeeded(_ challenge: FriendChallenge, transport: ChallengeRecord.Transport) {
         guard !hasSent else { return }
         hasSent = true
         let label = opponentLabel ?? {
             let trimmed = recipientInput.trimmingCharacters(in: .whitespaces)
             return trimmed.isEmpty ? "A friend" : trimmed
         }()
-        challengeStore.registerSent(challenge, opponentLabel: label, transport: .file)
+        challengeStore.registerSent(challenge, opponentLabel: label, transport: transport)
     }
 }
 

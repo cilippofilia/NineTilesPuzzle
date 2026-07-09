@@ -7,76 +7,90 @@
 
 import SwiftUI
 
-/// The dedicated Challenge Friends screen: a shortcut to start a fresh challengeable puzzle,
-/// plus history of every challenge sent or received (including unplayed invites, reopenable
-/// from here without needing the original file/link again).
+/// The dedicated Challenge Friends screen: receive a nearby challenge, plus history of every
+/// challenge sent or received (including unplayed invites, reopenable from here without
+/// needing the original file/link again). Sending a challenge happens from a game's completion
+/// screen instead, using whatever was just played.
 struct ChallengeHomeView: View {
+    /// How many recent records show inline before handing off to the full, scrollable list.
+    static let historyPreviewCount = 10
+
     @Environment(GameSession.self) private var session
     @Environment(ChallengeStore.self) private var challengeStore
     @Environment(SettingsStore.self) private var settings
 
-    @State private var selectedMode: GameMode
-    @State private var selectedGridSize: Int
     @State private var incomingChallenge: FriendChallenge?
     @State private var showNearbyReceive = false
+    @State private var showClearHistoryAlert = false
 
-    /// Starts a fresh ordinary game configured with the picker's mode/grid size — sending a
-    /// challenge happens afterward, from the completion screen, like any other finished game.
-    let onPlay: () -> Void
     /// Enters challenge mode with the reopened challenge and pushes the puzzle.
     let onAcceptChallenge: (FriendChallenge) -> Void
-
-    init(onPlay: @escaping () -> Void, onAcceptChallenge: @escaping (FriendChallenge) -> Void) {
-        self.onPlay = onPlay
-        self.onAcceptChallenge = onAcceptChallenge
-        _selectedMode = State(initialValue: ChallengeStore.eligibleGameModes.first ?? .swap)
-        _selectedGridSize = State(initialValue: 4)
-    }
 
     var body: some View {
         List {
             Section {
-                Picker("Mode", selection: $selectedMode) {
-                    ForEach(ChallengeStore.eligibleGameModes) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                Picker("Grid Size", selection: $selectedGridSize) {
-                    ForEach(3...8, id: \.self) { size in
-                        Text("\(size)×\(size)").tag(size)
-                    }
-                }
-                Button("Start Puzzle") {
-                    session.setGameMode(selectedMode)
-                    session.setGridSize(selectedGridSize)
-                    onPlay()
-                }
-            } header: {
-                Text("Start a New Challenge")
-            } footer: {
-                Text("Finish the puzzle, then send it to a friend from the completion screen.")
-            }
-
-            Section {
-                Button("Wait for a Nearby Challenge") {
+                Button {
                     showNearbyReceive = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "wifi")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.blue)
+                            .frame(width: 36, height: 36)
+                            .background(Color.blue.opacity(0.15), in: .circle)
+
+                        Text("Wait for a Nearby Challenge")
+                            .foregroundStyle(.primary)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.forward")
+                            .imageScale(.small)
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(.rect)
                 }
             } footer: {
                 Text("A friend in the same room can send you a challenge directly, no link needed.")
             }
+            .buttonStyle(.plain)
 
-            if !challengeStore.records.isEmpty {
-                Section("History") {
-                    ForEach(challengeStore.records) { record in
+            Section("History") {
+                if challengeStore.records.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Challenges Yet", systemImage: "person.2.slash")
+                    } description: {
+                        Text("Challenges you send or receive will show up here.")
+                    }
+                } else {
+                    ForEach(challengeStore.records.prefix(Self.historyPreviewCount)) { record in
                         ChallengeHistoryRow(record: record)
                             .contentShape(.rect)
                             .onTapGesture { openIfPending(record) }
+                    }
+                    if challengeStore.records.count > Self.historyPreviewCount {
+                        NavigationLink(value: GameRoute.challengeHistory) {
+                            Text("See All \(challengeStore.records.count) Challenges")
+                        }
+                    }
+
+
+                    Section {
+                        Button("Clear History", role: .destructive) {
+                            showClearHistoryAlert = true
+                        }
                     }
                 }
             }
         }
         .navigationTitle("Challenge Friends")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Clear Challenge History?", isPresented: $showClearHistoryAlert) {
+            Button("Clear", role: .destructive) { challengeStore.clearAll() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes every sent and received challenge from your history. Challenges already delivered to friends aren't affected.")
+        }
         .fullScreenCover(item: $incomingChallenge) { challenge in
             ChallengeInviteView(
                 challenge: challenge,
@@ -108,8 +122,16 @@ struct ChallengeHomeView: View {
     }
 }
 
-private struct ChallengeHistoryRow: View {
+struct ChallengeHistoryRow: View {
     let record: ChallengeRecord
+
+    private var directionIcon: String {
+        record.direction == .sent ? "paperplane.fill" : "tray.and.arrow.down.fill"
+    }
+
+    private var directionTint: Color {
+        record.direction == .sent ? .blue : .purple
+    }
 
     private var outcomeLabel: String {
         switch record.outcome {
@@ -125,19 +147,21 @@ private struct ChallengeHistoryRow: View {
         case .won: .green
         case .lost: .red
         case .tied: .orange
-        case nil: .secondary
+        case nil: record.direction == .received ? .blue : .secondary
         }
     }
 
     var body: some View {
-        HStack {
-            Image(systemName: record.direction == .sent ? "paperplane.fill" : "tray.and.arrow.down.fill")
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
+        HStack(spacing: 12) {
+            Image(systemName: directionIcon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(directionTint)
+                .frame(width: 36, height: 36)
+                .background(directionTint.opacity(0.15), in: .circle)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.opponentName)
-                    .font(.body)
+                    .font(.body.weight(.medium))
                 Text("\(record.gameMode.title) · \(record.gridSize)×\(record.gridSize)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -145,11 +169,20 @@ private struct ChallengeHistoryRow: View {
 
             Spacer()
 
-            Text(outcomeLabel)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(outcomeTint)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(outcomeLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(outcomeTint)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(outcomeTint.opacity(0.15), in: .capsule)
+
+                Text(record.createdAt, format: .relative(presentation: .named))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
     }
 }
 
@@ -162,7 +195,7 @@ private struct ChallengeHistoryRow: View {
     let challenges = ChallengeStore()
 
     NavigationStack {
-        ChallengeHomeView(onPlay: {}, onAcceptChallenge: { _ in })
+        ChallengeHomeView(onAcceptChallenge: { _ in })
             .environment(GameSession(
                 statsStore: stats, achievementsStore: achievements, settingsStore: settings,
                 dailyChallengeStore: daily, powerUpStore: powerUps, challengeStore: challenges

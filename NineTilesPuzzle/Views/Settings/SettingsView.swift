@@ -24,7 +24,6 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                #if DEBUG
                 Section {
                     Toggle("Show debug tools", isOn: Binding(
                         get: { settings.debugOverlayEnabled },
@@ -100,7 +99,6 @@ struct SettingsView: View {
                         Text("Enable Power-ups turns on the power-up system in-game — it's off by default while still being tuned. Infinite Power-ups lets every power-up be used without spending inventory. The steppers tune how long a Peek/Hint shows and how often a streak milestone earns a power-up. Refill tops every power-up back up to 3 for testing.")
                     }
                 }
-                #endif
 
                 Section("Game") {
                     NavigationLink {

@@ -56,7 +56,7 @@ final class ChallengeNearbySession {
 
     /// Cap on an incoming framed payload so a malformed/hostile length prefix can't make us
     /// try to buffer an absurd amount. A challenge is a small JSON blob with one image.
-    private static let maxPayloadBytes = 8 * 1024 * 1024
+    private nonisolated static let maxPayloadBytes = 8 * 1024 * 1024
 
     private(set) var state: State = .idle
     private(set) var receivedChallenge: FriendChallenge?
@@ -81,10 +81,12 @@ final class ChallengeNearbySession {
             let listener = try NWListener(using: Self.makeParameters())
             listener.service = NWListener.Service(name: displayName, type: Self.serviceType)
             listener.stateUpdateHandler = { [weak self] state in
-                Task { @MainActor in self?.handleListenerState(state) }
+                guard let self else { return }
+                Task { @MainActor in self.handleListenerState(state) }
             }
             listener.newConnectionHandler = { [weak self] connection in
-                Task { @MainActor in self?.adopt(connection) }
+                guard let self else { return }
+                Task { @MainActor in self.adopt(connection) }
             }
             listener.start(queue: queue)
             self.listener = listener
@@ -125,10 +127,12 @@ final class ChallengeNearbySession {
         stopAdvertising()
         let browser = NWBrowser(for: .bonjour(type: Self.serviceType, domain: nil), using: Self.makeParameters())
         browser.browseResultsChangedHandler = { [weak self] results, _ in
-            Task { @MainActor in self?.updatePeers(results) }
+            guard let self else { return }
+            Task { @MainActor in self.updatePeers(results) }
         }
         browser.stateUpdateHandler = { [weak self] state in
-            Task { @MainActor in self?.handleBrowserState(state) }
+            guard let self else { return }
+            Task { @MainActor in self.handleBrowserState(state) }
         }
         browser.start(queue: queue)
         self.browser = browser
@@ -183,10 +187,12 @@ final class ChallengeNearbySession {
     private func setup(_ connection: NWConnection, peerName: String?) {
         self.connection = connection
         connection.stateUpdateHandler = { [weak self] connectionState in
-            Task { @MainActor in self?.handleConnectionState(connectionState, peerName: peerName) }
+            guard let self else { return }
+            Task { @MainActor in self.handleConnectionState(connectionState, peerName: peerName) }
         }
         Self.receiveNextMessage(on: connection) { [weak self] result in
-            Task { @MainActor in self?.handleReceive(result) }
+            guard let self else { return }
+            Task { @MainActor in self.handleReceive(result) }
         }
         connection.start(queue: queue)
     }
@@ -245,12 +251,12 @@ final class ChallengeNearbySession {
 
     /// The framed message envelope. `hello` exchanges display names so both ends can show the
     /// peer's real name; `challenge` carries the puzzle payload.
-    private enum Wire: Codable {
+    private nonisolated enum Wire: Codable {
         case hello(name: String)
         case challenge(FriendChallenge)
     }
 
-    private enum ReceiveResult {
+    private nonisolated enum ReceiveResult {
         case message(Wire)
         case closed
         case failed(String)
