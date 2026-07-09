@@ -214,12 +214,25 @@ final class GameSession {
     private(set) var activeChallenge: FriendChallenge?
     /// Set once `registerMove()` records a challenge's completion — `nil` before solving.
     private(set) var challengeOutcome: ChallengeRecord.Outcome?
+    /// Set when this challenge arrived over a Nearby connection that's still open — kept alive
+    /// across gameplay so the moment `registerMove()` records the outcome, the result can be
+    /// sent straight back over the same connection with no manual share step. `nil` for
+    /// file-transport challenges (no live channel to reply on) or once the result has been sent.
+    private var liveNearbySession: ChallengeNearbySession?
+    /// True for the lifetime of a challenge that arrived with a live Nearby connection — unlike
+    /// `liveNearbySession` this doesn't get cleared once the result is auto-sent, so
+    /// `PuzzleView` can use it to hide the manual "Send Result Back" button for a challenge
+    /// that already got its reply sent automatically.
+    private(set) var challengeArrivedLive = false
 
     /// Marks this session as a Challenge Friends game using the received `challenge`. Must be
     /// called before navigating to `PuzzleView` — `startNewGame()` checks `isChallengeGameActive`
     /// to decode the embedded image and apply the challenge's seeded shuffle instead of the
     /// regular source/engine path. Mirrors `enterQuickSnapMode(with:)`.
-    func enterChallengeMode(with challenge: FriendChallenge) {
+    ///
+    /// `nearbySession` is passed only when the challenge just arrived live over Nearby (the
+    /// connection is still open) — see `liveNearbySession`.
+    func enterChallengeMode(with challenge: FriendChallenge, nearbySession: ChallengeNearbySession? = nil) {
         preChallengeGameMode = selectedGameMode
         selectedGameMode = challenge.gameMode
         gridSize = challenge.gridSize
@@ -227,6 +240,8 @@ final class GameSession {
         isLadderMode = false
         activeChallenge = challenge
         challengeOutcome = nil
+        liveNearbySession = nearbySession
+        challengeArrivedLive = nearbySession != nil
         isChallengeGameActive = true
     }
 
@@ -925,6 +940,22 @@ final class GameSession {
                     challengeOutcome = challengeStore.recordCompletion(
                         challengeID: challenge.id, moves: currentMoveCount, time: elapsedTime
                     )
+                    // The challenge arrived live over Nearby and that connection is still
+                    // open — send the result straight back with no manual share step. A
+                    // file-transport challenge has no `liveNearbySession` and always falls
+                    // back to the manual "Send Result Back" sheet. Left open rather than
+                    // disconnected here — `leaveGame()` tears it down once the player actually
+                    // navigates away, giving the send time to flush over the socket instead of
+                    // racing a cancel against it.
+                    if let nearbySession = liveNearbySession {
+                        let responderName = settingsStore.senderDisplayName.isEmpty
+                            ? "A Player" : settingsStore.senderDisplayName
+                        let result = ChallengeResult(
+                            challengeID: challenge.id, responderName: responderName,
+                            moves: currentMoveCount, time: elapsedTime
+                        )
+                        try? nearbySession.send(result)
+                    }
                 }
             } else if isZenMode {
                 statsStore.recordGamePlayed(for: key)
@@ -1153,6 +1184,11 @@ final class GameSession {
         isChallengeGameActive = false
         activeChallenge = nil
         challengeOutcome = nil
+        // Quitting before solving means no result was ever sent back — drop the connection
+        // rather than leave it dangling.
+        liveNearbySession?.disconnect()
+        liveNearbySession = nil
+        challengeArrivedLive = false
         stopCountdown()
         stopTimeTrialCountdown()
         stopStopwatch()

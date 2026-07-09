@@ -119,6 +119,32 @@ final class ChallengeStore {
         return outcome
     }
 
+    /// Fills in the original sender's `.sent` record once the recipient plays it and sends a
+    /// `ChallengeResult` back — the other half of the round trip `recordCompletion` starts.
+    /// Idempotent: a record that already has an outcome is left untouched (a duplicate or
+    /// re-delivered result shouldn't overwrite an already-recorded one), returning it as-is.
+    /// Returns `nil` if no matching `.sent` record exists (e.g. history was cleared).
+    @discardableResult
+    func recordOpponentResult(_ result: ChallengeResult) -> ChallengeRecord? {
+        guard let index = records.firstIndex(where: { $0.id == result.challengeID && $0.direction == .sent }) else {
+            return nil
+        }
+        guard records[index].outcome == nil else { return records[index] }
+        let outcome = Self.determineOutcome(
+            yourMoves: records[index].creatorMoves,
+            yourTime: records[index].creatorTime,
+            creatorMoves: result.moves,
+            creatorTime: result.time
+        )
+        records[index].opponentName = result.responderName
+        records[index].opponentMoves = result.moves
+        records[index].opponentTime = result.time
+        records[index].outcome = outcome
+        records[index].playedAt = .now
+        persistRecords()
+        return records[index]
+    }
+
     /// Fewer moves wins; ties on moves are broken by time; a full tie is `.tied`.
     static func determineOutcome(
         yourMoves: Int, yourTime: TimeInterval, creatorMoves: Int, creatorTime: TimeInterval

@@ -94,7 +94,9 @@ struct ChallengeSendSheet: View {
                     NearbyChallengeView(
                         mode: .send(challenge),
                         senderName: challenge.senderName,
-                        onChallengeReceived: { _ in }
+                        onResultReceived: { result in
+                            challengeStore.recordOpponentResult(result)
+                        }
                     )
                 }
             }

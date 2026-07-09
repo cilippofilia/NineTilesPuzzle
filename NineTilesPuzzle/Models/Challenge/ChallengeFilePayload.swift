@@ -14,6 +14,14 @@ extension UTType {
     }
 }
 
+/// The envelope every `.ntpchallenge` file (and nearby result reply) actually carries: either a
+/// fresh invite or the reply to one already played. One shared file type keeps both directions
+/// openable through the same document-type registration and `.onOpenURL` handler.
+nonisolated enum ChallengePayload: Codable, Sendable {
+    case invite(FriendChallenge)
+    case result(ChallengeResult)
+}
+
 /// Wraps a `FriendChallenge` as a document `ShareLink` can export — unlike
 /// `SolvedPuzzleImage`'s `DataRepresentation`, this uses `FileRepresentation` so the share
 /// sheet treats it as a `.ntpchallenge` file (works through Messages, Mail, AirDrop, Files),
@@ -23,7 +31,7 @@ struct ChallengeFilePayload: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(exportedContentType: .ninetilesChallenge) { payload in
-            let data = try JSONEncoder().encode(payload.challenge)
+            let data = try JSONEncoder().encode(ChallengePayload.invite(payload.challenge))
             let url = FileManager.default.temporaryDirectory
                 .appending(path: payload.challenge.senderName)
                 .appendingPathExtension(for: .ninetilesChallenge)
@@ -33,18 +41,37 @@ struct ChallengeFilePayload: Transferable {
     }
 }
 
-/// Decodes a `FriendChallenge` from a `.ntpchallenge` file on disk — the counterpart to
-/// `ChallengeFilePayload`'s export, used when the app is opened via a received file
-/// (Messages attachment tap, AirDrop accept, Files "Open in Nine Tiles Puzzle").
+/// Wraps a `ChallengeResult` reply as a document `ShareLink` can export — the counterpart to
+/// `ChallengeFilePayload`, sent back once a received challenge has been played.
+struct ChallengeResultFilePayload: Transferable {
+    let result: ChallengeResult
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .ninetilesChallenge) { payload in
+            let data = try JSONEncoder().encode(ChallengePayload.result(payload.result))
+            let url = FileManager.default.temporaryDirectory
+                .appending(path: "Result-\(payload.result.responderName)")
+                .appendingPathExtension(for: .ninetilesChallenge)
+            try data.write(to: url, options: .atomic)
+            return SentTransferredFile(url)
+        }
+    }
+}
+
+/// Decodes a `ChallengePayload` from a `.ntpchallenge` file on disk — the counterpart to
+/// `ChallengeFilePayload`/`ChallengeResultFilePayload`'s export, used when the app is opened via
+/// a received file (Messages attachment tap, AirDrop accept, Files "Open in Nine Tiles Puzzle").
 enum ChallengeFileCoder {
-    static func decode(fileAt url: URL) -> FriendChallenge? {
+    static func decode(fileAt url: URL) -> ChallengePayload? {
         let didStartAccessing = url.startAccessingSecurityScopedResource()
         defer { if didStartAccessing { url.stopAccessingSecurityScopedResource() } }
 
         guard let data = try? Data(contentsOf: url),
-              let challenge = try? JSONDecoder().decode(FriendChallenge.self, from: data),
-              challenge.formatVersion <= FriendChallenge.currentFormatVersion
+              let payload = try? JSONDecoder().decode(ChallengePayload.self, from: data)
         else { return nil }
-        return challenge
+        if case .invite(let challenge) = payload, challenge.formatVersion > FriendChallenge.currentFormatVersion {
+            return nil
+        }
+        return payload
     }
 }

@@ -31,6 +31,10 @@ struct MenuView: View {
     @State private var showTipsAlert = false
     @State private var showQuickSnapCamera = false
     @State private var incomingChallenge: FriendChallenge?
+    /// Set when a `ChallengeResult` reply arrives (file open or nearby receipt) for a challenge
+    /// this device originally sent — drives a one-shot alert since there's no invite to accept,
+    /// just history to update. `nil` outcome means no matching `.sent` record was found.
+    @State private var receivedResultRecord: ChallengeRecord?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -256,8 +260,8 @@ struct MenuView: View {
                         }
                     case .challengeHome:
                         ChallengeHomeView(
-                            onAcceptChallenge: { challenge in
-                                session.enterChallengeMode(with: challenge)
+                            onAcceptChallenge: { challenge, nearbySession in
+                                session.enterChallengeMode(with: challenge, nearbySession: nearbySession)
                                 session.tiles = []
                                 session.isLoading = true
                                 path.append(.game)
@@ -299,13 +303,29 @@ struct MenuView: View {
                     Text("For a curated experience with your own photos, create a dedicated album in the Photos app with only the images you'd like to use as puzzles, then grant Nine Tiles access to that album only.")
                 }
                 .onOpenURL { url in
-                    if url.isFileURL, let challenge = ChallengeFileCoder.decode(fileAt: url) {
-                        challengeStore.registerReceived(challenge, transport: .file)
-                        incomingChallenge = challenge
+                    if url.isFileURL, let payload = ChallengeFileCoder.decode(fileAt: url) {
+                        switch payload {
+                        case .invite(let challenge):
+                            challengeStore.registerReceived(challenge, transport: .file)
+                            incomingChallenge = challenge
+                        case .result(let result):
+                            receivedResultRecord = challengeStore.recordOpponentResult(result)
+                        }
                         return
                     }
                     guard let link = DeepLink(url: url) else { return }
                     handleDeepLink(link)
+                }
+                .alert(
+                    resultAlertTitle,
+                    isPresented: Binding(
+                        get: { receivedResultRecord != nil },
+                        set: { if !$0 { receivedResultRecord = nil } }
+                    )
+                ) {
+                    Button("OK") { receivedResultRecord = nil }
+                } message: {
+                    Text(resultAlertMessage)
                 }
             }
             .scrollBounceBehavior(.basedOnSize)
@@ -372,6 +392,9 @@ struct MenuView: View {
             }
         }
     }
+
+    private var resultAlertTitle: String { receivedResultRecord?.resultAlertTitle ?? "" }
+    private var resultAlertMessage: String { receivedResultRecord?.resultAlertMessage ?? "" }
 }
 
 #Preview {

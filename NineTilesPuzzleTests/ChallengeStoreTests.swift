@@ -138,6 +138,55 @@ struct ChallengeStoreTests {
         #expect(store.recordCompletion(challengeID: challenge.id, moves: 1, time: 1) == nil)
     }
 
+    // MARK: - recordOpponentResult
+
+    @Test func recordOpponentResultFillsOutcomeAndUpgradesOpponentName() {
+        let store = ChallengeStore(defaults: InMemoryPersistenceStore())
+        let challenge = makeChallenge(senderMoves: 20, senderTime: 50)
+        store.registerSent(challenge, opponentLabel: "A friend", transport: .nearby)
+
+        let result = ChallengeResult(challengeID: challenge.id, responderName: "Alex", moves: 30, time: 40)
+        let record = store.recordOpponentResult(result)
+
+        #expect(record?.outcome == .won)
+        #expect(record?.opponentName == "Alex")
+        #expect(record?.opponentMoves == 30)
+        #expect(record?.opponentTime == 40)
+        #expect(record?.playedAt != nil)
+        #expect(store.records[0].outcome == .won)
+    }
+
+    @Test func recordOpponentResultReturnsNilForUnknownChallengeID() {
+        let store = ChallengeStore(defaults: InMemoryPersistenceStore())
+        let result = ChallengeResult(challengeID: UUID(), responderName: "Alex", moves: 1, time: 1)
+        #expect(store.recordOpponentResult(result) == nil)
+    }
+
+    @Test func recordOpponentResultNeverAppliesToAReceivedRecord() {
+        let store = ChallengeStore(defaults: InMemoryPersistenceStore())
+        let challenge = makeChallenge()
+        store.registerReceived(challenge, transport: .nearby)
+
+        let result = ChallengeResult(challengeID: challenge.id, responderName: "Alex", moves: 1, time: 1)
+        #expect(store.recordOpponentResult(result) == nil)
+    }
+
+    @Test func recordOpponentResultIsIdempotentOnceAlreadyPlayed() {
+        let store = ChallengeStore(defaults: InMemoryPersistenceStore())
+        let challenge = makeChallenge(senderMoves: 20, senderTime: 50)
+        store.registerSent(challenge, opponentLabel: "A friend", transport: .nearby)
+
+        let first = ChallengeResult(challengeID: challenge.id, responderName: "Alex", moves: 30, time: 40)
+        store.recordOpponentResult(first)
+
+        let duplicate = ChallengeResult(challengeID: challenge.id, responderName: "Someone Else", moves: 5, time: 5)
+        let record = store.recordOpponentResult(duplicate)
+
+        #expect(record?.opponentName == "Alex")
+        #expect(record?.opponentMoves == 30)
+        #expect(record?.outcome == .won)
+    }
+
     // MARK: - pendingChallenge reconstruction
 
     @Test func pendingChallengeReconstructsAnUnplayedReceivedRecord() {

@@ -20,11 +20,20 @@ struct ChallengeHomeView: View {
     @Environment(SettingsStore.self) private var settings
 
     @State private var incomingChallenge: FriendChallenge?
+    /// The still-open connection the current `incomingChallenge` arrived over, if it came in
+    /// live via Nearby rather than as a file or a reopened history entry — handed to
+    /// `GameSession.enterChallengeMode(with:nearbySession:)` on accept so the result can be
+    /// sent back automatically once the puzzle is solved.
+    @State private var incomingNearbySession: ChallengeNearbySession?
     @State private var showNearbyReceive = false
     @State private var showClearHistoryAlert = false
+    /// Set when a `ChallengeResult` reply arrives over Nearby for a challenge this device
+    /// originally sent — mirrors `MenuView`'s file-transport handling of the same event.
+    @State private var receivedResultRecord: ChallengeRecord?
 
-    /// Enters challenge mode with the reopened challenge and pushes the puzzle.
-    let onAcceptChallenge: (FriendChallenge) -> Void
+    /// Enters challenge mode with the reopened challenge and pushes the puzzle. `nearbySession`
+    /// is non-nil only when the challenge just arrived live over Nearby.
+    let onAcceptChallenge: (FriendChallenge, ChallengeNearbySession?) -> Void
 
     var body: some View {
         List {
@@ -77,7 +86,7 @@ struct ChallengeHomeView: View {
             }
 
             Section {
-                if challengeStore.records.isEmpty {
+                if !challengeStore.records.isEmpty {
                     Button("Clear History", systemImage: "trash", role: .destructive) {
                         showClearHistoryAlert = true
                     }
@@ -98,21 +107,42 @@ struct ChallengeHomeView: View {
                 challenge: challenge,
                 onAccept: {
                     let challenge = incomingChallenge
+                    let nearbySession = incomingNearbySession
                     incomingChallenge = nil
-                    if let challenge { onAcceptChallenge(challenge) }
+                    incomingNearbySession = nil
+                    if let challenge { onAcceptChallenge(challenge, nearbySession) }
                 },
-                onDecline: { incomingChallenge = nil }
+                onDecline: {
+                    incomingChallenge = nil
+                    incomingNearbySession?.disconnect()
+                    incomingNearbySession = nil
+                }
             )
         }
         .sheet(isPresented: $showNearbyReceive) {
             NearbyChallengeView(
                 mode: .receive,
                 senderName: settings.senderDisplayName.isEmpty ? "A Player" : settings.senderDisplayName,
-                onChallengeReceived: { challenge in
+                onChallengeReceived: { challenge, nearbySession in
                     challengeStore.registerReceived(challenge, transport: .nearby)
                     incomingChallenge = challenge
+                    incomingNearbySession = nearbySession
+                },
+                onResultReceived: { result in
+                    receivedResultRecord = challengeStore.recordOpponentResult(result)
                 }
             )
+        }
+        .alert(
+            resultAlertTitle,
+            isPresented: Binding(
+                get: { receivedResultRecord != nil },
+                set: { if !$0 { receivedResultRecord = nil } }
+            )
+        ) {
+            Button("OK") { receivedResultRecord = nil }
+        } message: {
+            Text(resultAlertMessage)
         }
     }
 
@@ -122,6 +152,9 @@ struct ChallengeHomeView: View {
         else { return }
         incomingChallenge = challenge
     }
+
+    private var resultAlertTitle: String { receivedResultRecord?.resultAlertTitle ?? "" }
+    private var resultAlertMessage: String { receivedResultRecord?.resultAlertMessage ?? "" }
 }
 
 struct ChallengeHistoryRow: View {
@@ -226,7 +259,7 @@ struct ChallengeHistoryRow: View {
     let challenges = ChallengeStore()
 
     NavigationStack {
-        ChallengeHomeView(onAcceptChallenge: { _ in })
+        ChallengeHomeView(onAcceptChallenge: { _, _ in })
             .environment(GameSession(
                 statsStore: stats, achievementsStore: achievements, settingsStore: settings,
                 dailyChallengeStore: daily, powerUpStore: powerUps, challengeStore: challenges

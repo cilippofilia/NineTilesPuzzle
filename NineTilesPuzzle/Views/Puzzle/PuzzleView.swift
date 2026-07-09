@@ -38,6 +38,7 @@ struct PuzzleView: View {
     /// "new image/seed, same mode+grid"), so this survives across that new game and
     /// auto-opens the send sheet once it solves.
     @State private var pendingRechallenge: (opponentName: String, parentChallengeID: UUID)?
+    @State private var showChallengeResultSendSheet = false
 
     var body: some View {
         // Split into two independently type-checked expressions to avoid the compiler's
@@ -59,7 +60,8 @@ struct PuzzleView: View {
                     completion: completion,
                     continueAction: handleContinue,
                     dismissAction: leaveDailyChallenge,
-                    rechallengeAction: rechallengeActionIfChallengeActive
+                    rechallengeAction: rechallengeActionIfChallengeActive,
+                    sendResultAction: sendResultActionIfChallengeActive
                 )
             }
 
@@ -289,6 +291,16 @@ struct PuzzleView: View {
                 )
             }
         }
+        .sheet(isPresented: $showChallengeResultSendSheet) {
+            if let challenge = session.activeChallenge {
+                ChallengeResultSendSheet(
+                    challengeID: challenge.id,
+                    opponentName: challenge.senderName,
+                    moves: session.currentMoveCount,
+                    time: session.elapsedTime
+                )
+            }
+        }
         .alert("Quit this run?", isPresented: $showQuitAlert) {
             Button("Quit", role: .destructive) {
                 session.leaveGame()
@@ -354,6 +366,14 @@ struct PuzzleView: View {
     private var rechallengeActionIfChallengeActive: (() -> Void)? {
         guard session.isChallengeGameActive else { return nil }
         return challengeThemBack
+    }
+
+    /// `nil` when there's no active challenge to reply to, or when the reply already went out
+    /// automatically over a still-open Nearby connection (`GameSession.challengeArrivedLive`) —
+    /// no need to offer a manual resend in that case.
+    private var sendResultActionIfChallengeActive: (() -> Void)? {
+        guard session.isChallengeGameActive, !session.challengeArrivedLive else { return nil }
+        return { showChallengeResultSendSheet = true }
     }
 
     /// Whether the just-finished game can be packaged into a Challenge Friends puzzle —

@@ -16,6 +16,7 @@ struct PuzzleCompletionOverlayView: View {
     let continueAction: () -> Void
     let dismissAction: () -> Void
     var rechallengeAction: (() -> Void)? = nil
+    var sendResultAction: (() -> Void)? = nil
 
     private var continueButtonLabel: String {
         guard session.isGauntletLadderMode else { return "Continue" }
@@ -107,7 +108,8 @@ struct PuzzleCompletionOverlayView: View {
                     yourTime: session.elapsedTime,
                     opponentMoves: challenge.senderMoves,
                     opponentTime: challenge.senderTime,
-                    onRechallenge: rechallengeAction
+                    onRechallenge: rechallengeAction,
+                    onSendResult: sendResultAction
                 )
                 .padding(.horizontal)
                 .padding(.bottom, 8)

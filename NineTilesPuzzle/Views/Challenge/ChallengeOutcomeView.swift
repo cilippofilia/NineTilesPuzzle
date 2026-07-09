@@ -17,6 +17,7 @@ struct ChallengeOutcomeView: View {
     let opponentMoves: Int
     let opponentTime: TimeInterval
     var onRechallenge: (() -> Void)?
+    var onSendResult: (() -> Void)?
 
     private var headline: String {
         switch outcome {
@@ -58,10 +59,17 @@ struct ChallengeOutcomeView: View {
                 }
             }
 
-            if let onRechallenge {
-                Button("Challenge Them Back", action: onRechallenge)
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+            HStack(spacing: 8) {
+                if let onSendResult {
+                    Button("Send Result Back", action: onSendResult)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
+                if let onRechallenge {
+                    Button("Challenge Them Back", action: onRechallenge)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
             }
         }
         .padding()

@@ -60,6 +60,7 @@ final class ChallengeNearbySession {
 
     private(set) var state: State = .idle
     private(set) var receivedChallenge: FriendChallenge?
+    private(set) var receivedResult: ChallengeResult?
     private(set) var discoveredPeers: [DiscoveredPeer] = []
 
     private let displayName: String
@@ -172,6 +173,10 @@ final class ChallengeNearbySession {
         try sendWire(.challenge(challenge))
     }
 
+    func send(_ result: ChallengeResult) throws {
+        try sendWire(.result(result))
+    }
+
     func disconnect() {
         connection?.cancel()
         connection = nil
@@ -181,6 +186,7 @@ final class ChallengeNearbySession {
         browser = nil
         discoveredPeers = []
         receivedChallenge = nil
+        receivedResult = nil
         state = .idle
     }
 
@@ -223,6 +229,8 @@ final class ChallengeNearbySession {
             case .challenge(let challenge):
                 guard challenge.formatVersion <= FriendChallenge.currentFormatVersion else { return }
                 receivedChallenge = challenge
+            case .result(let result):
+                receivedResult = result
             }
         case .closed:
             if case .connected = state { state = .idle }
@@ -250,10 +258,12 @@ final class ChallengeNearbySession {
     // MARK: - Wire format
 
     /// The framed message envelope. `hello` exchanges display names so both ends can show the
-    /// peer's real name; `challenge` carries the puzzle payload.
+    /// peer's real name; `challenge` carries the puzzle payload; `result` carries a played
+    /// challenge's outcome back to the original sender.
     private nonisolated enum Wire: Codable {
         case hello(name: String)
         case challenge(FriendChallenge)
+        case result(ChallengeResult)
     }
 
     private nonisolated enum ReceiveResult {

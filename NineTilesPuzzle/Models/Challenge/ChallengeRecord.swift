@@ -30,8 +30,10 @@ nonisolated struct ChallengeRecord: Codable, Equatable, Identifiable, Sendable {
 
     let id: UUID
     let direction: Direction
-    /// The sender's name (received) or a free-text label the sender typed for the recipient (sent).
-    let opponentName: String
+    /// The sender's name (received), or a free-text label the sender typed for the recipient
+    /// (sent) — upgraded to the recipient's real name once their `ChallengeResult` reply
+    /// arrives, via `ChallengeStore.recordOpponentResult`.
+    var opponentName: String
     let gameMode: GameMode
     let gridSize: Int
     let seed: UInt64
@@ -77,5 +79,31 @@ nonisolated struct ChallengeRecord: Codable, Equatable, Identifiable, Sendable {
         self.playedAt = playedAt
         self.transport = transport
         self.parentChallengeID = parentChallengeID
+    }
+}
+
+extension ChallengeRecord {
+    /// Alert title for the moment an opponent's `ChallengeResult` reply lands on the device
+    /// that originally sent this challenge — only meaningful once `outcome` is set.
+    var resultAlertTitle: String {
+        switch outcome {
+        case .won: "You Won!"
+        case .lost: "You Lost"
+        case .tied: "It's a Tie!"
+        case nil: ""
+        }
+    }
+
+    /// Companion message for `resultAlertTitle`, summarizing the move counts on both sides.
+    var resultAlertMessage: String {
+        guard let outcome, let opponentMoves else { return "" }
+        return switch outcome {
+        case .won:
+            "\(opponentName) played your challenge — you beat them \(creatorMoves) moves to \(opponentMoves)!"
+        case .lost:
+            "\(opponentName) played your challenge and beat you \(opponentMoves) moves to \(creatorMoves)."
+        case .tied:
+            "\(opponentName) played your challenge and tied you at \(creatorMoves) moves!"
+        }
     }
 }
