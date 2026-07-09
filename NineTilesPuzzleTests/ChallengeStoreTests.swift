@@ -94,7 +94,7 @@ struct ChallengeStoreTests {
     @Test func registerReceivedAddsAnUnplayedReceivedRecord() {
         let store = ChallengeStore(defaults: InMemoryPersistenceStore())
         let challenge = makeChallenge(senderName: "Alex")
-        store.registerReceived(challenge, transport: .multipeer)
+        store.registerReceived(challenge, transport: .nearby)
 
         #expect(store.records.count == 1)
         #expect(store.records[0].direction == .received)

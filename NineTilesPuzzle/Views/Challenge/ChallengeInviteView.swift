@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Shown when a Challenge Friends puzzle arrives (file opened or Multipeer receipt) — a
+/// Shown when a Challenge Friends puzzle arrives (file opened or nearby receipt) — a
 /// "beat N moves" preview before committing to play it. Presented as a `fullScreenCover`
 /// from `MenuView` since a received challenge can interrupt the app at any navigation depth.
 struct ChallengeInviteView: View {

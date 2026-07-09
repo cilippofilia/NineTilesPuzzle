@@ -9,7 +9,7 @@ import Foundation
 
 /// The self-contained wire payload for Challenge Friends — everything a receiving device
 /// needs to reproduce the exact puzzle and show a win/lose comparison, with no backend
-/// involved. Identical whether it travels as a shared file or over Multipeer.
+/// involved. Identical whether it travels as a shared file or over a nearby connection.
 ///
 /// `seed` is minted fresh at share time — it is *not* the sender's own game's shuffle seed,
 /// only a value that lets the receiver's board be seeded identically via `SeededShuffle`.

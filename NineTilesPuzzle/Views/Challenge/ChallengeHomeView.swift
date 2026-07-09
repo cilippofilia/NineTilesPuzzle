@@ -93,7 +93,7 @@ struct ChallengeHomeView: View {
                 mode: .receive,
                 senderName: settings.senderDisplayName.isEmpty ? "A Player" : settings.senderDisplayName,
                 onChallengeReceived: { challenge in
-                    challengeStore.registerReceived(challenge, transport: .multipeer)
+                    challengeStore.registerReceived(challenge, transport: .nearby)
                     incomingChallenge = challenge
                 }
             )

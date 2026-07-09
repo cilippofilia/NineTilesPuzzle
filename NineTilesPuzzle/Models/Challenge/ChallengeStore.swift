@@ -76,7 +76,7 @@ final class ChallengeStore {
         insert(record)
     }
 
-    /// Registers a challenge just received (file opened or Multipeer payload arrived) —
+    /// Registers a challenge just received (file opened or nearby payload arrived) —
     /// called immediately, before the user decides to play it, so unplayed invites show up
     /// in history too.
     func registerReceived(_ challenge: FriendChallenge, transport: ChallengeRecord.Transport) {

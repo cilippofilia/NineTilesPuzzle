@@ -5,7 +5,6 @@
 //  Created by Filippo Cilia on 7/8/26.
 //
 
-import MultipeerConnectivity
 import SwiftUI
 
 enum NearbyChallengeMode {
@@ -15,18 +14,18 @@ enum NearbyChallengeMode {
     case receive
 }
 
-/// Same-room Challenge Friends UI — hosts both the sending role (browse via
-/// `MCBrowserViewController`, then send once connected) and the receiving role (advertise,
-/// wait for a peer to connect and send). Received challenges funnel through the same
-/// `onChallengeReceived` callback the file-open path uses, so both transports converge on
-/// one receiving UI (`ChallengeInviteView`).
+/// Same-room Challenge Friends UI — hosts both the sending role (browse for nearby peers, dial
+/// the chosen one, then send once connected) and the receiving role (advertise, wait for a peer
+/// to connect and send). Received challenges funnel through the same `onChallengeReceived`
+/// callback the file-open path uses, so both transports converge on one receiving UI
+/// (`ChallengeInviteView`).
 struct NearbyChallengeView: View {
     @Environment(\.dismiss) private var dismiss
 
     let mode: NearbyChallengeMode
     let onChallengeReceived: (FriendChallenge) -> Void
 
-    @State private var multipeer: ChallengeMultipeerSession
+    @State private var session: ChallengeNearbySession
     @State private var showBrowser = false
     @State private var didSend = false
     @State private var sendError: String?
@@ -34,7 +33,7 @@ struct NearbyChallengeView: View {
     init(mode: NearbyChallengeMode, senderName: String, onChallengeReceived: @escaping (FriendChallenge) -> Void) {
         self.mode = mode
         self.onChallengeReceived = onChallengeReceived
-        _multipeer = State(initialValue: ChallengeMultipeerSession(displayName: senderName))
+        _session = State(initialValue: ChallengeNearbySession(displayName: senderName))
     }
 
     var body: some View {
@@ -46,9 +45,12 @@ struct NearbyChallengeView: View {
 
                 switch mode {
                 case .send:
-                    Button("Find Nearby Player") { showBrowser = true }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isConnected)
+                    Button("Find Nearby Player") {
+                        session.startBrowsing()
+                        showBrowser = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isConnected)
 
                     if isConnected, !didSend {
                         Button("Send Challenge", action: sendChallenge)
@@ -56,7 +58,7 @@ struct NearbyChallengeView: View {
                     }
                 case .receive:
                     Button(isAdvertising ? "Waiting for a Challenge…" : "Start Waiting") {
-                        multipeer.startAdvertising()
+                        session.startAdvertising()
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(isAdvertising)
@@ -82,20 +84,20 @@ struct NearbyChallengeView: View {
             }
         }
         .sheet(isPresented: $showBrowser) {
-            MultipeerBrowserRepresentable(session: multipeer) { showBrowser = false }
+            NearbyPeerPickerView(session: session) { showBrowser = false }
         }
-        .onChange(of: multipeer.receivedChallenge) { _, challenge in
+        .onChange(of: session.receivedChallenge) { _, challenge in
             guard let challenge else { return }
             onChallengeReceived(challenge)
             dismiss()
         }
-        .onDisappear { multipeer.disconnect() }
+        .onDisappear { session.disconnect() }
     }
 
     private func sendChallenge() {
         guard case .send(let challenge) = mode else { return }
         do {
-            try multipeer.send(challenge)
+            try session.send(challenge)
             didSend = true
         } catch {
             sendError = error.localizedDescription
@@ -103,22 +105,24 @@ struct NearbyChallengeView: View {
     }
 
     private var isConnected: Bool {
-        if case .connected = multipeer.state { return true }
+        if case .connected = session.state { return true }
         return false
     }
 
     private var isAdvertising: Bool {
-        if case .advertising = multipeer.state { return true }
+        if case .advertising = session.state { return true }
         return false
     }
 
     @ViewBuilder
     private var statusView: some View {
-        switch multipeer.state {
+        switch session.state {
         case .idle:
             Text("Not connected").foregroundStyle(.secondary)
         case .advertising:
             Label("Waiting for a nearby friend…", systemImage: "wifi").foregroundStyle(.secondary)
+        case .browsing:
+            Label("Looking for nearby players…", systemImage: "wifi").foregroundStyle(.secondary)
         case .connecting:
             ProgressView("Connecting…")
         case .connected(let name):
@@ -129,40 +133,45 @@ struct NearbyChallengeView: View {
     }
 }
 
-private struct MultipeerBrowserRepresentable: UIViewControllerRepresentable {
-    let session: ChallengeMultipeerSession
+/// Native replacement for Multipeer's `MCBrowserViewController`: lists the peers the
+/// `NWBrowser` has found and dials the one the user taps.
+private struct NearbyPeerPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let session: ChallengeNearbySession
     let onFinish: () -> Void
 
-    func makeUIViewController(context: Context) -> MCBrowserViewController {
-        let controller = session.makeBrowserViewController()
-        controller.delegate = context.coordinator
-        return controller
-    }
-
-    func updateUIViewController(_ uiViewController: MCBrowserViewController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onFinish: onFinish)
-    }
-
-    final class Coordinator: NSObject, MCBrowserViewControllerDelegate {
-        let onFinish: () -> Void
-
-        init(onFinish: @escaping () -> Void) {
-            self.onFinish = onFinish
-        }
-
-        nonisolated func browserViewControllerDidFinish(_ browserViewController: MCBrowserViewController) {
-            Task { @MainActor in
-                browserViewController.dismiss(animated: true)
-                self.onFinish()
+    var body: some View {
+        NavigationStack {
+            Group {
+                if session.discoveredPeers.isEmpty {
+                    ContentUnavailableView {
+                        Label("Looking for Players", systemImage: "wifi")
+                    } description: {
+                        Text("Make sure your friend has tapped “Start Waiting” nearby.")
+                    }
+                } else {
+                    List(session.discoveredPeers) { peer in
+                        Button {
+                            session.invite(peer)
+                            onFinish()
+                            dismiss()
+                        } label: {
+                            Label(peer.name, systemImage: "person.crop.circle")
+                        }
+                    }
+                }
             }
-        }
-
-        nonisolated func browserViewControllerWasCancelled(_ browserViewController: MCBrowserViewController) {
-            Task { @MainActor in
-                browserViewController.dismiss(animated: true)
-                self.onFinish()
+            .navigationTitle("Nearby Players")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        session.stopBrowsing()
+                        onFinish()
+                        dismiss()
+                    }
+                }
             }
         }
     }

@@ -25,7 +25,7 @@ nonisolated struct ChallengeRecord: Codable, Equatable, Identifiable, Sendable {
 
     enum Transport: String, Codable {
         case file
-        case multipeer
+        case nearby
     }
 
     let id: UUID
