@@ -8,10 +8,13 @@
 		<string>com.apple.quicklook.thumbnail</string>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ThumbnailProvider</string>
-		<key>QLSupportedContentTypes</key>
-		<array>
-			<string>cilia.filippo.NineTilesPuzzle.challenge</string>
-		</array>
+		<key>NSExtensionAttributes</key>
+		<dict>
+			<key>QLSupportedContentTypes</key>
+			<array>
+				<string>cilia.filippo.NineTilesPuzzle.challenge</string>
+			</array>
+		</dict>
 	</dict>
 </dict>
 </plist>
