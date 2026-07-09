@@ -5,7 +5,7 @@
 //  Created by Filippo Cilia on 7/7/26.
 //
 
-import Foundation
+import SwiftUI
 
 /// A power-up earned through play (streak milestones, achievement unlocks, daily-challenge
 /// completions) and spent mid-game. See `PowerUpStore` for the inventory and `GameSession`
@@ -34,6 +34,16 @@ enum PowerUpType: String, CaseIterable, Codable {
         case .hint: "lightbulb.fill"
         case .streakFreeze: "snowflake"
         case .reshuffle: "shuffle"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .peek: .blue
+        case .autoPlace: .purple
+        case .hint: .yellow
+        case .streakFreeze: .cyan
+        case .reshuffle: .green
         }
     }
 }

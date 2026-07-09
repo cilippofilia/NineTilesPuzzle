@@ -20,6 +20,7 @@ struct PowerUpBadgeButton: View {
             Button(action: action) {
                 Label(type.title, systemImage: type.icon)
                     .labelStyle(.iconOnly)
+                    .foregroundStyle(type.color)
                     .frame(width: 48, height: 48)
                     .background(.ultraThinMaterial)
                     .clipShape(.rect(cornerRadius: 12, style: .continuous))

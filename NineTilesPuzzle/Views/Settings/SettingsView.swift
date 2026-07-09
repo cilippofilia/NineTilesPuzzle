@@ -140,20 +140,23 @@ struct SettingsView: View {
                         get: { settings.hapticsEnabled },
                         set: { settings.setHapticsEnabled($0) }
                     ))
+                    .sensoryFeedback(.impact, trigger: settings.hapticsEnabled) { _, newValue in
+                        newValue
+                    }
                 }
 
                 Section {
-                    TextField("Your Name", text: Binding(
+                    TextField("Your Game tag", text: Binding(
                         get: { settings.senderDisplayName },
                         set: { settings.setSenderDisplayName($0) }
                     ))
                 } header: {
-                    Text("Challenges")
+                    Text("Challenge Friends")
                 } footer: {
-                    Text("Shown to friends when you send them a Challenge Friends puzzle.")
+                    Text("Shown to friends when you send them a challenge.")
                 }
 
-                Section("Widgets") {
+                Section("How to...") {
                     NavigationLink {
                         WidgetsGuideView()
                     } label: {
@@ -162,6 +165,19 @@ struct SettingsView: View {
                         } icon: {
                             Image(systemName: "widget.small.badge.plus")
                                 .foregroundStyle(.white)
+                        }
+                    }
+
+                    if settings.powerUpsEnabled {
+                        NavigationLink {
+                            PowerUpsGuideView()
+                        } label: {
+                            Label {
+                                Text("How to Use Power-ups")
+                            } icon: {
+                                Image(systemName: "wand.and.stars")
+                                    .foregroundStyle(.white)
+                            }
                         }
                     }
                 }

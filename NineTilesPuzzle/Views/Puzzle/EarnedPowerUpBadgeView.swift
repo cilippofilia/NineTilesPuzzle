@@ -37,6 +37,7 @@ struct EarnedPowerUpBadgeView: View {
                 case .icon:
                     Image(systemName: type.icon)
                         .font(.title2)
+                        .foregroundStyle(type.color)
                         .transition(.blurReplace)
                 case .plus:
                     Text("+\(amount)")
