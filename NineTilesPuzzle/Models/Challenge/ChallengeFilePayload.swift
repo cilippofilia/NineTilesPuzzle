@@ -14,6 +14,18 @@ extension UTType {
     }
 }
 
+private extension String {
+    /// `senderName`/`responderName` are free-text, so they can contain path separators — strip
+    /// those before the string becomes a filename component, and fall back to a generic label
+    /// if nothing usable is left.
+    nonisolated var sanitizedForFilename: String {
+        let cleaned = components(separatedBy: CharacterSet(charactersIn: "/\\:"))
+            .joined(separator: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? "Player" : cleaned
+    }
+}
+
 /// The envelope every `.ntpchallenge` file (and nearby result reply) actually carries: either a
 /// fresh invite or the reply to one already played. One shared file type keeps both directions
 /// openable through the same document-type registration and `.onOpenURL` handler.
@@ -33,7 +45,7 @@ struct ChallengeFilePayload: Transferable {
         FileRepresentation(exportedContentType: .ninetilesChallenge) { payload in
             let data = try JSONEncoder().encode(ChallengePayload.invite(payload.challenge))
             let url = FileManager.default.temporaryDirectory
-                .appending(path: payload.challenge.senderName)
+                .appending(path: "\(payload.challenge.senderName.sanitizedForFilename)'s Challenge")
                 .appendingPathExtension(for: .ninetilesChallenge)
             try data.write(to: url, options: .atomic)
             return SentTransferredFile(url)
@@ -50,7 +62,7 @@ struct ChallengeResultFilePayload: Transferable {
         FileRepresentation(exportedContentType: .ninetilesChallenge) { payload in
             let data = try JSONEncoder().encode(ChallengePayload.result(payload.result))
             let url = FileManager.default.temporaryDirectory
-                .appending(path: "Result-\(payload.result.responderName)")
+                .appending(path: "\(payload.result.responderName.sanitizedForFilename)'s Result")
                 .appendingPathExtension(for: .ninetilesChallenge)
             try data.write(to: url, options: .atomic)
             return SentTransferredFile(url)
