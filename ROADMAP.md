@@ -10,7 +10,7 @@ implementation details live in `ARCHITECTURE.md`; this file tracks what's still 
 
 Six of seven originally-sketched modes have shipped — Slide, Swap, Time Trial (with the
 Gauntlet Ladder sub-mode), Limited Moves, Zen, Haze, and Chaos, all routed through
-`GameSession` via the `GameMode` enum in `Views/MenuView.swift`. See `ARCHITECTURE.md` for
+`GameSession` via the `GameMode` enum in `Views/Menu/MenuView.swift`. See `ARCHITECTURE.md` for
 how `GameSession`, `StatsStore`, `SettingsStore`, and `AchievementsStore` fit together.
 Outstanding follow-ups on shipped modes:
 

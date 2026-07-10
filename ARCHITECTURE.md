@@ -125,8 +125,16 @@ NineTilesPuzzle/
 │                                     GKAccessPoint.trigger(handler:) (the iOS 26 replacement
 │                                     for the deprecated GKGameCenterViewController)
 ├── Views/
-│   ├── MenuView.swift               — root NavigationStack, routes via GameRoute enum;
-│   │                                  Stats button removed — Stats now lives in Settings
+│   ├── GameRoute.swift               — shared NavigationStack route enum + beginGame(session:path:)
+│   │                                   helper (reset board, push .game)
+│   ├── Menu/
+│   │   ├── MenuView.swift            — root NavigationStack shell; routes via GameRoute enum;
+│   │   │                              Stats button removed — Stats now lives in Settings
+│   │   ├── MenuOptionsCardView.swift — Game Mode/Media/Grid Size/Achievements/Wall of Fame/
+│   │   │                              Challenge Nearby Friends row card
+│   │   ├── MenuRouteDestinationView.swift — resolves a GameRoute to its destination screen
+│   │   └── ChallengeFileOpeningModifier.swift — receiving a .ntpchallenge file (onOpenURL,
+│   │                                  invite/result/failure alerts); .handlingOpenedChallengeFiles(_:)
 │   ├── StatsView.swift              — push-navigation destination (no NavigationStack of its
 │   │                                  own); reached via NavigationLink in SettingsView;
 │   │                                  shows streaks, personal bests, games played
