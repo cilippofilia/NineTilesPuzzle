@@ -65,7 +65,10 @@ struct ChallengeSendSheet: View {
                     Section {
                         ShareLink(
                             item: ChallengeFilePayload(challenge: challenge),
-                            preview: SharePreview("Nine Tiles Puzzle Challenge")
+                            preview: SharePreview(
+                                "Nine Tiles Puzzle Challenge",
+                                image: Image(decorative: image, scale: 1)
+                            )
                         ) {
                             Label("Share Challenge", systemImage: "square.and.arrow.up")
                         }
@@ -79,6 +82,8 @@ struct ChallengeSendSheet: View {
                         } label: {
                             Label("Send to Nearby Friend", systemImage: "wifi")
                         }
+                    } footer: {
+                        Text("Your friend needs Nine Tiles Puzzle installed. When the file arrives in Messages they should tap it, then tap the Share button and choose Nine Tiles Puzzle — or save it to Files and open it from there. A single tap only previews the file; it won't launch the game on its own. In the same room, “Send to Nearby Friend” skips all of this.")
                     }
                 }
             }

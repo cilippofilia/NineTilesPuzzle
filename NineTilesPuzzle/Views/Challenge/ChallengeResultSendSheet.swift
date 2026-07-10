@@ -60,7 +60,7 @@ struct ChallengeResultSendSheet: View {
                             Label("Send to Nearby Friend", systemImage: "wifi")
                         }
                     } footer: {
-                        Text("Sends your result back to \(opponentName).")
+                        Text("Sends your result back to \(opponentName), who needs Nine Tiles Puzzle installed to open it. In Messages they tap the file, then tap Share and choose Nine Tiles Puzzle — a single tap only previews it. In the same room, “Send to Nearby Friend” delivers it instantly.")
                     }
                 }
             }
