@@ -12,6 +12,8 @@
 		1826D7B12FF9192500927433 /* NineTilesPuzzleWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1826D79F2FF9192400927433 /* NineTilesPuzzleWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4D99D52BFFCC4762933DCB0E /* QuickLookThumbnailing.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80AAADD4C002484BBC1B8CC0 /* QuickLookThumbnailing.framework */; };
 		441DF071E57141D697E23951 /* NineTilesPuzzleThumbnailExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4D3E2F959DAF45A4B1C08721 /* NineTilesPuzzleThumbnailExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DDEE000000000000000000A2 /* NineTilesPuzzlePreviewExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DDEE000000000000000000A1 /* NineTilesPuzzlePreviewExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DDEE000000000000000000A4 /* QuickLook.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDEE000000000000000000A3 /* QuickLook.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +38,13 @@
 			remoteGlobalIDString = 18ADCFA02FC4C364001C204F;
 			remoteInfo = NineTilesPuzzle;
 		};
+		DDEE000000000000000000A5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 18ADCF992FC4C364001C204F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DDEE000000000000000000AD;
+			remoteInfo = NineTilesPuzzlePreviewExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -47,6 +56,7 @@
 			files = (
 				1826D7B12FF9192500927433 /* NineTilesPuzzleWidgetsExtension.appex in Embed Foundation Extensions */,
 				441DF071E57141D697E23951 /* NineTilesPuzzleThumbnailExtension.appex in Embed Foundation Extensions */,
+				DDEE000000000000000000A2 /* NineTilesPuzzlePreviewExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -61,6 +71,8 @@
 		18ADCFA12FC4C364001C204F /* NineTilesPuzzle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NineTilesPuzzle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D3E2F959DAF45A4B1C08721 /* NineTilesPuzzleThumbnailExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NineTilesPuzzleThumbnailExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		80AAADD4C002484BBC1B8CC0 /* QuickLookThumbnailing.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickLookThumbnailing.framework; path = /System/Library/Frameworks/QuickLookThumbnailing.framework; sourceTree = "<absolute>"; };
+		DDEE000000000000000000A1 /* NineTilesPuzzlePreviewExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NineTilesPuzzlePreviewExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		DDEE000000000000000000A3 /* QuickLook.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickLook.framework; path = /System/Library/Frameworks/QuickLook.framework; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -102,6 +114,23 @@
 			);
 			target = 937C543CFCE14CF985C78317 /* NineTilesPuzzleThumbnailExtension */;
 		};
+		DDEE000000000000000000A7 /* Exceptions for "NineTilesPuzzlePreview" folder in "NineTilesPuzzlePreviewExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = DDEE000000000000000000AD /* NineTilesPuzzlePreviewExtension */;
+		};
+		DDEE000000000000000000A8 /* Exceptions for "NineTilesPuzzle" folder in "NineTilesPuzzlePreviewExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Models/Challenge/ChallengeFilePayload.swift,
+				Models/Challenge/ChallengeResult.swift,
+				Models/Challenge/FriendChallenge.swift,
+				Models/GameMode.swift,
+			);
+			target = DDEE000000000000000000AD /* NineTilesPuzzlePreviewExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -123,6 +152,7 @@
 			exceptions = (
 				1826D7C42FF91BEB00927433 /* Exceptions for "NineTilesPuzzle" folder in "NineTilesPuzzleWidgetsExtension" target */,
 				2798B1EC259647B1B68075CE /* Exceptions for "NineTilesPuzzle" folder in "NineTilesPuzzleThumbnailExtension" target */,
+				DDEE000000000000000000A8 /* Exceptions for "NineTilesPuzzle" folder in "NineTilesPuzzlePreviewExtension" target */,
 			);
 			path = NineTilesPuzzle;
 			sourceTree = "<group>";
@@ -133,6 +163,14 @@
 				A267624B6AC746AAB0F5958F /* Exceptions for "NineTilesPuzzleThumbnail" folder in "NineTilesPuzzleThumbnailExtension" target */,
 			);
 			path = NineTilesPuzzleThumbnail;
+			sourceTree = "<group>";
+		};
+		DDEE000000000000000000A9 /* NineTilesPuzzlePreview */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DDEE000000000000000000A7 /* Exceptions for "NineTilesPuzzlePreview" folder in "NineTilesPuzzlePreviewExtension" target */,
+			);
+			path = NineTilesPuzzlePreview;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -169,6 +207,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DDEE000000000000000000AA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DDEE000000000000000000A4 /* QuickLook.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -178,6 +224,7 @@
 				1826D7A12FF9192400927433 /* WidgetKit.framework */,
 				1826D7A32FF9192400927433 /* SwiftUI.framework */,
 				80AAADD4C002484BBC1B8CC0 /* QuickLookThumbnailing.framework */,
+				DDEE000000000000000000A3 /* QuickLook.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -189,6 +236,7 @@
 				183EBA6F2FE67BF600E2851C /* NineTilesPuzzleTests */,
 				1826D7A52FF9192400927433 /* NineTilesPuzzleWidgets */,
 				8F605B90F3B646B6B4BB3D06 /* NineTilesPuzzleThumbnail */,
+				DDEE000000000000000000A9 /* NineTilesPuzzlePreview */,
 				1826D7A02FF9192400927433 /* Frameworks */,
 				18ADCFA22FC4C364001C204F /* Products */,
 			);
@@ -201,6 +249,7 @@
 				183EBA6E2FE67BF600E2851C /* NineTilesPuzzleTests.xctest */,
 				1826D79F2FF9192400927433 /* NineTilesPuzzleWidgetsExtension.appex */,
 				4D3E2F959DAF45A4B1C08721 /* NineTilesPuzzleThumbnailExtension.appex */,
+				DDEE000000000000000000A1 /* NineTilesPuzzlePreviewExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -208,6 +257,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		DDEE000000000000000000AD /* NineTilesPuzzlePreviewExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DDEE000000000000000000B0 /* Build configuration list for PBXNativeTarget "NineTilesPuzzlePreviewExtension" */;
+			buildPhases = (
+				DDEE000000000000000000AB /* Sources */,
+				DDEE000000000000000000AA /* Frameworks */,
+				DDEE000000000000000000AC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				DDEE000000000000000000A9 /* NineTilesPuzzlePreview */,
+			);
+			name = NineTilesPuzzlePreviewExtension;
+			packageProductDependencies = (
+			);
+			productName = NineTilesPuzzlePreviewExtension;
+			productReference = DDEE000000000000000000A1 /* NineTilesPuzzlePreviewExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		937C543CFCE14CF985C78317 /* NineTilesPuzzleThumbnailExtension */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A0CAC55473334992A58F228E /* Build configuration list for PBXNativeTarget "NineTilesPuzzleThumbnailExtension" */;
@@ -289,6 +360,7 @@
 			dependencies = (
 				1826D7B02FF9192500927433 /* PBXTargetDependency */,
 				93C3603D97144312B6A9617F /* PBXTargetDependency */,
+				DDEE000000000000000000A6 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				18ADCFA32FC4C364001C204F /* NineTilesPuzzle */,
@@ -323,6 +395,9 @@
 					937C543CFCE14CF985C78317 = {
 						CreatedOnToolsVersion = 26.3;
 					};
+					DDEE000000000000000000AD = {
+						CreatedOnToolsVersion = 26.3;
+					};
 				};
 			};
 			buildConfigurationList = 18ADCF9C2FC4C364001C204F /* Build configuration list for PBXProject "NineTilesPuzzle" */;
@@ -343,11 +418,19 @@
 				183EBA6D2FE67BF600E2851C /* NineTilesPuzzleTests */,
 				1826D79E2FF9192400927433 /* NineTilesPuzzleWidgetsExtension */,
 				937C543CFCE14CF985C78317 /* NineTilesPuzzleThumbnailExtension */,
+				DDEE000000000000000000AD /* NineTilesPuzzlePreviewExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		DDEE000000000000000000AC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2F24158C70594D8D9CF3FEE1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -379,6 +462,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		DDEE000000000000000000AB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		65065C620B6E4049A6F5135B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -420,6 +510,11 @@
 			target = 937C543CFCE14CF985C78317 /* NineTilesPuzzleThumbnailExtension */;
 			targetProxy = 5D76629636DC42C0900B46B7 /* PBXContainerItemProxy */;
 		};
+		DDEE000000000000000000A6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DDEE000000000000000000AD /* NineTilesPuzzlePreviewExtension */;
+			targetProxy = DDEE000000000000000000A5 /* PBXContainerItemProxy */;
+		};
 		183EBA732FE67BF600E2851C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 18ADCFA02FC4C364001C204F /* NineTilesPuzzle */;
@@ -428,6 +523,104 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		DDEE000000000000000000AE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3K3GFX53DY;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NineTilesPuzzlePreview/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NineTilesPuzzlePreview;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cilia.filippo.NineTilesPuzzle.NineTilesPuzzlePreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		DDEE000000000000000000AF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3K3GFX53DY;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NineTilesPuzzlePreview/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NineTilesPuzzlePreview;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cilia.filippo.NineTilesPuzzle.NineTilesPuzzlePreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
 		1826D7B42FF9192500927433 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -878,6 +1071,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		DDEE000000000000000000B0 /* Build configuration list for PBXNativeTarget "NineTilesPuzzlePreviewExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DDEE000000000000000000AE /* Debug */,
+				DDEE000000000000000000AF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		A0CAC55473334992A58F228E /* Build configuration list for PBXNativeTarget "NineTilesPuzzleThumbnailExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
