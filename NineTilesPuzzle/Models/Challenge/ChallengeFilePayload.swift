@@ -74,16 +74,26 @@ struct ChallengeResultFilePayload: Transferable {
 /// `ChallengeFilePayload`/`ChallengeResultFilePayload`'s export, used when the app is opened via
 /// a received file (Messages attachment tap, AirDrop accept, Files "Open in Nine Tiles Puzzle").
 enum ChallengeFileCoder {
-    static func decode(fileAt url: URL) -> ChallengePayload? {
+    /// Distinguishes why a `.ntpchallenge` file couldn't be opened, so the UI can show something
+    /// more useful than silence — e.g. `unreadable` usually means an iCloud/Messages attachment
+    /// that hasn't finished downloading yet, which is worth telling the user to retry.
+    enum DecodeFailure: Error {
+        case unreadable
+        case corrupted
+        case unsupportedFormatVersion
+    }
+
+    static func decode(fileAt url: URL) -> Result<ChallengePayload, DecodeFailure> {
         let didStartAccessing = url.startAccessingSecurityScopedResource()
         defer { if didStartAccessing { url.stopAccessingSecurityScopedResource() } }
 
-        guard let data = try? Data(contentsOf: url),
-              let payload = try? JSONDecoder().decode(ChallengePayload.self, from: data)
-        else { return nil }
-        if case .invite(let challenge) = payload, challenge.formatVersion > FriendChallenge.currentFormatVersion {
-            return nil
+        guard let data = try? Data(contentsOf: url) else { return .failure(.unreadable) }
+        guard let payload = try? JSONDecoder().decode(ChallengePayload.self, from: data) else {
+            return .failure(.corrupted)
         }
-        return payload
+        if case .invite(let challenge) = payload, challenge.formatVersion > FriendChallenge.currentFormatVersion {
+            return .failure(.unsupportedFormatVersion)
+        }
+        return .success(payload)
     }
 }

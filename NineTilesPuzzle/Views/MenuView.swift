@@ -35,6 +35,9 @@ struct MenuView: View {
     /// this device originally sent — drives a one-shot alert since there's no invite to accept,
     /// just history to update. `nil` outcome means no matching `.sent` record was found.
     @State private var receivedResultRecord: ChallengeRecord?
+    /// Set when a tapped `.ntpchallenge` file fails to open, so the user sees *something*
+    /// instead of the tap silently doing nothing.
+    @State private var challengeOpenFailure: ChallengeFileCoder.DecodeFailure?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -303,13 +306,18 @@ struct MenuView: View {
                     Text("For a curated experience with your own photos, create a dedicated album in the Photos app with only the images you'd like to use as puzzles, then grant Nine Tiles access to that album only.")
                 }
                 .onOpenURL { url in
-                    if url.isFileURL, let payload = ChallengeFileCoder.decode(fileAt: url) {
-                        switch payload {
-                        case .invite(let challenge):
-                            challengeStore.registerReceived(challenge, transport: .file)
-                            incomingChallenge = challenge
-                        case .result(let result):
-                            receivedResultRecord = challengeStore.recordOpponentResult(result)
+                    if url.isFileURL {
+                        switch ChallengeFileCoder.decode(fileAt: url) {
+                        case .success(let payload):
+                            switch payload {
+                            case .invite(let challenge):
+                                challengeStore.registerReceived(challenge, transport: .file)
+                                incomingChallenge = challenge
+                            case .result(let result):
+                                receivedResultRecord = challengeStore.recordOpponentResult(result)
+                            }
+                        case .failure(let failure):
+                            challengeOpenFailure = failure
                         }
                         return
                     }
@@ -326,6 +334,17 @@ struct MenuView: View {
                     Button("OK") { receivedResultRecord = nil }
                 } message: {
                     Text(resultAlertMessage)
+                }
+                .alert(
+                    "Couldn't Open Challenge",
+                    isPresented: Binding(
+                        get: { challengeOpenFailure != nil },
+                        set: { if !$0 { challengeOpenFailure = nil } }
+                    )
+                ) {
+                    Button("OK") { challengeOpenFailure = nil }
+                } message: {
+                    Text(challengeOpenFailureMessage)
                 }
             }
             .scrollBounceBehavior(.basedOnSize)
@@ -395,6 +414,19 @@ struct MenuView: View {
 
     private var resultAlertTitle: String { receivedResultRecord?.resultAlertTitle ?? "" }
     private var resultAlertMessage: String { receivedResultRecord?.resultAlertMessage ?? "" }
+
+    private var challengeOpenFailureMessage: String {
+        switch challengeOpenFailure {
+        case .unreadable:
+            "This challenge file couldn't be read. If it just arrived, it may still be downloading — wait a moment and try opening it again."
+        case .corrupted:
+            "This challenge file appears to be damaged or isn't a Nine Tiles Puzzle challenge."
+        case .unsupportedFormatVersion:
+            "This challenge was created with a newer version of Nine Tiles Puzzle. Update the app to open it."
+        case nil:
+            ""
+        }
+    }
 }
 
 #Preview {

@@ -16,7 +16,7 @@ final class ThumbnailProvider: QLThumbnailProvider {
         for request: QLFileThumbnailRequest,
         _ handler: @escaping (QLThumbnailReply?, Error?) -> Void
     ) {
-        guard let payload = ChallengeFileCoder.decode(fileAt: request.fileURL) else {
+        guard case .success(let payload) = ChallengeFileCoder.decode(fileAt: request.fileURL) else {
             handler(nil, CocoaError(.fileReadCorruptFile))
             return
         }
