@@ -124,6 +124,9 @@ struct DailyHeaderLabel: View {
                 .foregroundStyle(.secondary)
         }
         .widgetAccentable()
+        .padding(6)
+        .background(.ultraThinMaterial)
+        .clipShape(.capsule(style: .continuous))
     }
 }
 

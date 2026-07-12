@@ -102,3 +102,50 @@ struct PuzzleLiveActivity: Widget {
         Duration.seconds(seconds).formatted(.time(pattern: .minuteSecond))
     }
 }
+
+private extension PuzzleActivityAttributes {
+    static let preview = PuzzleActivityAttributes(
+        gameModeTitle: "Slide", gameModeIcon: "arrow.left.arrow.right", gridSize: 4
+    )
+}
+
+private extension PuzzleActivityAttributes.ContentState {
+    // A nonexistent filename is fine: `BoardThumbnail` falls back to a placeholder icon
+    // when it can't resolve the image in the shared App Group container.
+    static let midGameWithStreak = PuzzleActivityAttributes.ContentState(
+        boardImageName: "preview-board", moveCount: 24, elapsedTime: 95,
+        currentStreak: 3, bestStreak: 7, progress: 0.6
+    )
+    static let freshNoStreak = PuzzleActivityAttributes.ContentState(
+        boardImageName: "preview-board", moveCount: 3, elapsedTime: 8,
+        currentStreak: 0, bestStreak: 7, progress: 0.05
+    )
+}
+
+#Preview("Lock Screen", as: .content, using: PuzzleActivityAttributes.preview) {
+    PuzzleLiveActivity()
+} contentStates: {
+    PuzzleActivityAttributes.ContentState.midGameWithStreak
+    PuzzleActivityAttributes.ContentState.freshNoStreak
+}
+
+#Preview("Dynamic Island Expanded", as: .dynamicIsland(.expanded), using: PuzzleActivityAttributes.preview) {
+    PuzzleLiveActivity()
+} contentStates: {
+    PuzzleActivityAttributes.ContentState.midGameWithStreak
+    PuzzleActivityAttributes.ContentState.freshNoStreak
+}
+
+#Preview("Dynamic Island Compact", as: .dynamicIsland(.compact), using: PuzzleActivityAttributes.preview) {
+    PuzzleLiveActivity()
+} contentStates: {
+    PuzzleActivityAttributes.ContentState.midGameWithStreak
+    PuzzleActivityAttributes.ContentState.freshNoStreak
+}
+
+#Preview("Dynamic Island Minimal", as: .dynamicIsland(.minimal), using: PuzzleActivityAttributes.preview) {
+    PuzzleLiveActivity()
+} contentStates: {
+    PuzzleActivityAttributes.ContentState.midGameWithStreak
+    PuzzleActivityAttributes.ContentState.freshNoStreak
+}

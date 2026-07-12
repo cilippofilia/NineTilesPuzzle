@@ -316,8 +316,6 @@ struct PuzzleView: View {
                 // Refresh after pausing so the Lock Screen reminder shows the board and elapsed
                 // time exactly as the player left them — the moment the reminder becomes visible.
                 session.refreshLiveActivity()
-                // Same reasoning for the Resume widget: the home screen is about to show it.
-                session.syncResumeWidget()
             } else if newPhase == .active, !session.isLoading, !session.isPreviewing {
                 session.resumeTimers()
             }

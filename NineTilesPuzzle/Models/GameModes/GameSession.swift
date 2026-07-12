@@ -285,7 +285,6 @@ final class GameSession {
         self.widgetData = WidgetDataController(defaults: defaults is UserDefaults ? WidgetDataStore.sharedDefaults : nil)
         restoreFromUserDefaults()
         reconcileLiveActivityOnLaunch()
-        syncResumeWidget()
         widgetData.syncAll(dailyStore: dailyChallengeStore, statsStore: statsStore)
         achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore)
         Task {
@@ -354,7 +353,6 @@ final class GameSession {
                     if isGauntletLadderMode { isLadderRunFailed = true }
                     stopTimeTrialCountdown()
                     liveActivity.end()
-                    widgetData.clearResume()
                     saveToUserDefaults()
                     return
                 }
@@ -474,7 +472,6 @@ final class GameSession {
                     if isGauntletLadderMode { isLadderRunFailed = true }
                     stopTimeTrialCountdown()
                     liveActivity.end()
-                    widgetData.clearResume()
                     saveToUserDefaults()
                     return
                 }
@@ -552,7 +549,6 @@ final class GameSession {
             if currentStreakForCurrentSize > 0 { startCountdown() }
             if isTimeTrialMode { startTimeTrialCountdown() }
             saveToUserDefaults()
-            syncResumeWidget()
             return
         }
 
@@ -689,7 +685,6 @@ final class GameSession {
             // has nothing to preview. Starting now (in the foreground) is the reliable moment —
             // the reminder stays invisible until the player leaves the app, then refreshes.
             if let input = makeLiveActivityInput() { liveActivity.start(input) }
-            syncResumeWidget()
         } catch {
             self.error = error
             isLoading = false
@@ -1050,11 +1045,7 @@ final class GameSession {
         // Widget sync happens only on the solving move (never per move — refresh budget),
         // and after the streak/records bookkeeping above so the snapshot includes the
         // solving move's own streak increment.
-        if isSolved {
-            widgetData.clearResume()
-            syncStatsWidget()
-            if isDailyGameActive { syncDailyWidget() }
-        }
+        if isSolved, isDailyGameActive { syncDailyWidget() }
         // The source image can't change mid-game, so only the cheap dynamic state needs
         // rewriting here — re-encoding the image JPEG on every tap was the old hot path.
         saveDynamicState()
@@ -1078,7 +1069,6 @@ final class GameSession {
             if isGauntletLadderMode { isLadderRunFailed = true }
             stopTimeTrialCountdown()
             liveActivity.end()
-            widgetData.clearResume()
         }
     }
 
@@ -1089,7 +1079,6 @@ final class GameSession {
         guard !isSolved, currentMoveCount >= movesBudgetForCurrentSize else { return }
         isLimitedMovesFailed = true
         liveActivity.end()
-        widgetData.clearResume()
     }
 
     func skipPreview() {
@@ -1161,10 +1150,6 @@ final class GameSession {
 
     /// Stops the countdown when the user quits mid-game; streak is preserved.
     func leaveGame() {
-        // Before the daily/Quick Snap teardown below, so the resume card still says
-        // "Daily Challenge"/"Quick Snap" rather than the mode the player had before.
-        syncResumeWidget()
-        syncStatsWidget()
         if let backup = preDailyGameMode {
             selectedGameMode = backup
             preDailyGameMode = nil
@@ -1216,40 +1201,10 @@ final class GameSession {
         return pendingResume
     }
 
-    /// Brings the Resume widget in line with the session: an up-to-date card while a game
-    /// is in progress, cleared otherwise. Called at game start/leave/background — never
-    /// per move, to respect the WidgetKit refresh budget.
-    func syncResumeWidget() {
-        guard hasResumableGame else {
-            widgetData.clearResume()
-            return
-        }
-        widgetData.updateResume(
-            // `nil` for numbers games (no picture) — the card renders without a thumbnail.
-            boardInput: makeLiveActivityInput(),
-            state: WidgetSnapshot.ResumeState(
-                gameModeRaw: selectedGameMode.rawValue,
-                displayTitle: liveActivityTitle,
-                displayIcon: liveActivityIcon,
-                gridSize: gridSize,
-                moveCount: currentMoveCount,
-                elapsedTime: elapsedTime,
-                progress: Double(tiles.filter(\.isCorrect).count) / Double(tiles.count),
-                savedAt: .now
-            )
-        )
-    }
-
     /// Re-syncs everything widget-visible after a Settings reset, where the stores change
     /// without the usual gameplay hooks firing.
     func syncWidgetsAfterReset() {
-        syncStatsWidget()
         syncDailyWidget()
-        syncResumeWidget()
-    }
-
-    private func syncStatsWidget() {
-        widgetData.updateStats(from: statsStore)
     }
 
     private func syncDailyWidget() {
@@ -1307,8 +1262,6 @@ extension GameSession {
         defaults.set(gridSize, forKey: Keys.gridSize)
         defaults.removeObject(forKey: Keys.tiles)
         defaults.removeObject(forKey: Keys.sourceImage)
-        // The in-progress game was just discarded, so the Resume widget must forget it too.
-        widgetData.clearResume()
     }
 
     func setRandomSize() {
@@ -1323,8 +1276,6 @@ extension GameSession {
         defaults.set(true, forKey: Keys.useRandomSize)
         defaults.removeObject(forKey: Keys.tiles)
         defaults.removeObject(forKey: Keys.sourceImage)
-        // The in-progress game was just discarded, so the Resume widget must forget it too.
-        widgetData.clearResume()
     }
 
     func setMediaSourceType(_ type: MediaSourceType) {

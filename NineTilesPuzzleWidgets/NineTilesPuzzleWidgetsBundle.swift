@@ -12,9 +12,7 @@ import WidgetKit
 struct NineTilesPuzzleWidgetsBundle: WidgetBundle {
     var body: some Widget {
         DailyChallengeWidget()
-        // Disabled for initial release; UI needs polish before shipping.
-        // StreaksRecordsWidget()
-        // ResumeGameWidget()
+        DailyChallengeWidgetAlt()
         PuzzleLiveActivity()
     }
 }

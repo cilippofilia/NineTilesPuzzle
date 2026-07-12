@@ -76,11 +76,6 @@ struct DailyChallengeProvider: TimelineProvider {
 struct DailyChallengeWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: WidgetKind.dailyChallenge, provider: DailyChallengeProvider()) { entry in
-            // The card's background/text are designed as one dark-mode unit; without this,
-            // iOS's per-widget light/dark appearance setting flips `.primary`/`.secondary`
-            // to their light values while `DailyWidgetBackground` stays dark, making text
-            // unreadable. Pinning the color scheme keeps the widget dark-only, matching the
-            // app itself (`.preferredColorScheme(.dark)` in NineTilesPuzzleApp).
             DailyChallengeWidgetView(entry: entry)
                 .colorScheme(.dark)
         }
@@ -90,7 +85,7 @@ struct DailyChallengeWidget: Widget {
     }
 }
 
-#Preview("Small · to play", as: .systemSmall) {
+#Preview("Small", as: .systemSmall) {
     DailyChallengeWidget()
 } timeline: {
     DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide)

@@ -29,21 +29,6 @@ struct WidgetsGuideView: View {
                     name: "Daily Challenge",
                     description: "Today's puzzle at a glance — mode, grid size, and your calendar streak."
                 )
-
-                // Disabled for initial release; UI needs polish before shipping.
-                // WidgetGuideWidgetRow(
-                //     icon: "flame.fill",
-                //     color: .red,
-                //     name: "Streaks & Records",
-                //     description: "Your current streak and personal bests for a chosen mode and grid size."
-                // )
-
-                // WidgetGuideWidgetRow(
-                //     icon: "play.fill",
-                //     color: .blue,
-                //     name: "Resume Puzzle",
-                //     description: "Jump back into your unfinished puzzle."
-                // )
             }
         }
         .navigationTitle("Widgets")
