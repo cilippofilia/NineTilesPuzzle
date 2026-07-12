@@ -114,11 +114,13 @@ struct DailyMediumAltView: View {
 
             StreakPieceRow(
                 date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
-                accent: accent, maxCapacity: 7, pieceSize: 17, spacing: 6, showsWeekdayLabels: true
+                accent: accent, maxCapacity: 9, pieceSize: 18, spacing: 16, showsWeekdayLabels: true,
+                alignment: .leading
             )
+            .padding(.horizontal, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .containerBackground(for: .widget) { DailyAltBackground() }
+        .containerBackground(for: .widget) { DailyAltBackground(markOffsetX: 70) }
     }
 }
 
@@ -178,6 +180,8 @@ private struct SolvedSeal: View {
 /// (3 pieces minimum for visual rhythm even at streak 0, `maxCapacity` at most so it fits the
 /// widget) — today sits on the trailing end, exactly like the checkmark row it's modeled on. Only
 /// the completed run gets the brand-gradient capsule; days still pending sit outside it, bare.
+/// When `showsWeekdayLabels` is set, the initials render as their own row above the pieces —
+/// never inside the capsule stroke — so the capsule always wraps just the pieces.
 private struct StreakPieceRow: View {
     let date: Date
     let streak: Int
@@ -187,6 +191,7 @@ private struct StreakPieceRow: View {
     var pieceSize: CGFloat = 18
     var spacing: CGFloat = 6
     var showsWeekdayLabels: Bool = true
+    var alignment: Alignment = .center
 
     private var capacity: Int {
         min(max(streak + (isCompletedToday ? 0 : 1), 3), maxCapacity)
@@ -211,6 +216,36 @@ private struct StreakPieceRow: View {
     }
 
     var body: some View {
+        VStack(spacing: 4) {
+            if showsWeekdayLabels {
+                weekdayLabelRow
+            }
+            pieceRow
+        }
+        .frame(maxWidth: .infinity, alignment: alignment)
+    }
+
+    /// A standalone row of weekday initials, mirroring the piece row's filled/pending grouping
+    /// (including the capsule's horizontal padding) so each letter lines up with its piece below —
+    /// without being wrapped by the capsule stroke itself.
+    private var weekdayLabelRow: some View {
+        HStack(spacing: spacing) {
+            if !filledSlots.isEmpty {
+                HStack(spacing: spacing) {
+                    ForEach(filledSlots, id: \.self) { daysAgo in
+                        weekdayLabel(daysAgo: daysAgo)
+                    }
+                }
+                .padding(.horizontal, 8)
+            }
+
+            ForEach(pendingSlots, id: \.self) { daysAgo in
+                weekdayLabel(daysAgo: daysAgo)
+            }
+        }
+    }
+
+    private var pieceRow: some View {
         HStack(spacing: spacing) {
             if !filledSlots.isEmpty {
                 HStack(spacing: spacing) {
@@ -218,7 +253,7 @@ private struct StreakPieceRow: View {
                         piece(daysAgo: daysAgo, filled: true)
                     }
                 }
-                .padding(6)
+                .padding(8)
                 .overlay {
                     Capsule(style: .continuous)
                         .stroke(BrandGradient.diagonal, lineWidth: 2)
@@ -229,16 +264,17 @@ private struct StreakPieceRow: View {
                 piece(daysAgo: daysAgo, filled: false)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func piece(daysAgo: Int, filled: Bool) -> StreakPiece {
-        StreakPiece(
-            filled: filled,
-            weekdayLetter: showsWeekdayLabels ? weekdayLetter(daysAgo: daysAgo) : nil,
-            accent: accent,
-            size: pieceSize
-        )
+        StreakPiece(filled: filled, accent: accent, size: pieceSize)
+    }
+
+    private func weekdayLabel(daysAgo: Int) -> some View {
+        Text(weekdayLetter(daysAgo: daysAgo))
+            .font(.system(size: 8, weight: .heavy))
+            .foregroundStyle(.secondary)
+            .frame(width: pieceSize)
     }
 
     private func weekdayLetter(daysAgo: Int) -> String {
@@ -247,26 +283,19 @@ private struct StreakPieceRow: View {
     }
 }
 
-/// One slot in `StreakPieceRow`: an optional weekday initial above a puzzle-piece glyph that's
-/// either brand-tinted (done) or dimmed and outlined (not yet).
+/// One slot in `StreakPieceRow`: a puzzle-piece glyph that's either brand-tinted (done) or dimmed
+/// and outlined (not yet).
 private struct StreakPiece: View {
     let filled: Bool
-    let weekdayLetter: String?
     let accent: Color
     let size: CGFloat
 
     var body: some View {
-        VStack(spacing: 3) {
-            if let weekdayLetter {
-                Text(weekdayLetter)
-                    .font(.system(size: 8, weight: .heavy))
-                    .foregroundStyle(.secondary)
-            }
-            Image(systemName: filled ? "puzzlepiece.fill" : "puzzlepiece")
-                .font(.system(size: size))
-                .foregroundStyle(filled ? accent : Color.white.opacity(0.18))
-                .rotationEffect(.degrees(-45))
-        }
+        Image(systemName: filled ? "puzzlepiece.fill" : "puzzlepiece")
+            .font(.system(size: size))
+            .foregroundStyle(filled ? accent : Color.white.opacity(0.18))
+            .rotationEffect(.degrees(-45))
+            .frame(width: size)
     }
 }
 
@@ -311,8 +340,12 @@ private struct PlayCTAButton: View {
 }
 
 /// The alt widgets' background: a diagonal near-black gradient, a warm corner glow, and a large
-/// faded, rotated brand mark watermark for texture the flat original lacks.
+/// faded, rotated brand mark watermark for texture the flat original lacks. `markOffsetX` lets
+/// each family nudge the watermark into its own empty space — e.g. the medium layout's gap
+/// between the mode text and the Play CTA.
 private struct DailyAltBackground: View {
+    var markOffsetX: CGFloat = 40
+
     var body: some View {
         ZStack {
             LinearGradient(
@@ -329,7 +362,7 @@ private struct DailyAltBackground: View {
             BrandPuzzleMark(size: 130)
                 .opacity(0.07)
                 .rotationEffect(.degrees(18))
-                .offset(x: 40, y: -40)
+                .offset(x: markOffsetX, y: -40)
         }
     }
 }
