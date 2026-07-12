@@ -69,6 +69,10 @@ final class GameSession {
     var isNewTimeTrialScoreRecord: Bool = false
     var timeTrialScore: Int = 0
     var isNewCalendarStreakRecord: Bool = false
+    /// True for the single move that completes the player's very first Daily Challenge
+    /// ever, used to prompt the notification-permission flow at a moment they're engaged
+    /// rather than on cold launch.
+    var isFirstDailyCompletion: Bool = false
 
     /// True while the player is in a Daily Challenge game. Transient — not persisted,
     /// so a force-quit always starts fresh on the next launch rather than accidentally
@@ -512,6 +516,7 @@ final class GameSession {
         isNewBestTime = false
         isNewTimeTrialScoreRecord = false
         isNewCalendarStreakRecord = false
+        isFirstDailyCompletion = false
         timeTrialScore = 0
         isLadderRunComplete = false
         isNewLadderScoreRecord = false
@@ -914,6 +919,7 @@ final class GameSession {
             liveActivity.end()
             if isDailyGameActive {
                 if !debugOverlayEnabled {
+                    let isFirstEverCompletion = dailyChallengeStore.completedDayKeys.isEmpty
                     let result = dailyChallengeStore.recordCompletion(
                         moves: currentMoveCount,
                         time: elapsedTime,
@@ -923,6 +929,7 @@ final class GameSession {
                     isNewMovesRecord = result.isNewMovesRecord
                     isNewBestTime = result.isNewTimeRecord
                     isNewCalendarStreakRecord = result.isNewCalendarStreakRecord
+                    isFirstDailyCompletion = isFirstEverCompletion
                     if settingsStore.powerUpsEnabled {
                         powerUpStore.earnRandom()
                     }

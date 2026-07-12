@@ -20,7 +20,9 @@ struct NineTilesPuzzleApp: App {
     @State private var gameCenterService = GameCenterService()
     @State private var wallOfFameStore = WallOfFameStore()
     @State private var motionManager = MotionManager()
+    @State private var dailyReminderService = DailyReminderService()
     @State private var showSplash = true
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let statsStore = StatsStore()
@@ -60,6 +62,7 @@ struct NineTilesPuzzleApp: App {
                     .environment(gameCenterService)
                     .environment(wallOfFameStore)
                     .environment(motionManager)
+                    .environment(dailyReminderService)
 
                 if showSplash {
                     SplashScreenView {
@@ -70,6 +73,24 @@ struct NineTilesPuzzleApp: App {
             }
             .preferredColorScheme(.dark)
             .task { gameCenterService.authenticate() }
+            .task { await refreshDailyReminder() }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                Task { await refreshDailyReminder() }
+            }
         }
+    }
+
+    /// Re-syncs the pending reminder with the current authorization/settings state —
+    /// needed on launch and every foreground, since the player may have changed
+    /// notification permission from the system Settings app, or a day may have rolled
+    /// over while the app was backgrounded.
+    private func refreshDailyReminder() async {
+        await dailyReminderService.refreshAuthorizationStatus()
+        dailyReminderService.rescheduleIfNeeded(
+            enabled: settingsStore.dailyReminderEnabled,
+            time: settingsStore.dailyReminderTime,
+            completedToday: dailyChallengeStore.isDailyCompletedToday
+        )
     }
 }

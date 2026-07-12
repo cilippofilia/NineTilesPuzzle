@@ -15,11 +15,13 @@ struct SettingsView: View {
     @Environment(PowerUpStore.self) private var powerUpStore
     @Environment(SoundService.self) private var soundService
     @Environment(GameCenterService.self) private var gameCenterService
+    @Environment(DailyReminderService.self) private var dailyReminderService
     @Environment(\.dismiss) private var dismiss
 
     @State private var showResetStatsAlert = false
     @State private var showResetSettingsAlert = false
     @State private var showDebugOverlayAlert = false
+    @State private var showNotificationDeniedAlert = false
 
     var body: some View {
         NavigationStack {
@@ -130,6 +132,35 @@ struct SettingsView: View {
                     }
                 }
 
+                Section {
+                    Toggle("Daily Reminder", isOn: Binding(
+                        get: { settings.dailyReminderEnabled },
+                        set: handleReminderToggle
+                    ))
+
+                    if settings.dailyReminderEnabled {
+                        DatePicker(
+                            "Reminder Time",
+                            selection: Binding(
+                                get: { settings.dailyReminderTime },
+                                set: { newTime in
+                                    settings.setDailyReminderTime(newTime)
+                                    dailyReminderService.rescheduleIfNeeded(
+                                        enabled: true,
+                                        time: newTime,
+                                        completedToday: dailyStore.isDailyCompletedToday
+                                    )
+                                }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                    }
+                } header: {
+                    Text("Notifications")
+                } footer: {
+                    Text("A single reminder to play today's Daily Challenge — only sent if you haven't completed it yet.")
+                }
+
                 Section("Audio") {
                     Toggle("Sound Effects", isOn: Binding(
                         get: { soundService.isEnabled },
@@ -231,8 +262,48 @@ struct SettingsView: View {
             } message: {
                 Text("While enabled, your streak, best moves, games played, and achievements won't be updated. Turn this off to resume tracking your progress.")
             }
+            .alert("Notifications Are Off", isPresented: $showNotificationDeniedAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Allow notifications for Nine Tiles Puzzle in Settings to turn on the Daily Reminder.")
+            }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    /// Turning the toggle on needs a round trip through the system permission prompt (or,
+    /// if already denied, a nudge to the Settings app) before the reminder can actually be
+    /// armed — so the store's `dailyReminderEnabled` is only set once that's resolved.
+    private func handleReminderToggle(_ isOn: Bool) {
+        guard isOn else {
+            settings.setDailyReminderEnabled(false)
+            dailyReminderService.cancelReminder()
+            return
+        }
+        if dailyReminderService.authorizationStatus == .denied {
+            showNotificationDeniedAlert = true
+            return
+        }
+        Task {
+            let granted = dailyReminderService.authorizationStatus == .authorized
+                ? true
+                : await dailyReminderService.requestAuthorization()
+            guard granted else {
+                showNotificationDeniedAlert = true
+                return
+            }
+            settings.setDailyReminderEnabled(true)
+            dailyReminderService.rescheduleIfNeeded(
+                enabled: true,
+                time: settings.dailyReminderTime,
+                completedToday: dailyStore.isDailyCompletedToday
+            )
+        }
     }
 }
 
@@ -251,5 +322,6 @@ struct SettingsView: View {
                 .environment(daily)
                 .environment(SoundService())
                 .environment(GameCenterService())
+                .environment(DailyReminderService())
         }
 }

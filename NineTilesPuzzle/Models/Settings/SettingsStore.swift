@@ -38,6 +38,13 @@ final class SettingsStore {
     /// The name shown to friends on a sent Challenge Friends puzzle. Empty until the
     /// player is prompted the first time they try to send a challenge.
     var senderDisplayName: String = ""
+    /// Whether the Daily Challenge reminder notification is armed. Turned on automatically
+    /// the first time the player grants notification permission (prompted after their
+    /// first-ever daily completion), and toggleable afterward in Settings.
+    var dailyReminderEnabled: Bool = false
+    /// Only the hour/minute of this date are used — the day is irrelevant, it just needs
+    /// to be a `Date` for `DatePicker` to bind to.
+    var dailyReminderTime: Date = Calendar.current.date(bySettingHour: 20, minute: 0, second: 0, of: .now) ?? .now
 
     init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
@@ -117,6 +124,16 @@ final class SettingsStore {
         defaults.set(name, forKey: Keys.senderDisplayName)
     }
 
+    func setDailyReminderEnabled(_ value: Bool) {
+        dailyReminderEnabled = value
+        defaults.set(value, forKey: Keys.dailyReminderEnabled)
+    }
+
+    func setDailyReminderTime(_ time: Date) {
+        dailyReminderTime = time
+        defaults.set(time, forKey: Keys.dailyReminderTime)
+    }
+
     func resetSettings() {
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
@@ -141,6 +158,8 @@ private extension SettingsStore {
         static let streakMilestoneInterval = "puzzle.streakMilestoneInterval"
         static let debugInfinitePowerUps = "puzzle.debugInfinitePowerUps"
         static let senderDisplayName = "puzzle.senderDisplayName"
+        static let dailyReminderEnabled = "puzzle.dailyReminderEnabled"
+        static let dailyReminderTime = "puzzle.dailyReminderTime"
     }
 
     func restoreFromUserDefaults() {
@@ -176,6 +195,12 @@ private extension SettingsStore {
         }
         if let name = defaults.string(forKey: Keys.senderDisplayName) {
             senderDisplayName = name
+        }
+        if defaults.object(forKey: Keys.dailyReminderEnabled) != nil {
+            dailyReminderEnabled = defaults.bool(forKey: Keys.dailyReminderEnabled)
+        }
+        if let time = defaults.object(forKey: Keys.dailyReminderTime) as? Date {
+            dailyReminderTime = time
         }
     }
 }

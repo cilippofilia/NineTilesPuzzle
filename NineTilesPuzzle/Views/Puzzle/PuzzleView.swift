@@ -13,6 +13,7 @@ struct PuzzleView: View {
     @Environment(AchievementsStore.self) private var achievementsStore
     @Environment(SoundService.self) private var soundService
     @Environment(DailyChallengeStore.self) private var dailyChallengeStore
+    @Environment(DailyReminderService.self) private var dailyReminderService
     @Environment(WallOfFameStore.self) private var wallOfFameStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -184,6 +185,9 @@ struct PuzzleView: View {
             } else {
                 solvedPNG = nil
             }
+            if solved && session.isDailyGameActive {
+                handleDailyChallengeSolved()
+            }
         }
         // One handler mirrors every per-solve record flag in a single update; see `recordFlags`.
         .onChange(of: recordFlags) { _, flags in
@@ -322,6 +326,29 @@ struct PuzzleView: View {
         }
         .onDisappear {
             session.leaveGame()
+        }
+    }
+
+    /// Keeps the daily reminder notification in sync with today's completion, and — the
+    /// very first time ever — prompts for notification permission at a moment the player
+    /// is already engaged, rather than on cold launch where it's easy to reflexively deny.
+    private func handleDailyChallengeSolved() {
+        if session.isFirstDailyCompletion {
+            Task {
+                let granted = await dailyReminderService.requestAuthorization()
+                if granted { settings.setDailyReminderEnabled(true) }
+                dailyReminderService.rescheduleIfNeeded(
+                    enabled: settings.dailyReminderEnabled,
+                    time: settings.dailyReminderTime,
+                    completedToday: true
+                )
+            }
+        } else {
+            dailyReminderService.rescheduleIfNeeded(
+                enabled: settings.dailyReminderEnabled,
+                time: settings.dailyReminderTime,
+                completedToday: true
+            )
         }
     }
 
@@ -505,4 +532,5 @@ struct PuzzleView: View {
         .environment(achievements)
         .environment(powerUps)
         .environment(SoundService())
+        .environment(DailyReminderService())
 }
