@@ -12,7 +12,6 @@ import WidgetKit
 struct NineTilesPuzzleWidgetsBundle: WidgetBundle {
     var body: some Widget {
         DailyChallengeWidget()
-        DailyChallengeWidgetAlt()
         PuzzleLiveActivity()
     }
 }

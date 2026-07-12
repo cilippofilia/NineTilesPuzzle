@@ -39,7 +39,7 @@ final class WidgetDataController {
         )
         guard snapshot.daily != daily else { return }
         snapshot.daily = daily
-        save(snapshot, reloading: [WidgetKind.dailyChallenge, WidgetKind.dailyChallengeAlt])
+        save(snapshot, reloading: [WidgetKind.dailyChallenge])
     }
 
     /// Launch-time self-heal: brings the daily section up to date, covering any change that

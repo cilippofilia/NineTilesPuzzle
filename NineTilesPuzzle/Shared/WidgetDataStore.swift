@@ -62,7 +62,4 @@ nonisolated enum WidgetDataStore {
 /// scoped `WidgetCenter.reloadTimelines(ofKind:)` calls.
 nonisolated enum WidgetKind {
     static let dailyChallenge = "DailyChallengeWidget"
-    /// The design-comparison variant registered alongside the original — see
-    /// `DailyChallengeWidgetAlt`. Remove once one design is chosen.
-    static let dailyChallengeAlt = "DailyChallengeWidgetAlt"
 }
