@@ -76,7 +76,7 @@ struct DailySmallView: View {
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .containerBackground(for: .widget) { DailyWidgetBackground() }
+        .containerBackground(for: .widget) { DailyWidgetBackground(imageData: entry.imageData) }
     }
 }
 
@@ -123,7 +123,7 @@ struct DailyMediumView: View {
             .padding(.horizontal, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .containerBackground(for: .widget) { DailyWidgetBackground(markOffsetX: 70) }
+        .containerBackground(for: .widget) { DailyWidgetBackground(markOffsetX: 70, imageData: entry.imageData) }
     }
 
     /// The date badge's battery-style charge: pinned full once today is solved, otherwise
@@ -378,11 +378,13 @@ private struct PlayCTAButton: View {
 }
 
 /// The widget's background: a diagonal near-black gradient, a warm corner glow, and a large
-/// faded, rotated brand mark watermark for texture. `markOffsetX` lets each family nudge the
+/// rotated puzzle-piece watermark for texture. `markOffsetX` lets each family nudge the
 /// watermark into its own empty space — e.g. the medium layout's gap between the mode text and
-/// the Play CTA.
+/// the Play CTA. Once today's seeded photo has loaded, the watermark shows that photo masked
+/// into the piece's silhouette instead of the plain brand gradient.
 private struct DailyWidgetBackground: View {
     var markOffsetX: CGFloat = 40
+    var imageData: Data?
 
     var body: some View {
         ZStack {
@@ -397,10 +399,24 @@ private struct DailyWidgetBackground: View {
                 startRadius: 4,
                 endRadius: 160
             )
-            BrandPuzzleMark(size: 130)
-                .opacity(0.07)
+            watermark
                 .rotationEffect(.degrees(18))
                 .offset(x: markOffsetX, y: -40)
+        }
+    }
+
+    @ViewBuilder
+    private var watermark: some View {
+        if let imageData, let photo = UIImage(data: imageData) {
+            Image(uiImage: photo)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 130, height: 130)
+                .mask(BrandPuzzleMark(size: 130))
+                .opacity(0.45)
+        } else {
+            BrandPuzzleMark(size: 130)
+                .opacity(0.07)
         }
     }
 }
@@ -408,15 +424,15 @@ private struct DailyWidgetBackground: View {
 #Preview("Small", as: .systemSmall) {
     DailyChallengeWidget()
 } timeline: {
-    DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide)
-    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 4, mode: .slide)
+    DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide, imageData: nil)
+    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 4, mode: .slide, imageData: nil)
 }
 
 #Preview("Medium", as: .systemMedium) {
     DailyChallengeWidget()
 } timeline: {
-    DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 50, bestStreak: 12, gridSize: 5, mode: .swap)
-    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 60, bestStreak: 12, gridSize: 5, mode: .swap)
+    DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 50, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
+    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 60, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
 }
 
 /// The date badge's battery-style charge at each step through the day — cycle the canvas's
@@ -427,10 +443,10 @@ private struct DailyWidgetBackground: View {
 } timeline: {
     let calendar = Calendar.current
     let today = Date.now
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 1, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 6, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 11, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 16, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 21, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 21, minute: 0, second: 0, of: today)!, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 5, mode: .swap)
+    DailyChallengeEntry(date: calendar.date(bySettingHour: 1, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
+    DailyChallengeEntry(date: calendar.date(bySettingHour: 6, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
+    DailyChallengeEntry(date: calendar.date(bySettingHour: 11, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
+    DailyChallengeEntry(date: calendar.date(bySettingHour: 16, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
+    DailyChallengeEntry(date: calendar.date(bySettingHour: 21, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
+    DailyChallengeEntry(date: calendar.date(bySettingHour: 21, minute: 0, second: 0, of: today)!, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
 }

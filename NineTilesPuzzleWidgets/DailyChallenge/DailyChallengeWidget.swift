@@ -13,7 +13,11 @@ import WidgetKit
 /// `DailyChallengeViews.swift` for the presentation.
 struct DailyChallengeWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: WidgetKind.dailyChallenge, provider: DailyChallengeProvider()) { entry in
+        AppIntentConfiguration(
+            kind: WidgetKind.dailyChallenge,
+            intent: DailyChallengeConfigurationIntent.self,
+            provider: DailyChallengeProvider()
+        ) { entry in
             DailyChallengeWidgetView(entry: entry)
                 .colorScheme(.dark)
         }
