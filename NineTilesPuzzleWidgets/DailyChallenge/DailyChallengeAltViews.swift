@@ -101,15 +101,22 @@ struct DailyMediumAltView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+
+                        if entry.isCompletedToday {
+                            SolvedSeal(size: 34)
+                        } else {
+                            PlayCTAButton()
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                if entry.isCompletedToday {
-                    SolvedSeal(size: 34)
-                } else {
-                    PlayCTAButton()
-                }
+//                if entry.isCompletedToday {
+//                    SolvedSeal(size: 34)
+//                } else {
+//                    PlayCTAButton()
+//                }
             }
 
             StreakPieceRow(
@@ -377,6 +384,6 @@ private struct DailyAltBackground: View {
 #Preview("Medium Alt", as: .systemMedium) {
     DailyChallengeWidgetAlt()
 } timeline: {
-    DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap)
-    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 5, mode: .swap)
+    DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 50, bestStreak: 12, gridSize: 5, mode: .swap)
+    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 60, bestStreak: 12, gridSize: 5, mode: .swap)
 }
