@@ -48,6 +48,8 @@ struct DailySmallAltView: View {
                         Text("Come back tomorrow")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
                 }
                 .frame(maxHeight: .infinity)
@@ -69,7 +71,7 @@ struct DailySmallAltView: View {
 
             StreakPieceRow(
                 date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
-                accent: accent, maxCapacity: 5, pieceSize: 13, spacing: 3, showsWeekdayLabels: false
+                accent: accent, maxCapacity: 6, pieceSize: 16, spacing: 5, showsWeekdayLabels: false
             )
             .frame(maxWidth: .infinity, alignment: .center)
         }
