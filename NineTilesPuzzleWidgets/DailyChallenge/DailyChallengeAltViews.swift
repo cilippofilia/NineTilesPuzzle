@@ -39,8 +39,6 @@ struct DailySmallAltView: View {
         VStack(alignment: .leading, spacing: 0) {
             DailyAltHeaderLabel()
 
-            Spacer(minLength: 4)
-
             if entry.isCompletedToday {
                 HStack(spacing: 8) {
                     SolvedSeal(size: 30)
@@ -52,6 +50,7 @@ struct DailySmallAltView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .frame(maxHeight: .infinity)
             } else {
                 HStack(spacing: 8) {
                     ModeIconChip(icon: entry.mode.icon, size: 30)
@@ -65,17 +64,14 @@ struct DailySmallAltView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .frame(maxHeight: .infinity)
             }
 
-            Spacer(minLength: 6)
-
-            HStack(spacing: 6) {
-                StreakPieceRow(
-                    date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
-                    accent: accent, maxCapacity: 5, pieceSize: 15, spacing: 3, showsWeekdayLabels: false
-                )
-                Spacer(minLength: 0)
-            }
+            StreakPieceRow(
+                date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
+                accent: accent, maxCapacity: 5, pieceSize: 13, spacing: 3, showsWeekdayLabels: false
+            )
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .containerBackground(for: .widget) { DailyAltBackground() }
@@ -118,7 +114,7 @@ struct DailyMediumAltView: View {
 
             StreakPieceRow(
                 date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
-                accent: accent, maxCapacity: 7, pieceSize: 20, spacing: 6, showsWeekdayLabels: true
+                accent: accent, maxCapacity: 7, pieceSize: 17, spacing: 6, showsWeekdayLabels: true
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -173,10 +169,7 @@ private struct SolvedSeal: View {
             .font(.system(size: size * 0.46, weight: .heavy))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(
-                LinearGradient(colors: [.green, .mint], startPoint: .bottomLeading, endPoint: .topTrailing),
-                in: .circle
-            )
+            .background(.green.gradient, in: .circle)
     }
 }
 
@@ -207,9 +200,15 @@ private struct StreakPieceRow: View {
     }
 
     /// Oldest to newest (today trailing), split into the completed run and the still-pending tail.
-    private var filledSlots: [Int] { slots.filter { filledDaysAgo.contains($0) } }
-    private var pendingSlots: [Int] { slots.filter { !filledDaysAgo.contains($0) } }
-    private var slots: [Int] { Array((0..<capacity).reversed()) }
+    private var filledSlots: [Int] {
+        slots.filter { filledDaysAgo.contains($0) }
+    }
+    private var pendingSlots: [Int] {
+        slots.filter { !filledDaysAgo.contains($0) }
+    }
+    private var slots: [Int] {
+        Array((0..<capacity).reversed())
+    }
 
     var body: some View {
         HStack(spacing: spacing) {
@@ -230,6 +229,7 @@ private struct StreakPieceRow: View {
                 piece(daysAgo: daysAgo, filled: false)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func piece(daysAgo: Int, filled: Bool) -> StreakPiece {
