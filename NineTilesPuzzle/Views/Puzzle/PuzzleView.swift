@@ -100,6 +100,7 @@ struct PuzzleView: View {
             // Layer 3e: Time Trial / Gauntlet Ladder resume grace — shown while the app is
             // back in the foreground but the countdown is deliberately still frozen.
             if session.isTimeTrialMode {
+                TimeTrialResumeOverlay(isShowing: isShowingResumeCountdown, value: resumeCountdownValue)
             }
 
         }
