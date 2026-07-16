@@ -110,14 +110,33 @@ The stats are already tracked in `StatsStore`; submission is a thin `GameCenterS
 - Daily challenge: recurring leaderboard for moves (and time)
 
 ### Achievements sync — **M**
-Mirror the 39 local achievements (`Resources/achievements.json`) to Game Center, reporting
+Mirror the 42 local achievements (`Resources/achievements.json`) to Game Center, reporting
 on unlock. Keep the local system as the source of truth so the game still works fully
 offline. While in this area: `AchievementService.remoteURL` still points at
 `example.com` — either wire up a real hosted JSON or remove the remote path.
 
-### Friend challenges — **L** *(defer)*
-Send a friend the same seeded puzzle and compare move counts. Builds directly on the
-Daily Challenge seeding work, but should wait until leaderboards prove engagement.
+### Challenge Friends — shipped (2026-07-08 → 2026-07-12)
+Send a friend a seeded puzzle and compare move counts/time — shipped as a fully
+self-contained feature (no backend), well beyond the original "send + compare moves, wait
+for leaderboards" sketch. Two transports share one payload: a custom `.ntpchallenge` file
+(`Transferable`, ShareLink/AirDrop/Messages/Files, with a `QLThumbnailProvider` extension
+rendering a branded preview instead of a generic document icon) and a real-time nearby
+transport (migrated from Multipeer to Network.framework — `NWListener`/`NWBrowser`/
+`NWConnection` over Bonjour, peer-to-peer/AWDL enabled). `ChallengeStore` tracks win/lose/tie
+history with "Challenge Them Back" chains; malformed/unreadable/version-mismatched files
+surface a proper "Couldn't Open Challenge" alert instead of silently no-opping. Achievement
+metrics (`.challengesSent`, `.challengesWon`, `.challengesPlayed`) are wired up. See
+`ARCHITECTURE.md` (not yet updated with this feature) and this project's memory for full
+detail. Still outstanding:
+- **Manual two-device verification** — neither transport (file or nearby) has been
+  end-to-end tested on two physical devices; Simulator can't do Bonjour discovery or real
+  share-sheet destinations.
+- **Image quality degradation in shared images** — reports of low-quality images on the
+  receiving end; check compression during transfer/encode/decode and Messages/AirDrop-side
+  re-compression.
+- Power-ups can be *spent* during a challenge game but none are *earned* from completing
+  one (unlike Daily Challenge's completion path) — decide if that asymmetry is intentional.
+- No Game Center leaderboard/achievement tie-in yet (ties into this section generally).
 
 ---
 
@@ -153,9 +172,14 @@ fuller option.
 
 ### Widgets — follow-ups
 Three home-screen widgets (Daily Challenge, Streaks & Records, Resume Puzzle) plus deep
-links have shipped — see `ARCHITECTURE.md` §Home-screen widgets. Still outstanding:
-- `widgetURL`/deep link on the Live Activity itself (a tap currently just opens the app;
-  routing it through `ninetilespuzzle://resume` would reuse the existing plumbing).
+links have shipped — see `ARCHITECTURE.md` §Home-screen widgets. Since then: the Daily
+Challenge widget was redesigned and consolidated (2026-07-12) with a Duolingo-style streak
+row and a configurable "Show Puzzle Photo" option (`WidgetConfigurationIntent`, off by
+default) that overlays the day's seeded photo on the puzzle-piece watermark; a daily
+reminder local notification also shipped (configurable time, rotating message pool, skips a
+day already completed); and the Live Activity/Dynamic Island gained its own `widgetURL`
+(2026-07-16) — tapping it now resumes the in-progress game via the existing
+`ninetilespuzzle://resume` deep link instead of just opening the app. Still outstanding:
 - Lock Screen / StandBy accessory widgets, if revisited later.
 - StandBy/tinted-mode polish pass on real hardware (accented rendering is wired via
   `widgetAccentedRenderingMode(.accentedDesaturated)` but only Simulator-verified).

@@ -1,8 +1,11 @@
 # NineTilesPuzzle — Architecture Overview
 
-Snapshot of the current codebase structure, as of 2026-07-05 (updated for Wall of Fame + Stats→Settings, a July 2026 performance pass, the Live Activity, and home-screen widgets + deep links). This is a descriptive
-document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in sync with
-it) for how the "does mode-specific behavior need a shared abstraction" question was
+Snapshot of the current codebase structure, as of 2026-07-16 (updated for Wall of Fame +
+Stats→Settings, a July 2026 performance pass, the Live Activity, home-screen widgets + deep
+links, the power-up economy, Challenge Friends, the July 2026 `Models/` feature-folder
+restructure, and the Daily Challenge widget/reminder-notification follow-ups). This is a
+descriptive document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in
+sync with it) for how the "does mode-specific behavior need a shared abstraction" question was
 revisited once Time Trial and Limited Moves both existed, and what would justify
 revisiting it again.
 
@@ -17,6 +20,9 @@ revisiting it again.
   (`group.cilia.filippo.NineTilesPuzzle`) as a single JSON blob (see §Home-screen widgets)
 - A widget extension target (`NineTilesPuzzleWidgetsExtension`) hosting the Live Activity
   and three home-screen widgets; a handful of files are compiled into both targets
+- A QuickLook thumbnail extension target (`NineTilesPuzzleThumbnailExtension`) rendering
+  rich Files/Messages/Finder previews for shared `.ntpchallenge` files (see Challenge Friends
+  below); shares a few `Models/Challenge/` files with the main app target the same way
 - Swift Testing (not XCTest) for unit tests
 - No third-party dependencies
 
@@ -28,49 +34,95 @@ NineTilesPuzzle/
 │                                    AchievementsStore, DailyChallengeStore, WallOfFameStore,
 │                                    MotionManager, SoundService, GameCenterService;
 │                                    injects all into the environment; kicks off GC auth via .task
-├── Models/
-│   ├── GameSession.swift           — the game currently configured/in progress (see below)
-│   ├── StatsStore.swift            — personal bests, games played, streaks (keyed by StatsKey)
-│   ├── DailyChallengeStore.swift   — daily-challenge-specific stats: calendar streak,
-│   │                                  best calendar streak, last completed date, daily
-│   │                                  best moves/time. Fully independent of StatsStore.
-│   ├── DailyChallengeSeeder.swift  — pure enum: date→UInt64 seed, seeded picsum URL
-│   │                                  (/seed/ntp-YYYY-MM-DD/1024/1024), deterministic
-│   │                                  derangement shuffle via xorshift64 PRNG (SeededGenerator)
-│   ├── SettingsStore.swift         — app prefs unrelated to "which game": preview/streak
-│   │                                  countdown durations, Quick Snap timer, haptics, debug overlay
-│   ├── AchievementsStore.swift     — achievement definitions, unlock checks, remote refresh
-│   ├── PersistenceStore.swift      — protocol seam over UserDefaults (see below)
-│   ├── StatsKey.swift              — Hashable(gridSize, gameMode) used by GameSession/StatsStore
-│   ├── GameMode.swift              — enum: classic/slide/timeTrial/limitedMoves/zen/fog/chaos
-│   ├── TimeTrialRules.swift        — pure constants/formulas: base time limit per grid size,
-│   │                                  combo bonus/misplay penalty, score (see below)
-│   ├── GauntletLadderRules.swift   — pure 10-stage table + ladder scoring (see below);
-│   │                                  deliberately separate from TimeTrialRules.swift
-│   ├── LimitedMovesRules.swift     — pure per-grid-size move budget table (see below)
-│   ├── ChaosTransform.swift        — pure whole-image orientation/tone/posterize/pixelate
-│   │                                  transform for Chaos Mode (see below)
-│   ├── TileModel.swift             — @Observable tile: id, currentIndex, isLocked
-│   ├── Achievement.swift           — Codable definition: id, title, systemImage, category,
-│   │                                  metric, target, comparison, isUnlocked, unlockedDate
-│   ├── AchievementCategory.swift   — 6-case enum (milestones/difficulty/efficiency/
-│   │                                  streaks/explorer/special); drives AchievementsView sections
-│   ├── AchievementMetric.swift     — what a target is measured against; encodes as a dotted
-│   │                                  string (e.g. "personalBestMoves.3.swap") for hand-editable
-│   │                                  JSON; value(in:justSolved:now:) reads StatsStore
-│   ├── AchievementComparison.swift — greaterThanOrEqual | lessThanOrEqual
-│   ├── WallOfFameSlot.swift        — 25-case enum: bestMoves(3…8), bestTime(3…8),
-│   │                                  dailyBestMoves, dailyBestTime, calendarStreak,
-│   │                                  ladderStage(1…10); exposes fileName, displayTitle, seedValue
-│   ├── WallOfFameStore.swift       — @Observable, @MainActor; persists card PNGs to
+├── Models/                          — reorganized July 2026 from one flat folder into
+│   │                                  feature subfolders (paths below reflect this; the
+│   │                                  `Achievemnts/` folder name keeps that exact typo — it's
+│   │                                  the real on-disk name, not a doc error)
+│   ├── GameModes/
+│   │   ├── GameSession.swift        — the game currently configured/in progress (see below)
+│   │   ├── GameMode.swift           — enum: classic/slide/timeTrial/limitedMoves/zen/fog/chaos
+│   │   ├── TileModel.swift          — @Observable tile: id, currentIndex, isLocked
+│   │   ├── TimeTrialRules.swift     — pure constants/formulas: base time limit per grid size,
+│   │   │                              combo bonus/misplay penalty, score (see below)
+│   │   ├── GauntletLadderRules.swift — pure 10-stage table + ladder scoring (see below);
+│   │   │                              deliberately separate from TimeTrialRules.swift
+│   │   ├── LimitedMovesRules.swift  — pure per-grid-size move budget table (see below)
+│   │   ├── ChaosTransform.swift     — pure whole-image orientation/tone/posterize/pixelate
+│   │   │                              transform for Chaos Mode (see below)
+│   │   └── SeededShuffle.swift      — seeded-derangement-shuffle primitives extracted out of
+│   │                                  DailyChallengeSeeder so Challenge Friends (below) can
+│   │                                  reuse them for an arbitrary (not date-derived) seed
+│   ├── Stats/
+│   │   ├── StatsStore.swift         — personal bests, games played, streaks (keyed by StatsKey)
+│   │   └── StatsKey.swift           — Hashable(gridSize, gameMode) used by GameSession/StatsStore
+│   ├── Settings/
+│   │   ├── SettingsStore.swift      — app prefs unrelated to "which game": preview/streak
+│   │   │                              countdown durations, Quick Snap timer, haptics, debug
+│   │   │                              overlay, powerUpsEnabled/debugInfinitePowerUps
+│   │   └── PersistenceStore.swift   — protocol seam over UserDefaults (see below)
+│   ├── Calendar/
+│   │   ├── DailyChallengeStore.swift — daily-challenge-specific stats: calendar streak,
+│   │   │                              best calendar streak, last completed date, daily
+│   │   │                              best moves/time. Fully independent of StatsStore.
+│   │   ├── DailyChallengeSeeder.swift — pure enum: date→UInt64 seed, seeded picsum URL
+│   │   │                              (/seed/ntp-YYYY-MM-DD/1024/1024), deterministic
+│   │   │                              derangement shuffle via xorshift64 PRNG (SeededGenerator)
+│   │   ├── DailyDayRecord.swift     — per-day moves/time/streak record backing the calendar's
+│   │   │                              tap-to-polaroid share card
+│   │   └── DailyCalendarMonth.swift — pure month-grid math for the history calendar view
+│   ├── Achievemnts/
+│   │   ├── AchievementsStore.swift  — achievement definitions, unlock checks, remote refresh
+│   │   ├── Achievement.swift        — Codable definition: id, title, systemImage, category,
+│   │   │                              metric, target, comparison, isUnlocked, unlockedDate
+│   │   ├── AchievementCategory.swift — 7-case enum (milestones/difficulty/efficiency/
+│   │   │                              streaks/explorer/social/special); drives AchievementsView
+│   │   │                              sections — `.social` added for Challenge Friends
+│   │   ├── AchievementMetric.swift  — what a target is measured against; encodes as a dotted
+│   │   │                              string (e.g. "personalBestMoves.3.swap") for hand-editable
+│   │   │                              JSON; value(in:justSolved:now:) reads StatsStore, and
+│   │   │                              now also takes a ChallengeStore for
+│   │   │                              .challengesSent/.challengesWon/.challengesPlayed
+│   │   └── AchievementComparison.swift — greaterThanOrEqual | lessThanOrEqual
+│   ├── WallOfFame/
+│   │   ├── WallOfFameSlot.swift     — 25-case enum: bestMoves(3…8), bestTime(3…8),
+│   │   │                              dailyBestMoves, dailyBestTime, calendarStreak,
+│   │   │                              ladderStage(1…10); exposes fileName, displayTitle, seedValue
+│   │   └── WallOfFameStore.swift    — @Observable, @MainActor; persists card PNGs to
 │   │                                  Documents/wall_of_fame/<slot>.png via ImageIO (no UIKit);
 │   │                                  caches CGImages in memory; exposes cardImage(for:),
 │   │                                  save(_:for:) (disk write off main actor), fileURL(for:)
-│   ├── ZenSparkle.swift            — decorative particle model for Zen mode's solve animation
-│   ├── Bundle-Decodable-Ext.swift
-│   ├── TimeInterval-Formatting-Ext.swift
+│   ├── PowerUps/                    — power-up economy (shipped 2026-07-07, see below)
+│   │   ├── PowerUpType.swift        — 5-case enum: peek/autoPlace/hint/streakFreeze/reshuffle
+│   │   │                              — title/icon/color per case
+│   │   ├── PowerUpStore.swift       — @Observable, @MainActor inventory: earn/consume/
+│   │   │                              earnRandom()/resetToDefaults(), UserDefaults-backed
+│   │   └── PowerUpRules.swift       — tuning constants: peek/hint duration, streak-milestone
+│   │                                  interval (5), starting inventory (3 of each)
+│   ├── Challenge/                   — Challenge Friends feature (shipped 2026-07-08, see below)
+│   │   ├── FriendChallenge.swift    — the self-contained wire payload: mode, grid size, seed,
+│   │   │                              sender's JPEG image, sender's moves/time,
+│   │   │                              parentChallengeID (Rechallenge chains), formatVersion
+│   │   ├── ChallengeResult.swift    — reply payload (opponent's moves/time) for the result
+│   │   │                              round-trip
+│   │   ├── ChallengeRecord.swift    — persisted history entry (direction-agnostic
+│   │   │                              creatorMoves/opponentMoves, outcome)
+│   │   ├── ChallengeStore.swift     — @Observable, @MainActor; UserDefaults JSON + on-disk
+│   │   │                              JPEGs (Documents/challenges/<id>.jpg), 200-record
+│   │   │                              history cap, determineOutcome win/lose/tie logic
+│   │   ├── ChallengeComposer.swift  — builds a FriendChallenge from a just-finished game
+│   │   ├── ChallengeImageCodec.swift — JPEG encode/decode helpers shared by both transports
+│   │   └── ChallengeFilePayload.swift — `.ntpchallenge` Transferable file wrapper; also
+│   │                                  defines the `ChallengePayload` envelope
+│   │                                  (invite/result) and `ChallengeFileCoder`'s
+│   │                                  `Result<ChallengePayload, DecodeFailure>` decode path
+│   │                                  (.unreadable/.corrupted/.unsupportedFormatVersion)
+│   ├── Helpers/
+│   │   ├── ZenSparkle.swift         — decorative particle model for Zen mode's solve animation
+│   │   ├── Bundle-Decodable-Ext.swift
+│   │   ├── Int-Formatting-Ext.swift
+│   │   └── TimeInterval-Formatting-Ext.swift
 │   └── Image/
-│       ├── MediaSourceType.swift   — enum: random/local/mixed/numbers
+│       ├── MediaSourceType.swift   — enum: random/local/mixed/numbers/camera
 │       ├── RemoteImageSource.swift — also declares the `ImageSource` protocol
 │       ├── LocalImageSource.swift  — bundled fallback image
 │       ├── PhotoLibraryImageSource.swift
@@ -119,11 +171,20 @@ NineTilesPuzzle/
 │   │                                  startUpdates()/stopUpdates()
 │   ├── SoundService.swift          — @Observable, AVAudioPlayer-backed SFX
 │   ├── AchievementService.swift    — bundled JSON + remote fetch + on-disk cache
-│   └── GameCenterService.swift     — @Observable, handles GKLocalPlayer authentication;
-│                                     exposes isAuthenticated + showDashboard() which
-│                                     triggers the native Game Center UI via
-│                                     GKAccessPoint.trigger(handler:) (the iOS 26 replacement
-│                                     for the deprecated GKGameCenterViewController)
+│   ├── GameCenterService.swift     — @Observable, handles GKLocalPlayer authentication;
+│   │                                 exposes isAuthenticated + showDashboard() which
+│   │                                 triggers the native Game Center UI via
+│   │                                 GKAccessPoint.trigger(handler:) (the iOS 26 replacement
+│   │                                 for the deprecated GKGameCenterViewController); no
+│   │                                 leaderboard/achievement submission wired up yet
+│   ├── PuzzleBoardSnapshot.swift   — renders the board to a PNG (ImageRenderer) for both the
+│   │                                 Live Activity and the Resume widget's board thumbnail
+│   ├── ChallengeNearbySession.swift — Network.framework nearby transport for Challenge
+│   │                                 Friends (see below); NWListener/NWBrowser/NWConnection
+│   │                                 over a Bonjour `_ntp-challenge._tcp` service, replacing
+│   │                                 an earlier Multipeer Connectivity implementation
+│   └── DailyReminderService.swift  — UNUserNotificationCenter wrapper scheduling the daily
+│                                     reminder local notification (see below)
 ├── Views/
 │   ├── GameRoute.swift               — shared NavigationStack route enum + beginGame(session:path:)
 │   │                                   helper (reset board, push .game)
@@ -142,7 +203,8 @@ NineTilesPuzzle/
 │   ├── GameMode/GameModeView.swift  — mode picker only (media source moved to MenuView)
 │   ├── Settings/                    — SettingsView, GridSizePickerView, PreviewTimePickerView,
 │   │                                  QuickSnapDurationPickerView, MediaSourcePickerView
-│   │                                  (moved here from GameModeView)
+│   │                                  (moved here from GameModeView), WidgetsGuideView,
+│   │                                  PowerUpsGuideView
 │   ├── Streak/                      — StreakCounterView, StreakStatsView, StreakCountdownPickerView,
 │   │                                  MenuStatsCardView (mode-aware menu card: 3-stat for
 │   │                                  Swap/Slide/Haze/Chaos, 2-stat for Time Trial / Limited
@@ -180,10 +242,26 @@ NineTilesPuzzle/
 │   │   │                              + capture haptics; auto-captures at zero. Presented from
 │   │   │                              MenuView (first shot) and PuzzleView ("Play Again" re-capture)
 │   │   ├── CameraPreviewView.swift  — UIViewRepresentable bridging the AVCaptureVideoPreviewLayer
-│   │   └── PuzzleErrorView.swift
+│   │   ├── PuzzleErrorView.swift
+│   │   ├── PuzzlePowerUpToolbarView.swift — in-game row of PowerUpBadgeButtons (Peek/
+│   │   │                              Auto-place/Hint/Streak Freeze/Re-shuffle), each
+│   │   │                              disabled when its type is inapplicable to the
+│   │   │                              current mode/media (see Power-ups below)
+│   │   ├── PowerUpBadgeButton.swift — single power-up button: icon, owned count, tap to use
+│   │   └── EarnedPowerUpBadgeView.swift — transient "+1 Peek" style toast played off
+│   │                                  PowerUpStore.recentlyEarned after a streak
+│   │                                  milestone/achievement/Daily completion
 │   ├── Daily/
-│   │   └── DailyChallengeCardView.swift — menu card: today's date, calendar streak,
-│   │                                       "Play" button (or "Done ✓" once completed)
+│   │   ├── DailyChallengeCardView.swift — menu card: today's date, calendar streak,
+│   │   │                              "Play" button (or "Done ✓" once completed); tapping
+│   │   │                              the card (not the Play button) opens the calendar below
+│   │   ├── DailyStreakBadgeView.swift — small flame+streak badge reused by the menu card
+│   │   ├── DailyChallengeCalendarView.swift — Locket-style month-grid of past completions
+│   │   ├── DailyMonthGridView.swift — one month's grid of DailyDayCellViews + month math
+│   │   │                              from Models/Calendar/DailyCalendarMonth.swift
+│   │   └── DailyDayCellView.swift  — completed (golden square) / missed (circle) / upcoming
+│   │                                  (faint square) cell; completed cells are tappable to
+│   │                                  zoom that day's rebuilt share card and replay
 │   ├── WallOfFame/
 │   │   ├── WallOfFameView.swift     — root ZStack: ScrollView(cork board) + backdrop +
 │   │   │                              zoom overlay as three siblings so each can carry its
@@ -202,6 +280,20 @@ NineTilesPuzzle/
 │   │   │                              (.animation 60 fps); ticks engine.step(roll:) from
 │   │   │                              motionManager.roll; replaces 15 per-card timelines
 │   │   └── WallOfFameEmptySlot.swift — dashed rounded-rect placeholder for unfilled slots
+│   ├── Challenge/                    — Challenge Friends UI (see below)
+│   │   ├── ChallengeHomeView.swift  — menu entry: send-a-challenge launcher + history list
+│   │   ├── ChallengeHistoryListView.swift — full history (ChallengeHistoryRow: 44pt puzzle
+│   │   │                              photo thumbnail, direction badge, "To "/"From " prefix)
+│   │   ├── ChallengeSendSheet.swift — compose + share a `.ntpchallenge` from a finished game
+│   │   ├── ChallengeInviteView.swift — receiving device's accept/decline screen
+│   │   ├── ChallengeOutcomeView.swift — win/lose/tie comparison; "Send Result Back" button
+│   │   │                              for the file-transport manual reply path
+│   │   ├── ChallengeResultSendSheet.swift — manual result-reply sheet (mirrors
+│   │   │                              ChallengeSendSheet, no image/mode/grid to package)
+│   │   └── Nearby/
+│   │       ├── NearbyPeerPickerView.swift — Bonjour peer discovery/picker
+│   │       └── NearbyChallengeView.swift — send/receive UI over ChallengeNearbySession;
+│   │                                  stays open post-send to show the live auto-reply result
 │   └── Helpers/                     — grab-bag of small reusable views (toast, banners,
 │                                       loading/splash, brand mark, badges, zen sparkle,
 │                                       AchievementRowView (icon + title/description + inline
@@ -215,15 +307,28 @@ NineTilesPuzzleWidgets/               — widget extension target (NineTilesPuzz
 ├── NineTilesPuzzleWidgetsBundle.swift — @main WidgetBundle: DailyChallengeWidget,
 │                                       StreaksRecordsWidget, ResumeGameWidget, PuzzleLiveActivity
 ├── DailyChallenge/                  — widget + systemSmall/Medium views (home screen only —
-│                                       no Lock Screen accessory families)
+│                                       no Lock Screen accessory families); redesigned
+│                                       2026-07-12 (Duolingo-style streak row, "battery charge"
+│                                       date chip on medium) with DailyChallengeConfigurationIntent
+│                                       (WidgetConfigurationIntent — "Show Puzzle Photo" toggle,
+│                                       off by default) and DailyChallengeProvider
 ├── StreaksRecords/                  — AppIntent configuration (WidgetGameMode/WidgetGridSize
 │                                       AppEnums, StatsConfigurationIntent) + widget + views
 ├── ResumeGame/                      — widget + views incl. ResumeBoardThumbnail (accented-mode
 │                                       desaturation wrapper around the board image)
 └── Views/                           — Live Activity presentation (PuzzleLiveActivity, Lock Screen
-                                        card, Dynamic Island) + shared pieces reused by the
-                                        widgets: StatBadge, ProgressRing, ProgressBar,
-                                        ModeGlyphBadge, BoardThumbnail, BrandPuzzleMark
+                                        card, Dynamic Island — both gained `.widgetURL` to the
+                                        `…://resume` deep link 2026-07-16) + shared pieces
+                                        reused by the widgets: StatBadge, ProgressRing,
+                                        ProgressBar, ModeGlyphBadge, BoardThumbnail, BrandPuzzleMark
+NineTilesPuzzleThumbnail/             — QuickLook thumbnail extension target
+                                        (NineTilesPuzzleThumbnailExtension, added 2026-07-09)
+└── ThumbnailProvider.swift          — QLThumbnailProvider rendering a branded gradient card
+                                        (challenge's embedded photo, or an SF Symbol badge for
+                                        an imageless `.result` reply) directly into the
+                                        QuickLook-provided CGContext for Messages/Files/Finder
+                                        previews of shared `.ntpchallenge` files; shares
+                                        Models/Challenge/*, GameMode.swift from the app target
 NineTilesPuzzleTests/                 — real, wired-up Unit Testing Bundle target (see below)
 ```
 
@@ -232,8 +337,12 @@ NineTilesPuzzleTests/                 — real, wired-up Unit Testing Bundle tar
 ```
 NineTilesPuzzleApp.init()
    constructs, in dependency order:
-     StatsStore()  SettingsStore()  AchievementsStore()  ──▶  GameSession(stats:, achievements:, settings:)
-     WallOfFameStore()   MotionManager()   SoundService()   GameCenterService()   DailyChallengeStore()
+     StatsStore()  SettingsStore()  AchievementsStore()  DailyChallengeStore()
+     PowerUpStore()  ChallengeStore()  ──▶  GameSession(statsStore:, achievementsStore:,
+                                              settingsStore:, dailyChallengeStore:,
+                                              powerUpStore:, challengeStore:)
+     WallOfFameStore()  MotionManager()  SoundService()  GameCenterService()
+     DailyReminderService()
    (each store defaults its `defaults:` param to UserDefaults.standard via PersistenceStore)
    injects all into the environment (app-wide singletons)
         │
@@ -247,7 +356,8 @@ MenuView ── NavigationStack(GameRoute) ──▶ PuzzleView / WallOfFameView
 GameSession (@Observable, @MainActor)
    • owns: gridSize/mediaSourceType/selectedGameMode config, tiles, images, timers, live flags
    • owns instances of: ClassicEngine, SlideEngine
-   • depends on (read-only): StatsStore, AchievementsStore, SettingsStore, PersistenceStore
+   • depends on (read-only): StatsStore, AchievementsStore, SettingsStore, DailyChallengeStore,
+     PowerUpStore, ChallengeStore, PersistenceStore
    • talks directly to: PersistenceStore (its own keys), ImageService, ImageSlicer
         │
         ├─ selectedGameMode ──▶ activeEngine (computed: .slide → SlideEngine, else Classic)
@@ -256,12 +366,14 @@ GameSession (@Observable, @MainActor)
         │                  swap() / slide()         (mode-specific, called directly by GameSession)
         │
         └─ registerMove() reports completions/streaks to StatsStore, then asks
-           AchievementsStore.checkAchievements(using: StatsStore) to re-evaluate unlocks
+           AchievementsStore.checkAchievements(using:challengeStore:) to re-evaluate unlocks,
+           and awards power-ups (streak milestone / achievement unlock / Daily completion)
 ```
 
-**Four stores, one dependency direction.** `GameSession` is the only one with dependencies
-(`StatsStore`, `AchievementsStore`, `SettingsStore`, injected at init); the other three know
-nothing about each other or about `GameSession`. This used to be a single god object
+**Six stores, one dependency direction.** `GameSession` is the only one with dependencies
+(`StatsStore`, `AchievementsStore`, `SettingsStore`, `DailyChallengeStore`, `PowerUpStore`,
+`ChallengeStore`, all injected at init); the others know nothing about each other or about
+`GameSession`. This used to be a single god object
 (`PuzzleState`) owning all five concerns — split in June 2026. Why the boundaries fell where
 they did:
 - **`GameSession`** owns `gridSize`/`mediaSourceType`/`selectedGameMode` (not `SettingsStore`)
@@ -271,8 +383,9 @@ they did:
   answers questions keyed by `StatsKey`. `GameSession` exposes the "for current size/mode"
   convenience accessors (`currentStreakForCurrentSize`, `classicBestMovesForCurrentSize`, …)
   since it's the one place that knows what "current" means.
-- **`AchievementsStore.checkAchievements(using:)`** takes `StatsStore` as a parameter rather
-  than holding a permanent reference, so it stays decoupled and easy to test with fake stats.
+- **`AchievementsStore.checkAchievements(using:challengeStore:justSolved:)`** takes
+  `StatsStore` (and, since Challenge Friends, `ChallengeStore`) as parameters rather than
+  holding permanent references, so it stays decoupled and easy to test with fake stats.
   The check is fully data-driven: for each `Achievement` in the list (loaded from
   `achievements.json` via `AchievementService`), it calls `metric.value(in: stats)` and
   compares against `target` using `comparison` — no hardcoded per-id `switch`. The
@@ -285,8 +398,8 @@ they did:
   progress for count-based achievements (≥, target > 1) and a best-moves hint for efficiency
   achievements (≤).
 
-**`PersistenceStore`** (`Models/PersistenceStore.swift`) — a minimal protocol mirroring the
-handful of `UserDefaults` methods the four stores actually use (`set`/`object`/`string`/
+**`PersistenceStore`** (`Models/Settings/PersistenceStore.swift`) — a minimal protocol mirroring the
+handful of `UserDefaults` methods the stores actually use (`set`/`object`/`string`/
 `data`/`integer`/`double`/`bool`/`removeObject`, all keyed by `String`). `UserDefaults`
 conforms with no extra code; each store's `init` takes `defaults: PersistenceStore =
 UserDefaults.standard`. This isn't a full repository/DAO layer — it's deliberately just
@@ -320,7 +433,7 @@ stopwatch — `timeTrialRemaining`/`isTimeTrialRunning`/`isTimeTrialFailed` plus
 shape as `startCountdown()`/`stopCountdown()` — but with a *mutable* end date
 (`timeTrialEndDate`) so `applyTimeTrialMoveOutcome(correctBefore:)` can nudge it on every
 move: +1s on a move that locks a tile correctly, -2s otherwise, failing the puzzle if that
-empties the clock. `Models/TimeTrialRules.swift` holds the pure, table-driven constants
+empties the clock. `Models/GameModes/TimeTrialRules.swift` holds the pure, table-driven constants
 (base time limit per grid size, the bonus/penalty amounts, the score formula) so they're
 unit-testable with no `GameSession` dependency. `StatsStore` gained a `personalBestScore`
 dictionary alongside `personalBestMoves`/`personalBestTime`, following the same
@@ -337,7 +450,7 @@ case (it's the
 same countdown/combo loop, just chained across stages with an escalating grid
 size/time-limit/difficulty-multiplier table). `isGauntletLadderMode` (`isTimeTrialMode &&
 isLadderMode`) gates every ladder-specific branch, so non-ladder Time Trial is provably
-unaffected. `Models/GauntletLadderRules.swift` holds the 10-row stage table and a distinct
+unaffected. `Models/GameModes/GauntletLadderRules.swift` holds the 10-row stage table and a distinct
 `stageScore(remainingSeconds:stage:currentWinStreak:)` formula — separate from
 `TimeTrialRules.score(remainingSeconds:gridSize:)`, which stays untouched since it's
 already recorded in players' single-puzzle personal bests. `GameSession` tracks
@@ -378,7 +491,7 @@ record has ever been set.
 
 **Limited Moves mode** (shipped June 2026): a flat per-grid-size move budget — every move
 costs exactly 1 toward the budget, regardless of whether it locks a tile correctly (unlike
-Time Trial, where correctness changes the time delta). `Models/LimitedMovesRules.swift`
+Time Trial, where correctness changes the time delta). `Models/GameModes/LimitedMovesRules.swift`
 holds the pure, table-driven budget (3×3 → 12 moves, scaling up to 115 for 8×8 and beyond),
 unit-testable with no `GameSession` dependency. `GameSession` exposes
 `isLimitedMovesMode`/`isLimitedMovesFailed`/`movesBudgetForCurrentSize`/
@@ -397,7 +510,7 @@ regular completion banner, the same pattern as `TimeTrialFailView`), and
 remaining).
 
 **Chaos Mode** (shipped June 2026): a whole-image visual twist, not a per-tile one. A random
-`Models/ChaosTransform.swift` value — one `Orientation` pick (mirror/flip/rotate90/180/270),
+`Models/GameModes/ChaosTransform.swift` value — one `Orientation` pick (mirror/flip/rotate90/180/270),
 one `Tone` pick (desaturate/invert/hue-shift/sepia), plus independent `posterize` and
 `pixelate` coin flips (pixelate weighted lower at 25%, since its block size reads as a much
 stronger effect than the others) — is baked into the source `CGImage` via Core Image filters
@@ -491,6 +604,27 @@ purposes). `leaveGame()` resets the flag. The card `DailyChallengeCardView` on t
 reads `DailyChallengeStore` directly from the environment and shows a "Done ✓" indicator
 once `isDailyCompletedToday`; the flag is not persisted (transient) so a force-quit mid-game
 just restarts the same daily puzzle on next launch.
+
+**History calendar** (shipped 2026-07-06): a Locket-style month-grid of past completions
+(`Views/Daily/DailyChallengeCalendarView` + `DailyMonthGridView` + `DailyDayCellView`, month
+math in `Models/Calendar/DailyCalendarMonth`), reached by tapping the card body (the nested
+Play button stays independent). `DailyChallengeStore.completedDayKeys: Set<Int>` (`yyyymmdd`)
+persists which days are complete; `DailyChallengeStore.dayRecords: [Int: DailyDayRecord]`
+(moves/time/streak, first completion per day wins) lets the calendar rebuild that day's
+`ShareCardView` on demand and zoom it via the shared `ZoomedCardOverlay`. Completed cells are
+tappable for a **Replay** (`GameSession.enterDailyMode(for:)` stores a transient
+`dailyGameDate`; `recordCompletion(..., isPastReplay:)` skips streak/`lastCompletedDate` for
+past replays but still lets global daily bests improve, and backfills a record for pre-
+record-keeping days so a future tap shows the full card instead of the bare image).
+
+**Daily reminder notification** (shipped 2026-07-12): `Services/DailyReminderService.swift`
+wraps `UNUserNotificationCenter` with one pending notification at a time (id
+`"dailyReminder"`). `rescheduleIfNeeded(enabled:time:completedToday:)` cancels and re-arms a
+one-shot `UNCalendarNotificationTrigger` at a user-configurable hour/minute
+(`SettingsView`'s toggle + `DatePicker`), rolling to tomorrow if today's puzzle is already
+done or the time already passed; an 8-message pool rotates with no immediate repeat.
+Rescheduled on daily completion and app foreground. The first-ever daily completion prompts
+for notification permission and auto-enables the toggle if granted.
 
 **Quick Snap** (shipped July 2026): a new `.camera` `MediaSourceType` rather than a new
 `GameMode` — underneath it plays plain Swap. Selecting it in `MediaSourcePickerView` (only
@@ -592,6 +726,93 @@ create the file before (or with) the pbxproj edit. The app target sets
 contexts (`WidgetDataStore`, `WidgetSnapshot`, `WidgetKind`, `LiveActivityStore`) are
 explicitly `nonisolated`.
 
+**Daily Challenge widget redesign + configurable photo** (2026-07-12): the widget
+consolidated to one design (`NineTilesPuzzleWidgets/DailyChallenge/`): brand-gradient
+wordmark header, hero grid-size/mode readout or a green "Solved" seal, a Duolingo-style
+puzzle-piece streak row (weekday initials on medium), and on medium a "battery charge"
+calendar-page date chip that visually drains through the day via 20%-step timeline entries.
+`DailyChallengeConfigurationIntent` (a `WidgetConfigurationIntent`, edited through the
+standard "Edit Widget" sheet) adds a "Show Puzzle Photo" toggle, off by default — when on,
+`DailyChallengeProvider` fetches the day's seeded Picsum photo (the same URL formula as the
+in-app puzzle) and masks it into the puzzle-piece watermark instead of the plain gradient.
+
+**Live Activity resume deep link** (2026-07-16): `PuzzleLiveActivity`'s Lock Screen view and
+Dynamic Island compact/expanded regions gained `.widgetURL(DeepLink.resume.url)`. Tapping the
+Live Activity or Dynamic Island now resumes the in-progress game through the existing
+`ninetilespuzzle://resume` route instead of just opening the app to the menu.
+
+**Power-ups** (shipped 2026-07-07): five power-ups — Peek, Auto-place, Hint, Streak Freeze,
+Re-shuffle (`Models/PowerUps/PowerUpType.swift`) — earned rather than bought and spent
+mid-game. `PowerUpStore` (`@Observable`, `@MainActor`) is a `UserDefaults`-backed inventory:
+`earn(_:amount:)`/`consume(_:) -> Bool`/`earnRandom()` (awards one random implemented type,
+so growing the roster later needs no per-trigger redesign)/`resetToDefaults()`. Fresh installs
+(and any power-up type added in a later update, detected via `object(forKey:)` returning
+`nil`) start at `PowerUpRules.startingInventory` (3). Three earning triggers, all gated on
+`SettingsStore.powerUpsEnabled` and skipped when `debugOverlayEnabled`, all in
+`GameSession.registerMove()`: a streak crossing a milestone multiple of
+`PowerUpRules.streakMilestoneInterval` (5, claimed once at solve time even if a puzzle's
+moves cross several multiples), each achievement unlock (once per unlock in that move), and
+Daily Challenge completion. **Challenge Friends completion does not earn a power-up** — see
+below, flagged as an open question in `ROADMAP.md`. Each `use…PowerUp()` method in
+`GameSession` (`usePeekPowerUp()`, `useAutoPlacePowerUp()`, `useHintPowerUp()`,
+`useStreakFreezePowerUp()`, `useReshufflePowerUp()`) also gates on mode/media applicability
+(e.g. Peek needs a reference image, so a Numbers-media game doesn't offer it) independently
+of whether the type is owned, so an owned-but-inapplicable power-up's button stays visibly
+disabled rather than doing nothing on tap. `PuzzlePowerUpToolbarView` hosts the five
+`PowerUpBadgeButton`s in-game; `EarnedPowerUpBadgeView` plays a transient toast off
+`PowerUpStore.recentlyEarned` (cleared at the start of each new game so the flourish never
+replays against a stale award). `SettingsStore.debugInfinitePowerUps` bypasses `consume(_:)`
+entirely for testing.
+
+**Challenge Friends** (shipped 2026-07-08, extended through 2026-07-12): send a friend a
+seeded puzzle and compare move counts/time — fully self-contained, no backend, superseding
+an earlier iCloud+Game Center sketch. `FriendChallenge` (`Models/Challenge/`) is the
+self-contained wire payload: sender name, mode, grid size, a freshly-minted seed, the
+sender's own JPEG photo (`ChallengeImageCodec`), the sender's moves/time, a
+`parentChallengeID` for "Challenge Them Back" chains, and a `formatVersion` for forward-
+compat rejection. The receiver's device reproduces an identical board from the seed via
+`Models/GameModes/SeededShuffle.swift` (extracted from `DailyChallengeSeeder` so both
+features share the same seeded-derangement primitives) and shows a local win/lose/tie
+comparison (`ChallengeStore.determineOutcome`) — zero server involvement, the same pattern
+as Daily Challenge but with an arbitrary seed and the sender's real photo instead of a
+reproducible remote URL. Sending needs no `GameSession` mode — it's a share action
+(`ChallengeSendSheet`) off any finished, eligible game (every `GameMode` except `.zen`, which
+tracks no move/time bests, and Gauntlet Ladder runs, which aren't a single reproducible
+puzzle instance); only *receiving and playing* uses
+`GameSession.enterChallengeMode(with:)`, the same transient-flag pattern as
+`enterDailyMode`/`enterQuickSnapMode`. "Challenge Them Back" starts a fresh game in the same
+mode/grid (needs a new image/seed, not the one just played) and auto-opens
+`ChallengeSendSheet` once it solves.
+
+Two transports share one payload. **File transport**: a custom `.ntpchallenge` UTType
+(`cilia.filippo.NineTilesPuzzle.challenge`), `Transferable` via `FileRepresentation`, shared
+through Messages/Mail/AirDrop/Files and opened via `MenuView`'s `.onOpenURL` →
+`ChallengeFileOpeningModifier`. A `NineTilesPuzzleThumbnailExtension`
+(`QLThumbnailProvider`, see directory layout above) renders a branded gradient-card preview
+of the embedded photo (or an SF Symbol badge for an imageless `.result` reply) directly into
+the QuickLook-provided `CGContext`, replacing the generic document icon Messages/Files/Finder
+would otherwise show. `ChallengeFileCoder.decode` returns a
+`Result<ChallengePayload, DecodeFailure>` (`.unreadable`/`.corrupted`/
+`.unsupportedFormatVersion`, added 2026-07-10) rather than silently returning `nil`, so
+`MenuView` can surface a "Couldn't Open Challenge" alert with a failure-specific message.
+**Nearby transport**: `Services/ChallengeNearbySession.swift`, migrated 2026-07-09 from
+Multipeer Connectivity to Network.framework — `NWListener`/`NWBrowser`/`NWConnection` over a
+Bonjour `_ntp-challenge._tcp` service, peer-to-peer/AWDL enabled. Both a live automatic
+result round-trip (the connection stays open after the challenge lands so the receiver's
+`registerMove()` can fire a `ChallengeResult` straight back over the same socket, no second
+handshake) and a manual file-based reply (`ChallengeResultSendSheet`, for when no live
+channel exists) feed `ChallengeStore.recordOpponentResult(_:)`, which is idempotent — a
+duplicate/re-delivered result can't clobber an outcome that's already recorded.
+
+`ChallengeStore` (`@Observable`, `@MainActor`) persists history as UserDefaults JSON plus
+on-disk JPEGs (`Documents/challenges/<id>.jpg`, 200-record cap); `AchievementCategory` gained
+a `.social` case and `AchievementMetric` gained `.challengesSent`/`.challengesWon`/
+`.challengesPlayed`, each reading live off `ChallengeStore`. Power-ups (above) can be *spent*
+during a challenge game — nothing disables `consume(_:)` for `isChallengeGameActive` — but
+none are *earned* from completing one, unlike Daily. **Not yet manually verified**: neither
+transport has been tested end-to-end on two physical devices (Simulator can't do Bonjour
+discovery or show real share-sheet destinations) — see `ROADMAP.md` §3.
+
 **Wall of Fame** (shipped June 2026): a cork-board view where every personal best is
 automatically captured and pinned as a polaroid card. `PuzzleView` renders `ShareCardView`
 via `ImageRenderer` at 3× scale at the moment a record is set, converts the result to a
@@ -687,7 +908,9 @@ step once stats history/charts are wanted).
 
 **Testing**: `NineTilesPuzzleTests` is a real Unit Testing Bundle target (added manually in
 Xcode in June 2026 — it existed as a folder of source files for a while before that without
-ever actually being wired up or compiled). 169 `@Test` functions currently pass, covering: both engines
+ever actually being wired up or compiled). 281 `@Test` functions currently pass (up from 169
+at the widget work below — Challenge Friends and Power-ups each added their own suites, see
+end of this section), covering: both engines
 and `SlideSolver`, `ImageService`/`ImageSlicer` (including a fallback test for non-network
 decode failures), all four stores (`StatsStore` and `AchievementsStore` via
 `InMemoryPersistenceStore`), `PuzzleCompletionViewModel`, `TimeTrialRules`,
@@ -721,3 +944,13 @@ every route plus ten malformed-URL rejections). Getting the target wired up surf
 previously-undetected bugs that had been sitting in untested code paths — two missing
 imports and one test with a geometrically-invalid fixture (asserted a slide between two
 non-adjacent grid cells) — all fixed once the target could finally compile and run them.
+
+Challenge Friends added `ChallengeStoreTests`, `ChallengeImageCodecTests`, and
+`GameSessionChallengeTests` (the full receive → play → complete → outcome integration
+against a real `GameSession`); Power-ups added `PowerUpStoreTests` and
+`GameSessionPowerUpApplicabilityTests` (per-mode/media gating of each `use…PowerUp()` method,
+independent of whether the type is actually owned). Wiring Challenge Friends up from the CLI
+also required adding a `<Testables>` block to the shared `.xcscheme` — it only had
+`shouldAutocreateTestPlan = "YES"` with no explicit `TestableReference`, which works silently
+in Xcode's GUI but makes `xcodebuild test` fail with "Scheme ... is not currently configured
+for the test action."
