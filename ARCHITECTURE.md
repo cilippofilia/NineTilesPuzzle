@@ -3,7 +3,9 @@
 Snapshot of the current codebase structure, as of 2026-07-16 (updated for Wall of Fame +
 Stats→Settings, a July 2026 performance pass, the Live Activity, home-screen widgets + deep
 links, the power-up economy, Challenge Friends, the July 2026 `Models/` feature-folder
-restructure, and the Daily Challenge widget/reminder-notification follow-ups). This is a
+restructure, the Daily Challenge widget/reminder-notification follow-ups, the Time Trial
+resume grace period, Wall of Fame manual curation, and Challenge Friends being gated behind
+a Settings toggle — along with the matching Achievements gating). This is a
 descriptive document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in
 sync with it) for how the "does mode-specific behavior need a shared abstraction" question was
 revisited once Time Trial and Limited Moves both existed, and what would justify
@@ -90,7 +92,9 @@ NineTilesPuzzle/
 │   │   └── WallOfFameStore.swift    — @Observable, @MainActor; persists card PNGs to
 │   │                                  Documents/wall_of_fame/<slot>.png via ImageIO (no UIKit);
 │   │                                  caches CGImages in memory; exposes cardImage(for:),
-│   │                                  save(_:for:) (disk write off main actor), fileURL(for:)
+│   │                                  save(_:for:) (disk write off main actor), fileURL(for:);
+│   │                                  also persists manual curation — isHidden/setHidden and
+│   │                                  orderedSlots/move (see Wall of Fame below)
 │   ├── PowerUps/                    — power-up economy (shipped 2026-07-07, see below)
 │   │   ├── PowerUpType.swift        — 5-case enum: peek/autoPlace/hint/streakFreeze/reshuffle
 │   │   │                              — title/icon/color per case
@@ -392,11 +396,28 @@ they did:
   Completionist achievement is the one exception: it's skipped in the generic loop and handled
   by `updateCompletionistAchievement`, since "all others unlocked" depends on the list itself.
   `AchievementsView` groups rows into sections by `AchievementCategory` — reading the
-  precomputed `AchievementsStore.achievementsByCategory` (one O(n) grouping) and
-  `unlockedCount` rather than re-filtering the array per category on every render, a July 2026
-  perf tidy-up. `AchievementRowView` reads `StatsStore` from the environment to render inline
-  progress for count-based achievements (≥, target > 1) and a best-moves hint for efficiency
-  achievements (≤).
+  precomputed `AchievementsStore.achievementsByCategory(challengeFriendsEnabled:)` (one O(n)
+  grouping) and `unlockedCount(challengeFriendsEnabled:)` rather than re-filtering the array
+  per category on every render, a July 2026 perf tidy-up. `AchievementRowView` reads
+  `StatsStore` from the environment to render inline progress for count-based achievements
+  (≥, target > 1) and a best-moves hint for efficiency achievements (≤).
+
+  **Challenge Friends gating (2026-07-16):** `checkAchievements` also takes a
+  `challengeFriendsEnabled: Bool = true` parameter (`GameSession` passes
+  `settingsStore.challengeFriendsEnabled`). `AchievementMetric.isChallengeFriendsMetric` flags
+  the three metrics reading `ChallengeStore` (`.challengesSent`/`.challengesWon`/
+  `.challengesPlayed`); while disabled, the generic loop skips evaluating them entirely (so
+  they can't unlock in the background), and `updateCompletionistAchievement` excludes them
+  from its "every other achievement" requirement too, so Completionist stays reachable without
+  the player ever touching Challenge Friends. `visibleAchievements(challengeFriendsEnabled:)`
+  is the single filter both `unlockedCount`/`achievementsByCategory` and `AchievementsView`
+  build on, so the three Challenge Friends achievements (`firstChallengeSent`,
+  `firstChallengeWon`, `challengeChampion`) simply don't appear — list, tally, and Completionist
+  math all agree — while the feature is off, and `AchievementsView` skips rendering a category
+  section (e.g. "Social") left with zero visible achievements rather than showing a bare
+  header. Achievements themselves are never gated as a whole — only this Challenge-Friends-
+  scoped subset, matching the fact that Challenge Friends the feature is itself hidden behind
+  a Settings toggle (see Challenge Friends below).
 
 **`PersistenceStore`** (`Models/Settings/PersistenceStore.swift`) — a minimal protocol mirroring the
 handful of `UserDefaults` methods the stores actually use (`set`/`object`/`string`/
@@ -488,6 +509,24 @@ lands), falling back to the on-disk PNG's modification date for slots this sessi
 touched, memoized back into `lastModified` once read. `WallOfFameView.heroCardSlot(forGridSize:)`
 renders that slot like any other card, or a `.bestMoves(size)`-labeled empty slot if neither
 record has ever been set.
+
+**Time Trial / Gauntlet Ladder resume grace period** (shipped 2026-07-16): `PuzzleView`'s
+`.onChange(of: scenePhase)` now distinguishes three phases instead of two. `.background` (a
+real backgrounding) and `.inactive` (a phone call, Face ID prompt, Control Center, or the
+app-switcher preview — none of which used to pause anything, since only `.background` was
+handled before) both cancel any in-flight resume countdown and call `session.pauseTimers()`;
+`.background` additionally calls `refreshLiveActivity()` after pausing so the Lock Screen
+reminder shows the exact board/elapsed-time the player left behind. Returning to `.active`
+only calls `session.resumeTimers()` immediately for non-Time-Trial games; for an unsolved,
+unfailed Time Trial or Gauntlet Ladder run with time still on the clock, it instead calls
+`PuzzleView.beginResumeCountdown()`, which drives `@State private var
+isShowingResumeCountdown`/`resumeCountdownValue` through a 3-2-1 `Task` (cancelled on the next
+phase change) and only calls `resumeTimers()` once that reaches zero.
+`Views/Puzzle/TimeTrialResumeOverlay.swift` renders the "Get Ready" dimming overlay + big
+countdown number, shown whenever `session.isTimeTrialMode` (covers Gauntlet Ladder too) and
+gated purely on `isShowingResumeCountdown`. Net effect: the countdown clock can no longer
+resume ticking in the instant before the player has had a beat to reorient after any kind of
+interruption, not just a full backgrounding.
 
 **Limited Moves mode** (shipped June 2026): a flat per-grid-size move budget — every move
 costs exactly 1 toward the budget, regardless of whether it locks a tile correctly (unlike
@@ -813,6 +852,16 @@ none are *earned* from completing one, unlike Daily. **Not yet manually verified
 transport has been tested end-to-end on two physical devices (Simulator can't do Bonjour
 discovery or show real share-sheet destinations) — see `ROADMAP.md` §3.
 
+**Gated behind Settings (2026-07-16):** pending that verification, the whole feature ships
+hidden behind `SettingsStore.challengeFriendsEnabled` (off by default, toggled in Settings'
+Dev Tools section — the same pattern as `powerUpsEnabled`): `MenuOptionsCardView` hides the
+"Challenge Nearby Friends" row entirely when off; `PuzzleView.isChallengeEligible` additionally
+requires the toggle before offering the send-a-challenge action on a finished game; and
+`ChallengeFileOpeningModifier` checks it in `.onOpenURL` before decoding a tapped
+`.ntpchallenge` file, showing a "Challenge Friends is Off" alert instead of silently opening it
+(or silently no-opping) when disabled. The matching achievement gating is covered in the
+Achievements section above.
+
 **Wall of Fame** (shipped June 2026): a cork-board view where every personal best is
 automatically captured and pinned as a polaroid card. `PuzzleView` renders `ShareCardView`
 via `ImageRenderer` at 3× scale at the moment a record is set, converts the result to a
@@ -841,6 +890,26 @@ scales, both driven by a shared `.animation(..., value: zoomedCardImage == nil)`
 (backdrop or card) dismisses without a button-press color flash. The card image is layered
 on top via `.overlay` with `.allowsHitTesting(false)` so taps pass through to the button;
 the dark backdrop sibling also has `.allowsHitTesting(false)` so neither intercepts.
+
+**Manual curation + share-button relocation (shipped 2026-07-16):** `WallOfFameStore` gained
+two persisted, purely-display preferences that never touch the underlying personal-best
+records: `hiddenFileNames: Set<String>` (`isHidden(_:)`/`setHidden(_:hidden:)`, JSON under
+`wallOfFame.hiddenSlots`) and `sectionOrder: [String: [String]]` (a section identifier like
+`"bestMoves"` → `fileName`s in display order, JSON under `wallOfFame.sectionOrder`).
+`orderedSlots(section:canonical:)` reorders a section's canonical slot list per any manual
+arrangement, falling back to canonical order for a slot never touched (never moved, or added
+in a later update); `move(_:section:canonical:earlier:)` swaps a slot with its immediate
+neighbor in that resolved order and persists the result. `WallOfFameView.curatedCardSlot(for:
+section:canonical:)` wraps every per-slot record section (not the derived "Difficulty
+Highlights" hero cards, which have no single stable slot identity to hide or reorder) with a
+`.contextMenu` (long-press): an earned, visible card offers "Unpin from Wall" (destructive) and
+`moveMenuButtons` ("Move Earlier"/"Move Later", each hidden at its respective end of the
+section); a hidden slot renders as `WallOfFameEmptySlot` with only "Re-pin to Wall"; a
+never-earned slot renders exactly as it always did, with no menu, since there's nothing yet to
+unpin or move. Separately, the zoomed overlay's Share button moved off the nav bar
+`ToolbarItem` into `ZoomedCardOverlay`'s existing generic `Footer` slot (added alongside the
+Daily Challenge calendar's Replay button) as a `.borderedProminent` `ShareLink`, so sharing now
+happens from the card itself rather than the surrounding chrome.
 
 **Pendulum physics** (`WallOfFameSwingEngine`): a single `WallOfFameSwingDriver` mounts one
 shared `TimelineView(.animation(minimumInterval: 1/60))` in the `WallOfFameView`. Each frame

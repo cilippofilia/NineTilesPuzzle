@@ -12,6 +12,7 @@ import SwiftUI
 struct MenuOptionsCardView: View {
     @Environment(GameSession.self) private var session
     @Environment(AchievementsStore.self) private var achievementsStore
+    @Environment(SettingsStore.self) private var settings
 
     @Binding var path: [GameRoute]
 
@@ -52,7 +53,7 @@ struct MenuOptionsCardView: View {
             MenuRow(
                 title: "Achievements",
                 systemImage: "trophy.fill",
-                detail: "\(achievementsStore.unlockedCount)/\(achievementsStore.achievements.count)"
+                detail: achievementsDetail
             ) {
                 path.append(.achievements)
             }
@@ -63,13 +64,20 @@ struct MenuOptionsCardView: View {
                 path.append(.wallOfFame)
             }
 
-            Divider()
+            if settings.challengeFriendsEnabled {
+                Divider()
 
-            MenuRow(title: "Challenge Nearby Friends", systemImage: "person.2.fill") {
-                path.append(.challengeHome)
+                MenuRow(title: "Challenge Nearby Friends", systemImage: "person.2.fill") {
+                    path.append(.challengeHome)
+                }
             }
         }
         .background(.quaternary, in: .rect(cornerRadius: 20))
         .padding(.horizontal)
+    }
+
+    private var achievementsDetail: String {
+        let visible = achievementsStore.visibleAchievements(challengeFriendsEnabled: settings.challengeFriendsEnabled)
+        return "\(visible.count(where: \.isUnlocked))/\(visible.count)"
     }
 }

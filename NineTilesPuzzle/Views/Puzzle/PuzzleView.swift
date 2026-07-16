@@ -40,6 +40,11 @@ struct PuzzleView: View {
     /// auto-opens the send sheet once it solves.
     @State private var pendingRechallenge: (opponentName: String, parentChallengeID: UUID)?
     @State private var showChallengeResultSendSheet = false
+    /// Drives `TimeTrialResumeOverlay` — set true while the "Get Ready" grace period is
+    /// counting down after a Time Trial / Gauntlet Ladder puzzle returns from the background.
+    @State private var isShowingResumeCountdown = false
+    @State private var resumeCountdownValue = 3
+    @State private var resumeCountdownTask: Task<Void, Never>?
 
     var body: some View {
         // Split into two independently type-checked expressions to avoid the compiler's
@@ -90,6 +95,11 @@ struct PuzzleView: View {
                     onSkip: session.skipPeek
                 )
                 .transition(.opacity)
+            }
+
+            // Layer 3e: Time Trial / Gauntlet Ladder resume grace — shown while the app is
+            // back in the foreground but the countdown is deliberately still frozen.
+            if session.isTimeTrialMode {
             }
 
         }
@@ -315,17 +325,61 @@ struct PuzzleView: View {
             Text("Your progress on this puzzle will be lost.")
         }
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .background {
+            switch newPhase {
+            case .background:
+                // `.inactive` already froze the timers and cancelled any resume countdown on
+                // the way here (every backgrounding passes through `.inactive` first), but
+                // `pauseTimers()` is idempotent so this stays correct even if that ever changes.
+                resumeCountdownTask?.cancel()
+                isShowingResumeCountdown = false
                 session.pauseTimers()
                 // Refresh after pausing so the Lock Screen reminder shows the board and elapsed
                 // time exactly as the player left them — the moment the reminder becomes visible.
                 session.refreshLiveActivity()
-            } else if newPhase == .active, !session.isLoading, !session.isPreviewing {
-                session.resumeTimers()
+            case .inactive:
+                // Covers real interruptions that never reach `.background` — a phone call,
+                // Face ID prompt, Control Center, or the app switcher preview — which
+                // previously left the countdown ticking while the player couldn't interact.
+                resumeCountdownTask?.cancel()
+                isShowingResumeCountdown = false
+                session.pauseTimers()
+            case .active:
+                guard !session.isLoading, !session.isPreviewing else { break }
+                if session.isTimeTrialMode, !session.isSolved, !session.isTimeTrialFailed,
+                   session.timeTrialRemaining > 0 {
+                    beginResumeCountdown()
+                } else {
+                    session.resumeTimers()
+                }
+            default:
+                break
             }
         }
         .onDisappear {
+            resumeCountdownTask?.cancel()
             session.leaveGame()
+        }
+    }
+
+    /// Delays `GameSession.resumeTimers()` behind a 3-2-1 "Get Ready" grace period so the Time
+    /// Trial / Gauntlet Ladder countdown doesn't start ticking the instant the screen becomes
+    /// visible again, before the player has had a moment to reorient.
+    private func beginResumeCountdown() {
+        resumeCountdownValue = 3
+        isShowingResumeCountdown = true
+        resumeCountdownTask?.cancel()
+        resumeCountdownTask = Task {
+            var value = 3
+            while value > 1 {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                value -= 1
+                resumeCountdownValue = value
+            }
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            isShowingResumeCountdown = false
+            session.resumeTimers()
         }
     }
 
@@ -405,7 +459,8 @@ struct PuzzleView: View {
     /// Zen has no natural win/lose metric, and a Gauntlet Ladder run isn't a single
     /// reproducible puzzle instance.
     private var isChallengeEligible: Bool {
-        ChallengeStore.eligibleGameModes.contains(session.selectedGameMode)
+        settings.challengeFriendsEnabled
+            && ChallengeStore.eligibleGameModes.contains(session.selectedGameMode)
             && !session.isGauntletLadderMode
             && session.croppedSourceImage != nil
     }

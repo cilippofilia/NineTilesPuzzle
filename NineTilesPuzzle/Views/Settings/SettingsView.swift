@@ -100,6 +100,24 @@ struct SettingsView: View {
                     } footer: {
                         Text("Enable Power-ups turns on the power-up system in-game — it's off by default while still being tuned. Infinite Power-ups lets every power-up be used without spending inventory. The steppers tune how long a Peek/Hint shows and how often a streak milestone earns a power-up. Refill tops every power-up back up to 3 for testing.")
                     }
+
+                    Section {
+                        Toggle("Enable Challenge Friends", isOn: Binding(
+                            get: { settings.challengeFriendsEnabled },
+                            set: { settings.setChallengeFriendsEnabled($0) }
+                        ))
+
+                        if settings.challengeFriendsEnabled {
+                            TextField("Your Game tag", text: Binding(
+                                get: { settings.senderDisplayName },
+                                set: { settings.setSenderDisplayName($0) }
+                            ))
+                        }
+                    } header: {
+                        Text("Challenge Friends")
+                    } footer: {
+                        Text("Send a friend a seeded puzzle and compare move counts, by file share or nearby device — it's off by default while it's still unverified on real hardware. Your Game tag is shown to friends when you send them a challenge.")
+                    }
                 }
 
                 Section("Game") {
@@ -174,17 +192,6 @@ struct SettingsView: View {
                     .sensoryFeedback(.impact, trigger: settings.hapticsEnabled) { _, newValue in
                         newValue
                     }
-                }
-
-                Section {
-                    TextField("Your Game tag", text: Binding(
-                        get: { settings.senderDisplayName },
-                        set: { settings.setSenderDisplayName($0) }
-                    ))
-                } header: {
-                    Text("Challenge Friends")
-                } footer: {
-                    Text("Shown to friends when you send them a challenge.")
                 }
 
                 Section("How to...") {

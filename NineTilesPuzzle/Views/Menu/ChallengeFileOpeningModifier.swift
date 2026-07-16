@@ -14,6 +14,7 @@ import SwiftUI
 /// menu-specific navigation (e.g. popping an active game before entering the new one).
 private struct ChallengeFileOpening: ViewModifier {
     @Environment(ChallengeStore.self) private var challengeStore
+    @Environment(SettingsStore.self) private var settings
 
     @State private var incomingChallenge: FriendChallenge?
     /// Set when a `ChallengeResult` reply arrives for a challenge this device originally sent —
@@ -22,6 +23,8 @@ private struct ChallengeFileOpening: ViewModifier {
     /// Set when a tapped `.ntpchallenge` file fails to open, so the user sees *something*
     /// instead of the tap silently doing nothing.
     @State private var challengeOpenFailure: ChallengeFileCoder.DecodeFailure?
+    /// Set when a `.ntpchallenge` file is opened while the feature is turned off in Settings.
+    @State private var showFeatureDisabledAlert = false
 
     let onAcceptChallenge: (FriendChallenge) -> Void
 
@@ -29,6 +32,10 @@ private struct ChallengeFileOpening: ViewModifier {
         content
             .onOpenURL { url in
                 guard url.isFileURL else { return }
+                guard settings.challengeFriendsEnabled else {
+                    showFeatureDisabledAlert = true
+                    return
+                }
                 switch ChallengeFileCoder.decode(fileAt: url) {
                 case .success(let payload):
                     switch payload {
@@ -73,6 +80,11 @@ private struct ChallengeFileOpening: ViewModifier {
                 Button("OK") { challengeOpenFailure = nil }
             } message: {
                 Text(challengeOpenFailureMessage)
+            }
+            .alert("Challenge Friends is Off", isPresented: $showFeatureDisabledAlert) {
+                Button("OK") { }
+            } message: {
+                Text("Turn on Challenge Friends in Settings to open shared challenges.")
             }
     }
 

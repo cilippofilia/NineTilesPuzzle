@@ -43,12 +43,83 @@ final class WallOfFameStore {
     /// per card alive for the whole visit.
     private static let thumbnailMaxPixelSize = 192 * 3
 
+    private let defaults: PersistenceStore
+
+    /// Slots the player has manually hidden via long-press "Unpin from Wall". The underlying
+    /// personal-best record is untouched — this only affects whether its card is drawn.
+    private(set) var hiddenFileNames: Set<String> = []
+    /// Manual per-section display order the player arranged via long-press "Move Earlier"/
+    /// "Move Later", keyed by a section identifier (e.g. "bestMoves") and storing slot
+    /// `fileName`s in display order. A slot missing from its section's array (never touched,
+    /// or added in a later update) falls back to its canonical position — see `orderedSlots`.
+    private(set) var sectionOrder: [String: [String]] = [:]
+
+    private enum CurationKeys {
+        static let hiddenSlots = "wallOfFame.hiddenSlots"
+        static let sectionOrder = "wallOfFame.sectionOrder"
+    }
+
     private var wallDirectory: URL {
         URL.documentsDirectory.appending(path: "wall_of_fame", directoryHint: .isDirectory)
     }
 
-    init() {
+    init(defaults: PersistenceStore = UserDefaults.standard) {
+        self.defaults = defaults
         try? FileManager.default.createDirectory(at: wallDirectory, withIntermediateDirectories: true)
+        if let data = defaults.data(forKey: CurationKeys.hiddenSlots),
+           let decoded = try? JSONDecoder().decode(Set<String>.self, from: data) {
+            hiddenFileNames = decoded
+        }
+        if let data = defaults.data(forKey: CurationKeys.sectionOrder),
+           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
+            sectionOrder = decoded
+        }
+    }
+
+    /// Whether the player has hidden `slot`'s card from the board.
+    func isHidden(_ slot: WallOfFameSlot) -> Bool {
+        hiddenFileNames.contains(slot.fileName)
+    }
+
+    /// Hides (or restores) `slot`'s pinned card. Purely a display preference — the personal
+    /// best it represents keeps updating normally underneath.
+    func setHidden(_ slot: WallOfFameSlot, hidden: Bool) {
+        if hidden {
+            hiddenFileNames.insert(slot.fileName)
+        } else {
+            hiddenFileNames.remove(slot.fileName)
+        }
+        if let data = try? JSONEncoder().encode(hiddenFileNames) {
+            defaults.set(data, forKey: CurationKeys.hiddenSlots)
+        }
+    }
+
+    /// `canonical` reordered per the player's manual arrangement of `section`, if any.
+    func orderedSlots(section: String, canonical: [WallOfFameSlot]) -> [WallOfFameSlot] {
+        guard let order = sectionOrder[section], !order.isEmpty else { return canonical }
+        let byFileName = Dictionary(uniqueKeysWithValues: canonical.map { ($0.fileName, $0) })
+        var seen = Set<String>()
+        var result = order.compactMap { fileName -> WallOfFameSlot? in
+            guard let slot = byFileName[fileName] else { return nil }
+            seen.insert(fileName)
+            return slot
+        }
+        result.append(contentsOf: canonical.filter { !seen.contains($0.fileName) })
+        return result
+    }
+
+    /// Swaps `slot` with its earlier/later neighbor within `section`'s current order,
+    /// persisting the new arrangement. No-ops at either end of the section.
+    func move(_ slot: WallOfFameSlot, section: String, canonical: [WallOfFameSlot], earlier: Bool) {
+        var order = orderedSlots(section: section, canonical: canonical).map(\.fileName)
+        guard let index = order.firstIndex(of: slot.fileName) else { return }
+        let targetIndex = earlier ? index - 1 : index + 1
+        guard order.indices.contains(targetIndex) else { return }
+        order.swapAt(index, targetIndex)
+        sectionOrder[section] = order
+        if let data = try? JSONEncoder().encode(sectionOrder) {
+            defaults.set(data, forKey: CurationKeys.sectionOrder)
+        }
     }
 
     /// The on-disk URL for `slot`'s PNG — valid to share whenever `cardImage(for:)` returns non-nil.

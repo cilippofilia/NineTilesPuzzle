@@ -290,10 +290,14 @@ final class GameSession {
         restoreFromUserDefaults()
         reconcileLiveActivityOnLaunch()
         widgetData.syncAll(dailyStore: dailyChallengeStore, statsStore: statsStore)
-        achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore)
+        achievementsStore.checkAchievements(
+            using: statsStore, challengeStore: challengeStore, challengeFriendsEnabled: settingsStore.challengeFriendsEnabled
+        )
         Task {
             await achievementsStore.refreshAchievementsFromRemote()
-            achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore)
+            achievementsStore.checkAchievements(
+                using: statsStore, challengeStore: challengeStore, challengeFriendsEnabled: settingsStore.challengeFriendsEnabled
+            )
         }
     }
 
@@ -1041,10 +1045,16 @@ final class GameSession {
         // Zen clear) could never unlock. Practice/debug play is still excluded — it never
         // touches `StatsStore` records above, so it shouldn't unlock achievements either.
         if !debugOverlayEnabled {
-            let unlockedBefore = achievementsStore.unlockedCount
-            achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore, justSolved: isSolved)
+            let unlockedBefore = achievementsStore.unlockedCount(challengeFriendsEnabled: settingsStore.challengeFriendsEnabled)
+            achievementsStore.checkAchievements(
+                using: statsStore,
+                challengeStore: challengeStore,
+                challengeFriendsEnabled: settingsStore.challengeFriendsEnabled,
+                justSolved: isSolved
+            )
             if settingsStore.powerUpsEnabled {
-                for _ in 0..<(achievementsStore.unlockedCount - unlockedBefore) {
+                let unlockedAfter = achievementsStore.unlockedCount(challengeFriendsEnabled: settingsStore.challengeFriendsEnabled)
+                for _ in 0..<(unlockedAfter - unlockedBefore) {
                     powerUpStore.earnRandom()
                 }
             }

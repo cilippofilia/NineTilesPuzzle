@@ -218,4 +218,45 @@ struct AchievementsStoreTests {
 
         #expect(!store.achievements[0].isUnlocked)
     }
+
+    // MARK: - Challenge Friends gating
+
+    @Test func challengeFriendsAchievementsDoNotUnlockWhileTheFeatureIsDisabled() {
+        // Target 0 means the metric (0, absent a ChallengeStore) already satisfies the
+        // comparison — this isolates the gate itself rather than the metric's own value.
+        let store = makeStore(achievements: [achievement("firstChallengeSent", metric: .challengesSent, target: 0)])
+        let stats = makeStats()
+
+        store.checkAchievements(using: stats, challengeFriendsEnabled: false)
+        #expect(!store.achievements[0].isUnlocked)
+
+        store.checkAchievements(using: stats, challengeFriendsEnabled: true)
+        #expect(store.achievements[0].isUnlocked)
+    }
+
+    @Test func challengeFriendsAchievementsAreHiddenFromVisibleAchievementsWhileDisabled() {
+        let store = makeStore(achievements: [
+            achievement("firstSolve", metric: .totalGamesPlayed, target: 1),
+            achievement("firstChallengeSent", metric: .challengesSent, target: 1)
+        ])
+
+        #expect(store.visibleAchievements(challengeFriendsEnabled: false).map(\.id) == ["firstSolve"])
+        #expect(store.visibleAchievements(challengeFriendsEnabled: true).map(\.id) == ["firstSolve", "firstChallengeSent"])
+        #expect(store.unlockedCount(challengeFriendsEnabled: false) == 0)
+    }
+
+    @Test func completionistIgnoresChallengeFriendsAchievementsWhileTheFeatureIsDisabled() {
+        let store = makeStore(achievements: [
+            achievement("firstSolve", metric: .totalGamesPlayed, target: 1),
+            achievement("firstChallengeSent", metric: .challengesSent, target: 1),
+            achievement("completionist")
+        ])
+        let stats = makeStats(gamesPlayed: [StatsKey(gridSize: 3, gameMode: .swap): 1])
+
+        store.checkAchievements(using: stats, challengeFriendsEnabled: false)
+
+        #expect(store.achievements[0].isUnlocked)
+        #expect(!store.achievements[1].isUnlocked)
+        #expect(store.achievements.first(where: { $0.id == "completionist" })!.isUnlocked)
+    }
 }

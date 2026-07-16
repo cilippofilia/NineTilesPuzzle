@@ -38,6 +38,11 @@ final class SettingsStore {
     /// The name shown to friends on a sent Challenge Friends puzzle. Empty until the
     /// player is prompted the first time they try to send a challenge.
     var senderDisplayName: String = ""
+    /// Master switch for Challenge Friends (menu entry, "Challenge a Friend" button, and
+    /// receiving shared `.ntpchallenge` files). Off by default, same as Power-ups — the
+    /// feature isn't manually verified on real hardware yet, so it ships hidden behind
+    /// Settings' Dev Tools section rather than visible to everyone.
+    var challengeFriendsEnabled: Bool = false
     /// Whether the Daily Challenge reminder notification is armed. Turned on automatically
     /// the first time the player grants notification permission (prompted after their
     /// first-ever daily completion), and toggleable afterward in Settings.
@@ -124,6 +129,11 @@ final class SettingsStore {
         defaults.set(name, forKey: Keys.senderDisplayName)
     }
 
+    func setChallengeFriendsEnabled(_ value: Bool) {
+        challengeFriendsEnabled = value
+        defaults.set(value, forKey: Keys.challengeFriendsEnabled)
+    }
+
     func setDailyReminderEnabled(_ value: Bool) {
         dailyReminderEnabled = value
         defaults.set(value, forKey: Keys.dailyReminderEnabled)
@@ -158,6 +168,7 @@ private extension SettingsStore {
         static let streakMilestoneInterval = "puzzle.streakMilestoneInterval"
         static let debugInfinitePowerUps = "puzzle.debugInfinitePowerUps"
         static let senderDisplayName = "puzzle.senderDisplayName"
+        static let challengeFriendsEnabled = "puzzle.challengeFriendsEnabled"
         static let dailyReminderEnabled = "puzzle.dailyReminderEnabled"
         static let dailyReminderTime = "puzzle.dailyReminderTime"
     }
@@ -195,6 +206,9 @@ private extension SettingsStore {
         }
         if let name = defaults.string(forKey: Keys.senderDisplayName) {
             senderDisplayName = name
+        }
+        if defaults.object(forKey: Keys.challengeFriendsEnabled) != nil {
+            challengeFriendsEnabled = defaults.bool(forKey: Keys.challengeFriendsEnabled)
         }
         if defaults.object(forKey: Keys.dailyReminderEnabled) != nil {
             dailyReminderEnabled = defaults.bool(forKey: Keys.dailyReminderEnabled)
