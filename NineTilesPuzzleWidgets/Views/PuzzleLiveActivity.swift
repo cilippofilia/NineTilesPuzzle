@@ -20,6 +20,7 @@ struct PuzzleLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: PuzzleActivityAttributes.self) { context in
             PuzzleLockScreenView(context: context, accent: accent)
+                .widgetURL(DeepLink.resume.url)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -94,6 +95,7 @@ struct PuzzleLiveActivity: Widget {
                 ProgressRing(progress: context.state.progress, accent: accent)
                     .frame(width: 22, height: 22)
             }
+            .widgetURL(DeepLink.resume.url)
             .keylineTint(accent)
         }
     }
