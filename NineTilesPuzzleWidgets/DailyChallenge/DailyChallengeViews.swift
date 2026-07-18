@@ -29,54 +29,37 @@ struct DailyChallengeWidgetView: View {
 }
 
 /// Small home-screen card: minimal wordmark header, a hero-sized grid readout (or solved seal),
-/// and a Duolingo-style row of puzzle pieces marking the streak's recent days.
+/// and a big brand-gradient flame rising from the bottom edge marking the streak.
 struct DailySmallView: View {
     let entry: DailyChallengeEntry
-    private let accent = Color.orange
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading) {
             DailyHeaderLabel()
 
             if entry.isCompletedToday {
-                HStack(spacing: 8) {
+                DailyHeroRow(title: Text("Solved"), subtitle: "Come back tomorrow") {
                     SolvedSeal(size: 30)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Solved")
-                            .font(.system(size: 17, weight: .heavy, design: .rounded))
-                        Text("Come back tomorrow")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                    }
                 }
-                .frame(maxHeight: .infinity)
             } else {
-                HStack(spacing: 8) {
+                DailyHeroRow(
+                    title: Text("\(entry.gridSize)×\(entry.gridSize)").foregroundStyle(BrandGradient.diagonal),
+                    subtitle: entry.mode.title.uppercased()
+                ) {
                     ModeIconChip(icon: entry.mode.icon, size: 30)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("\(entry.gridSize)×\(entry.gridSize)")
-                            .font(.system(size: 22, weight: .heavy, design: .rounded))
-                            .foregroundStyle(BrandGradient.diagonal)
-                        Text(entry.mode.title.uppercased())
-                            .font(.system(size: 10, weight: .bold))
-                            .kerning(0.6)
-                            .foregroundStyle(.secondary)
-                    }
                 }
-                .frame(maxHeight: .infinity)
             }
 
-            StreakPieceRow(
-                date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
-                accent: accent, maxCapacity: 6, pieceSize: 16, spacing: 5
-                , showsWeekdayLabels: false
-            )
-            .frame(maxWidth: .infinity, alignment: .center)
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .containerBackground(for: .widget) { DailyWidgetBackground(imageData: entry.imageData) }
+        .padding(DailyWidgetMetrics.padding)
+        .containerBackground(for: .widget) {
+            ZStack {
+                DailyWidgetBackground(showsWatermark: false, imageData: entry.imageData)
+                DailyStreakFlame(streak: entry.streak, isCompletedToday: entry.isCompletedToday)
+            }
+        }
     }
 }
 
@@ -93,7 +76,13 @@ struct DailyMediumView: View {
                 CalendarPageChip(date: entry.date, chargeFraction: chargeFraction)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    DailyHeaderLabel()
+                    HStack(spacing: 6) {
+                        DailyHeaderLabel()
+                        Spacer(minLength: 0)
+                        if entry.streak > 0 {
+                            DailyStreakBadge(icon: "flame.fill", count: entry.streak, accent: accent)
+                        }
+                    }
                     HStack(spacing: 8) {
                         ModeIconChip(icon: entry.mode.icon, size: 26)
                         VStack(alignment: .leading, spacing: 0) {
@@ -123,6 +112,7 @@ struct DailyMediumView: View {
             .padding(.horizontal, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(DailyWidgetMetrics.padding)
         .containerBackground(for: .widget) { DailyWidgetBackground(markOffsetX: 70, imageData: entry.imageData) }
     }
 
@@ -142,9 +132,40 @@ struct DailyMediumView: View {
     }
 }
 
+/// Layout constants shared by both families so their edges align when placed side by side.
+enum DailyWidgetMetrics {
+    /// One padding for every edge of both the small and medium cards — the system content
+    /// margins are disabled on the widget configuration in favor of this.
+    static let padding: CGFloat = 14
+}
+
 /// Shared red→yellow brand gradient used across the widget's hero elements.
 private enum BrandGradient {
     static let diagonal = LinearGradient(colors: [.red, .yellow], startPoint: .bottomLeading, endPoint: .topTrailing)
+}
+
+/// The small card's middle row — a 30pt icon chip beside a hero title and small-caps-style
+/// subtitle. Both the "solved" and "play today" states render through this one struct with the
+/// same fonts and metrics, so swapping states never shifts the row's position, only its content.
+private struct DailyHeroRow<Icon: View>: View {
+    let title: Text
+    let subtitle: String
+    @ViewBuilder let icon: Icon
+
+    var body: some View {
+        HStack(spacing: 8) {
+            icon
+            VStack(alignment: .leading) {
+                title
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                Text(subtitle)
+                    .font(.system(size: 11, weight: .semibold))
+                    .kerning(0.6)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+    }
 }
 
 /// A minimal wordmark header — brand glyph plus tracked-out "DAILY PUZZLE".
@@ -176,6 +197,92 @@ private struct ModeIconChip: View {
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(BrandGradient.diagonal, in: .circle)
+    }
+}
+
+/// A flame silhouette rising from the bottom edge, standing in for the small widget's old piece
+/// row: an unlit grey ember while today is still pending, blooming into a glowing brand-gradient
+/// blaze once it's solved. It grows with the streak itself — a small ember at the start of a run,
+/// a fuller flame the longer it goes — so the shape carries meaning, not just decoration. The
+/// streak count sits directly on top, the whole thing reading as one gauge.
+private struct DailyStreakFlame: View {
+    let streak: Int
+    let isCompletedToday: Bool
+
+    /// Tuned against a ~155pt small widget: capped small enough, and cropped hard enough, that
+    /// only a low ember stays visible above the bottom edge — clear of the header/mode row.
+    private var flameSize: CGFloat {
+        min(96 + CGFloat(streak) * 4, 150)
+    }
+
+    /// The flame glyph is drawn much taller than what's kept on screen; clipping to a fixed,
+    /// top-anchored height (rather than nudging the whole shape down with an offset and hoping
+    /// it lines up with the container's edge) guarantees the crop always shows the glyph's
+    /// tapered tip flush against the true bottom — no dead gap, no guessing.
+    private var visibleHeight: CGFloat {
+        flameSize * 0.66
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            ZStack(alignment: .bottom) {
+                if isCompletedToday {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: flameSize * 1.15))
+                        .foregroundStyle(Color.orange)
+                        .blur(radius: 20)
+                        .opacity(0.4)
+                }
+
+                Image(systemName: "flame.fill")
+                    .font(.system(size: flameSize))
+                    .foregroundStyle(BrandGradient.diagonal)
+                    .saturation(isCompletedToday ? 1 : 0)
+                    .opacity(isCompletedToday ? 1 : 0.25)
+                    .frame(height: visibleHeight, alignment: .top)
+                    .clipped()
+            }
+
+            if streak > 0 {
+                VStack(spacing: 0) {
+                    Text("\(streak)")
+                        .font(.system(size: 26, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("DAY STREAK")
+                        .font(.system(size: 7, weight: .heavy, design: .rounded))
+                        .kerning(1)
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+                .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
+                .padding(.bottom, visibleHeight * 0.16)
+            }
+        }
+        // Fill the whole background proposal and pin to its bottom — without the max-height
+        // fill the stack sizes to its content and the container centers it vertically, which
+        // is what left the flame floating above the widget's bottom edge.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+    }
+}
+
+/// A flame- or trophy-and-count capsule marking the streak's current/best length — echoes the
+/// same badge pattern used by the in-game Live Activity, styled to match this widget's own
+/// `.ultraThinMaterial` header chip rather than the Dynamic Island's translucent one.
+private struct DailyStreakBadge: View {
+    let icon: String
+    let count: Int
+    let accent: Color
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .foregroundStyle(accent)
+            Text("\(count)")
+                .foregroundStyle(.white)
+        }
+        .font(.system(size: 16, weight: .heavy, design: .rounded))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: .capsule)
     }
 }
 
@@ -384,6 +491,7 @@ private struct PlayCTAButton: View {
 /// into the piece's silhouette instead of the plain brand gradient.
 private struct DailyWidgetBackground: View {
     var markOffsetX: CGFloat = 40
+    var showsWatermark: Bool = true
     var imageData: Data?
 
     var body: some View {
@@ -399,9 +507,11 @@ private struct DailyWidgetBackground: View {
                 startRadius: 4,
                 endRadius: 160
             )
-            watermark
-                .rotationEffect(.degrees(18))
-                .offset(x: markOffsetX, y: -40)
+            if showsWatermark {
+                watermark
+                    .rotationEffect(.degrees(18))
+                    .offset(x: markOffsetX, y: -40)
+            }
         }
     }
 

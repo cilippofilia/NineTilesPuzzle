@@ -24,6 +24,9 @@ struct DailyChallengeWidget: Widget {
         .configurationDisplayName("Daily Challenge")
         .description("Today's puzzle at a glance — mode, grid size, and your calendar streak.")
         .supportedFamilies([.systemSmall, .systemMedium])
+        // Margins are owned by the views themselves (`DailyWidgetMetrics.padding`) so both
+        // families inset identically instead of drifting with the system default.
+        .contentMarginsDisabled()
     }
 }
 
