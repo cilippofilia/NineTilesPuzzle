@@ -11,9 +11,11 @@ import UIKit
 
 struct MediaSourcePickerView: View {
     @Environment(GameSession.self) private var session
+    @Environment(StoreManager.self) private var store
     @Environment(\.openURL) private var openURL
 
     @State private var authStatus: PHAuthorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    @State private var paywallContext: PaywallContext?
 
     var body: some View {
         List {
@@ -36,19 +38,25 @@ struct MediaSourcePickerView: View {
             MediaSourceRowView(
                 title: MediaSourceType.local.label,
                 subtitle: "A random photo from your library",
-                isSelected: session.mediaSourceType == .local
+                isSelected: session.mediaSourceType == .local,
+                isLocked: isLocked(.local)
             ) {
-                session.setMediaSourceType(.local)
-                requestPhotoAccess()
+                selectOrGate(.local) {
+                    session.setMediaSourceType(.local)
+                    requestPhotoAccess()
+                }
             }
 
             MediaSourceRowView(
                 title: MediaSourceType.mixed.label,
                 subtitle: "Randomly picks internet or your library each game",
-                isSelected: session.mediaSourceType == .mixed
+                isSelected: session.mediaSourceType == .mixed,
+                isLocked: isLocked(.mixed)
             ) {
-                session.setMediaSourceType(.mixed)
-                requestPhotoAccess()
+                selectOrGate(.mixed) {
+                    session.setMediaSourceType(.mixed)
+                    requestPhotoAccess()
+                }
             }
 
             // Only offered when the device actually has a camera — greyed out entirely on
@@ -57,9 +65,12 @@ struct MediaSourcePickerView: View {
                 MediaSourceRowView(
                     title: MediaSourceType.camera.label,
                     subtitle: "Snap whatever's in front of you on a countdown — no retakes",
-                    isSelected: session.mediaSourceType == .camera
+                    isSelected: session.mediaSourceType == .camera,
+                    isLocked: isLocked(.camera)
                 ) {
-                    session.setMediaSourceType(.camera)
+                    selectOrGate(.camera) {
+                        session.setMediaSourceType(.camera)
+                    }
                 }
             }
 
@@ -77,6 +88,21 @@ struct MediaSourcePickerView: View {
         .onAppear {
             authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         }
+        .paywallSheet(context: $paywallContext)
+    }
+
+    private func isLocked(_ source: MediaSourceType) -> Bool {
+        PremiumFeature.imageSource(source).isLocked(isPremiumUnlocked: store.isPremiumUnlocked)
+    }
+
+    /// Runs `select` if `source` isn't locked; otherwise presents the paywall instead.
+    /// Locked sources never trigger a permission prompt or persist a selection.
+    private func selectOrGate(_ source: MediaSourceType, select: () -> Void) {
+        if isLocked(source) {
+            paywallContext = .imageSource(source)
+        } else {
+            select()
+        }
     }
 
     private func requestPhotoAccess() {
@@ -93,5 +119,6 @@ struct MediaSourcePickerView: View {
     NavigationStack {
         MediaSourcePickerView()
             .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: PowerUpStore(), challengeStore: ChallengeStore()))
+            .environment(StoreManager())
     }
 }

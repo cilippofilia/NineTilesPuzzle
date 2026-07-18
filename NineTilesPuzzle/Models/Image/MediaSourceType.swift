@@ -23,4 +23,11 @@ enum MediaSourceType: String, Codable {
         case .camera: "Quick Snap"
         }
     }
+
+    /// Whether this source is usable without a premium unlock. Only the web/algorithmic
+    /// sources are free; personal-photo sources (`.local`, `.mixed`, `.camera`) are a
+    /// Hard-Feature Gate premium upgrade.
+    var isFree: Bool {
+        self == .random || self == .numbers
+    }
 }

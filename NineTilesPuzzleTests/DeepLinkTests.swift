@@ -18,7 +18,8 @@ struct DeepLinkTests {
             .resume,
             .mode(.slide, gridSize: 4),
             .mode(.chaos, gridSize: nil),
-            .mode(.timeTrial, gridSize: 8)
+            .mode(.timeTrial, gridSize: 8),
+            .paywall
         ]
         for link in links {
             #expect(DeepLink(url: link.url) == link)
@@ -30,6 +31,7 @@ struct DeepLinkTests {
         #expect(DeepLink.resume.url.absoluteString == "ninetilespuzzle://resume")
         #expect(DeepLink.mode(.slide, gridSize: 4).url.absoluteString == "ninetilespuzzle://mode/slide/4")
         #expect(DeepLink.mode(.fog, gridSize: nil).url.absoluteString == "ninetilespuzzle://mode/fog")
+        #expect(DeepLink.paywall.url.absoluteString == "ninetilespuzzle://paywall")
     }
 
     @Test(arguments: [
@@ -42,7 +44,8 @@ struct DeepLinkTests {
         "ninetilespuzzle://mode/slide/x",      // non-numeric size
         "ninetilespuzzle://mode/slide/4/extra", // trailing segment
         "ninetilespuzzle://daily/extra",       // daily takes no path
-        "ninetilespuzzle://resume/extra"       // resume takes no path
+        "ninetilespuzzle://resume/extra",      // resume takes no path
+        "ninetilespuzzle://paywall/extra"      // paywall takes no path
     ])
     func rejectsMalformedURLs(_ raw: String) throws {
         let url = try #require(URL(string: raw))

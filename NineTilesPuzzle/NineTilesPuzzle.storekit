@@ -1,0 +1,117 @@
+{
+  "identifier" : "0C699E12-89C9-4B81-A46F-C9094DB10F20",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "6.99",
+      "familyShareable" : false,
+      "internalID" : "25B329F8-B485-4CA9-95CC-3406C30AE369",
+      "localizations" : [
+        {
+          "description" : "Unlock every game mode, personal photo sources, Wall of Fame, achievements archive, and Home Screen integration — forever.",
+          "displayName" : "Lifetime VIP Access",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "cilia.filippo.NineTilesPuzzle.lifetime",
+      "referenceName" : "Lifetime VIP Access",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "055D32A7-5456-49E6-8448-C04A1833CD69",
+      "localizations" : [
+
+      ],
+      "name" : "Premium Pass",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "1.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "DB269A89-EFCF-4667-BE13-A1B491A027B9",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlock every game mode, personal photo sources, Wall of Fame, achievements archive, and Home Screen integration.",
+              "displayName" : "Premium Pass (Monthly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "cilia.filippo.NineTilesPuzzle.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Premium Pass Monthly",
+          "subscriptionGroupID" : "055D32A7-5456-49E6-8448-C04A1833CD69",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

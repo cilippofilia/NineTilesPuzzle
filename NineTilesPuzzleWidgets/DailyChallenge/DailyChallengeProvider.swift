@@ -17,6 +17,10 @@ struct DailyChallengeEntry: TimelineEntry {
     let gridSize: Int
     let mode: GameMode
     let imageData: Data?
+    /// Home-screen widgets are a premium "system integration" feature (see
+    /// `PremiumFeature.widgets`) — when `false`, the view renders an upgrade placeholder
+    /// instead of today's puzzle state.
+    let isPremiumUnlocked: Bool
 }
 
 struct DailyChallengeProvider: AppIntentTimelineProvider {
@@ -25,7 +29,7 @@ struct DailyChallengeProvider: AppIntentTimelineProvider {
     private static let imageSize = 200
 
     func placeholder(in context: Context) -> DailyChallengeEntry {
-        DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide, imageData: nil)
+        DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide, imageData: nil, isPremiumUnlocked: true)
     }
 
     func snapshot(for configuration: DailyChallengeConfigurationIntent, in context: Context) async -> DailyChallengeEntry {
@@ -72,7 +76,8 @@ struct DailyChallengeProvider: AppIntentTimelineProvider {
     /// Builds the entry for `date` from the shared snapshot plus the seeder's deterministic
     /// day identity — which is what lets the midnight entry be computed ahead of time.
     private func entry(for date: Date, imageData: Data?) -> DailyChallengeEntry {
-        let daily = WidgetDataStore.load()?.daily
+        let snapshot = WidgetDataStore.load()
+        let daily = snapshot?.daily
         let calendar = Calendar.current
 
         var isCompleted = false
@@ -94,7 +99,8 @@ struct DailyChallengeProvider: AppIntentTimelineProvider {
             bestStreak: daily?.bestCalendarStreak ?? 0,
             gridSize: DailyChallengeSeeder.gridSize(for: date),
             mode: DailyChallengeSeeder.gameMode(for: date),
-            imageData: imageData
+            imageData: imageData,
+            isPremiumUnlocked: snapshot?.isPremiumUnlocked ?? false
         )
     }
 

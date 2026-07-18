@@ -11,6 +11,7 @@ struct MediaSourceLabelView: View {
     let title: String
     let subtitle: String
     let isSelected: Bool
+    var isLocked: Bool = false
 
     var body: some View {
         HStack {
@@ -20,13 +21,19 @@ struct MediaSourceLabelView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .saturation(isLocked ? 0 : 1)
 
             Spacer()
 
-            Image(systemName: "checkmark")
-                .foregroundStyle(.tint)
-                .opacity(isSelected ? 1 : 0)
-                .animation(nil, value: isSelected)
+            if isLocked {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(.secondary)
+            } else {
+                Image(systemName: "checkmark")
+                    .foregroundStyle(.tint)
+                    .opacity(isSelected ? 1 : 0)
+                    .animation(nil, value: isSelected)
+            }
         }
     }
 }

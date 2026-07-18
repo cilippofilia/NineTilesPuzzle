@@ -13,8 +13,10 @@ struct MenuOptionsCardView: View {
     @Environment(GameSession.self) private var session
     @Environment(AchievementsStore.self) private var achievementsStore
     @Environment(SettingsStore.self) private var settings
+    @Environment(StoreManager.self) private var store
 
     @Binding var path: [GameRoute]
+    @State private var paywallContext: PaywallContext?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -53,15 +55,24 @@ struct MenuOptionsCardView: View {
             MenuRow(
                 title: "Achievements",
                 systemImage: "trophy.fill",
-                detail: achievementsDetail
+                detail: achievementsDetail,
+                isLocked: isLocked(.achievementsArchive)
             ) {
-                path.append(.achievements)
+                if isLocked(.achievementsArchive) {
+                    paywallContext = .achievementsArchive
+                } else {
+                    path.append(.achievements)
+                }
             }
 
             Divider()
 
-            MenuRow(title: "Wall of Fame", systemImage: "photo.artframe") {
-                path.append(.wallOfFame)
+            MenuRow(title: "Wall of Fame", systemImage: "photo.artframe", isLocked: isLocked(.wallOfFame)) {
+                if isLocked(.wallOfFame) {
+                    paywallContext = .wallOfFame
+                } else {
+                    path.append(.wallOfFame)
+                }
             }
 
             if settings.challengeFriendsEnabled {
@@ -74,10 +85,15 @@ struct MenuOptionsCardView: View {
         }
         .background(.quaternary, in: .rect(cornerRadius: 20))
         .padding(.horizontal)
+        .paywallSheet(context: $paywallContext)
     }
 
     private var achievementsDetail: String {
         let visible = achievementsStore.visibleAchievements(challengeFriendsEnabled: settings.challengeFriendsEnabled)
         return "\(visible.count(where: \.isUnlocked))/\(visible.count)"
+    }
+
+    private func isLocked(_ feature: PremiumFeature) -> Bool {
+        feature.isLocked(isPremiumUnlocked: store.isPremiumUnlocked)
     }
 }

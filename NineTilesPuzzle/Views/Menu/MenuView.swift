@@ -11,11 +11,13 @@ import UIKit
 struct MenuView: View {
     @Environment(GameSession.self) private var session
     @Environment(DailyChallengeStore.self) private var dailyChallengeStore
+    @Environment(StoreManager.self) private var store
     @Environment(\.openURL) private var openURL
     @State private var path: [GameRoute] = []
     @State private var showSettings = false
     @State private var showTipsAlert = false
     @State private var showQuickSnapCamera = false
+    @State private var paywallContext: PaywallContext?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -32,7 +34,11 @@ struct MenuView: View {
                             beginGame(session: session, path: $path)
                         },
                         onShowCalendar: {
-                            path.append(.dailyCalendar)
+                            if PremiumFeature.dailyArchive.isLocked(isPremiumUnlocked: store.isPremiumUnlocked) {
+                                paywallContext = .dailyArchive
+                            } else {
+                                path.append(.dailyCalendar)
+                            }
                         }
                     )
                     .padding([.horizontal, .bottom])
@@ -109,6 +115,7 @@ struct MenuView: View {
                     session.enterChallengeMode(with: challenge)
                     beginGame(session: session, path: $path)
                 }
+                .paywallSheet(context: $paywallContext)
             }
             .scrollBounceBehavior(.basedOnSize)
         }
@@ -169,6 +176,8 @@ struct MenuView: View {
                 if let gridSize {
                     session.setGridSize(gridSize)
                 }
+            case .paywall:
+                paywallContext = .general
             }
         }
     }
@@ -189,4 +198,5 @@ struct MenuView: View {
         .environment(daily)
         .environment(powerUps)
         .environment(challenges)
+        .environment(StoreManager())
 }

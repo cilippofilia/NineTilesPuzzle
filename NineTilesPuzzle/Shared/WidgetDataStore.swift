@@ -8,8 +8,9 @@
 import Foundation
 
 /// A single JSON snapshot of everything the home-screen widgets display, written by the app
-/// into the shared App Group defaults and read back by the widget extension. Every section is
-/// optional so older extensions keep decoding newer snapshots (and vice versa) as fields grow.
+/// into the shared App Group defaults and read back by the widget extension. Every field
+/// decodes with an explicit fallback (see the custom `init(from:)` below) so older and newer
+/// app/extension versions can always decode each other's snapshots as fields grow.
 ///
 /// Shared between the app and the widget extension: this file must be a member of both targets.
 /// `nonisolated` (like everything in this file) so its Codable conformance is usable from
@@ -19,6 +20,12 @@ nonisolated struct WidgetSnapshot: Codable, Hashable {
     /// deliberately absent — the widget derives them from `DailyChallengeSeeder` so the
     /// midnight rollover needs no app involvement.
     var daily: DailyState?
+
+    /// Whether the player currently holds a premium entitlement (Lifetime VIP or an
+    /// active Premium Pass subscription). Additive with a `false` default so a snapshot
+    /// written before this field existed decodes as locked rather than crashing or
+    /// accidentally unlocking every widget.
+    var isPremiumUnlocked: Bool = false
 
     var updatedAt: Date = .now
 
@@ -30,6 +37,24 @@ nonisolated struct WidgetSnapshot: Codable, Hashable {
         var bestCalendarStreak = 0
         var bestMoves: Int?
         var bestTime: TimeInterval?
+    }
+}
+
+extension WidgetSnapshot {
+    private enum CodingKeys: String, CodingKey {
+        case daily, isPremiumUnlocked, updatedAt
+    }
+
+    /// Custom `init(from:)` (in an extension, so the compiler-synthesized memberwise
+    /// initializer survives) because Swift's synthesized `Decodable` does NOT fall back to
+    /// a property's declared default for a non-optional field when its key is simply
+    /// missing — it throws instead. Every field here is decoded with an explicit fallback
+    /// so a snapshot written by an older app version keeps decoding as new fields are added.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        daily = try container.decodeIfPresent(DailyState.self, forKey: .daily)
+        isPremiumUnlocked = try container.decodeIfPresent(Bool.self, forKey: .isPremiumUnlocked) ?? false
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .now
     }
 }
 

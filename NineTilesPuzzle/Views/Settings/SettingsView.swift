@@ -16,16 +16,44 @@ struct SettingsView: View {
     @Environment(SoundService.self) private var soundService
     @Environment(GameCenterService.self) private var gameCenterService
     @Environment(DailyReminderService.self) private var dailyReminderService
+    @Environment(StoreManager.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var showResetStatsAlert = false
     @State private var showResetSettingsAlert = false
     @State private var showDebugOverlayAlert = false
     @State private var showNotificationDeniedAlert = false
+    @State private var paywallContext: PaywallContext?
 
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    if store.isPremiumUnlocked {
+                        Label {
+                            Text("VIP Unlocked")
+                        } icon: {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundStyle(.white)
+                        }
+                    } else {
+                        Button {
+                            paywallContext = .general
+                        } label: {
+                            Label {
+                                Text("Unlock Nine Tiles Puzzle VIP")
+                            } icon: {
+                                Image(systemName: "sparkles")
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                    }
+                } footer: {
+                    if !store.isPremiumUnlocked {
+                        Text("Unlock every game mode, personalize puzzles with your own photos, and get the full experience.")
+                    }
+                }
+
                 Section {
                     Toggle("Show debug tools", isOn: Binding(
                         get: { settings.debugOverlayEnabled },
@@ -280,6 +308,7 @@ struct SettingsView: View {
                 Text("Allow notifications for Nine Tiles Puzzle in Settings to turn on the Daily Reminder.")
             }
         }
+        .paywallSheet(context: $paywallContext)
         .presentationDetents([.medium, .large])
     }
 
@@ -330,5 +359,6 @@ struct SettingsView: View {
                 .environment(SoundService())
                 .environment(GameCenterService())
                 .environment(DailyReminderService())
+                .environment(StoreManager())
         }
 }
