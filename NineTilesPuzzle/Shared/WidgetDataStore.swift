@@ -40,7 +40,7 @@ nonisolated struct WidgetSnapshot: Codable, Hashable {
     }
 }
 
-extension WidgetSnapshot {
+nonisolated extension WidgetSnapshot {
     private enum CodingKeys: String, CodingKey {
         case daily, isPremiumUnlocked, updatedAt
     }

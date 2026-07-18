@@ -76,6 +76,6 @@ struct PaywallContext: Identifiable, Hashable {
     static let general = PaywallContext(
         headline: "Nine Tiles Puzzle VIP",
         subheadline: "Unlock every game mode, personalize puzzles with your own photos, and get the full experience.",
-        icon: "sparkles"
+        icon: "crown.fill"
     )
 }

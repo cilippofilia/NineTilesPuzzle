@@ -34,7 +34,6 @@ struct SettingsView: View {
                             Text("VIP Unlocked")
                         } icon: {
                             Image(systemName: "checkmark.seal.fill")
-                                .foregroundStyle(.white)
                         }
                     } else {
                         Button {
@@ -43,8 +42,7 @@ struct SettingsView: View {
                             Label {
                                 Text("Unlock Nine Tiles Puzzle VIP")
                             } icon: {
-                                Image(systemName: "sparkles")
-                                    .foregroundStyle(.white)
+                                Image(systemName: "crown.fill")
                             }
                         }
                     }
@@ -356,6 +354,7 @@ struct SettingsView: View {
                 .environment(stats)
                 .environment(settings)
                 .environment(daily)
+                .environment(powerUps)
                 .environment(SoundService())
                 .environment(GameCenterService())
                 .environment(DailyReminderService())
