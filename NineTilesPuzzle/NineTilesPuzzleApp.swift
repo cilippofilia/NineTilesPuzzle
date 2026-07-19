@@ -32,7 +32,10 @@ struct NineTilesPuzzleApp: App {
         let dailyChallengeStore = DailyChallengeStore()
         let powerUpStore = PowerUpStore()
         let challengeStore = ChallengeStore()
-        let storeManager = StoreManager(debugOverride: { settingsStore.debugForcePremiumUnlocked })
+        let storeManager = StoreManager(
+            debugOverride: { settingsStore.debugForcePremiumUnlocked },
+            debugForceRemoved: { settingsStore.debugForcePremiumRemoved }
+        )
         _statsStore = State(initialValue: statsStore)
         _settingsStore = State(initialValue: settingsStore)
         _achievementsStore = State(initialValue: achievementsStore)
