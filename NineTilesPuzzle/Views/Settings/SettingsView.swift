@@ -16,16 +16,42 @@ struct SettingsView: View {
     @Environment(SoundService.self) private var soundService
     @Environment(GameCenterService.self) private var gameCenterService
     @Environment(DailyReminderService.self) private var dailyReminderService
+    @Environment(StoreManager.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var showResetStatsAlert = false
     @State private var showResetSettingsAlert = false
     @State private var showDebugOverlayAlert = false
     @State private var showNotificationDeniedAlert = false
+    @State private var paywallContext: PaywallContext?
 
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    if store.isPremiumUnlocked {
+                        Label {
+                            Text("VIP Unlocked")
+                        } icon: {
+                            Image(systemName: "checkmark.seal.fill")
+                        }
+                    } else {
+                        Button {
+                            paywallContext = .general
+                        } label: {
+                            Label {
+                                Text("Unlock Nine Tiles Puzzle VIP")
+                            } icon: {
+                                Image(systemName: "crown.fill")
+                            }
+                        }
+                    }
+                } footer: {
+                    if !store.isPremiumUnlocked {
+                        Text("Unlock every game mode, personalize puzzles with your own photos, and get the full experience.")
+                    }
+                }
+
                 Section {
                     Toggle("Show debug tools", isOn: Binding(
                         get: { settings.debugOverlayEnabled },
@@ -44,6 +70,20 @@ struct SettingsView: View {
                 }
 
                 if settings.debugOverlayEnabled {
+                    Section {
+                        Toggle("Force VIP Unlocked", isOn: Binding(
+                            get: { settings.debugForcePremiumUnlocked },
+                            set: { newValue in
+                                settings.setDebugForcePremiumUnlocked(newValue)
+                                store.syncWidgetEntitlementForDebugOverride()
+                            }
+                        ))
+                    } header: {
+                        Text("Subscription")
+                    } footer: {
+                        Text("Simulates an active VIP entitlement without a sandbox purchase, so premium-gated features can be tested. Off by default.")
+                    }
+
                     Section {
                         Stepper(
                             "Day offset: \(dailyStore.debugDayOffset > 0 ? "+" : "")\(dailyStore.debugDayOffset)",
@@ -280,6 +320,7 @@ struct SettingsView: View {
                 Text("Allow notifications for Nine Tiles Puzzle in Settings to turn on the Daily Reminder.")
             }
         }
+        .paywallSheet(context: $paywallContext)
         .presentationDetents([.medium, .large])
     }
 
@@ -327,8 +368,10 @@ struct SettingsView: View {
                 .environment(stats)
                 .environment(settings)
                 .environment(daily)
+                .environment(powerUps)
                 .environment(SoundService())
                 .environment(GameCenterService())
                 .environment(DailyReminderService())
+                .environment(StoreManager())
         }
 }

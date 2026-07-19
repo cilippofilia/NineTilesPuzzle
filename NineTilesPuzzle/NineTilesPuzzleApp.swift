@@ -15,6 +15,7 @@ struct NineTilesPuzzleApp: App {
     @State private var dailyChallengeStore: DailyChallengeStore
     @State private var powerUpStore: PowerUpStore
     @State private var challengeStore: ChallengeStore
+    @State private var storeManager: StoreManager
     @State private var gameSession: GameSession
     @State private var soundService = SoundService()
     @State private var gameCenterService = GameCenterService()
@@ -31,19 +32,22 @@ struct NineTilesPuzzleApp: App {
         let dailyChallengeStore = DailyChallengeStore()
         let powerUpStore = PowerUpStore()
         let challengeStore = ChallengeStore()
+        let storeManager = StoreManager(debugOverride: { settingsStore.debugForcePremiumUnlocked })
         _statsStore = State(initialValue: statsStore)
         _settingsStore = State(initialValue: settingsStore)
         _achievementsStore = State(initialValue: achievementsStore)
         _dailyChallengeStore = State(initialValue: dailyChallengeStore)
         _powerUpStore = State(initialValue: powerUpStore)
         _challengeStore = State(initialValue: challengeStore)
+        _storeManager = State(initialValue: storeManager)
         _gameSession = State(initialValue: GameSession(
             statsStore: statsStore,
             achievementsStore: achievementsStore,
             settingsStore: settingsStore,
             dailyChallengeStore: dailyChallengeStore,
             powerUpStore: powerUpStore,
-            challengeStore: challengeStore
+            challengeStore: challengeStore,
+            isPremiumUnlocked: { storeManager.isPremiumUnlocked }
         ))
     }
 
@@ -58,6 +62,7 @@ struct NineTilesPuzzleApp: App {
                     .environment(dailyChallengeStore)
                     .environment(powerUpStore)
                     .environment(challengeStore)
+                    .environment(storeManager)
                     .environment(soundService)
                     .environment(gameCenterService)
                     .environment(wallOfFameStore)
@@ -74,6 +79,7 @@ struct NineTilesPuzzleApp: App {
             .preferredColorScheme(.dark)
             .task { gameCenterService.authenticate() }
             .task { await refreshDailyReminder() }
+            .task { await storeManager.start() }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
                 Task { await refreshDailyReminder() }

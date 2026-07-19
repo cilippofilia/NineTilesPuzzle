@@ -58,4 +58,11 @@ enum GameMode: String, CaseIterable, Identifiable, Codable {
         self == .swap || self == .slide || self == .zen || self == .timeTrial || self == .limitedMoves
             || self == .chaos || self == .fog
     }
+
+    /// Whether this mode is playable without a premium unlock. Only `.slide` is free;
+    /// every other mode is a Hard-Feature Gate premium upgrade. Distinct from
+    /// `isAvailable`, which is a ship/hide flag unrelated to entitlement.
+    var isFree: Bool {
+        self == .slide
+    }
 }

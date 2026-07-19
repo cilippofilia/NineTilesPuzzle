@@ -11,16 +11,17 @@ struct MediaSourceRowView: View {
     let title: String
     let subtitle: String
     let isSelected: Bool
+    var isLocked: Bool = false
     var action: (() -> Void)?
 
     var body: some View {
         if let action {
             Button(action: action) {
-                MediaSourceLabelView(title: title, subtitle: subtitle, isSelected: isSelected)
+                MediaSourceLabelView(title: title, subtitle: subtitle, isSelected: isSelected, isLocked: isLocked)
             }
             .foregroundStyle(.primary)
         } else {
-            MediaSourceLabelView(title: title, subtitle: subtitle, isSelected: isSelected)
+            MediaSourceLabelView(title: title, subtitle: subtitle, isSelected: isSelected, isLocked: isLocked)
                 .foregroundStyle(.secondary)
         }
     }

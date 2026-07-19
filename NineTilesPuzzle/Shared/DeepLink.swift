@@ -10,13 +10,16 @@ import Foundation
 /// The `ninetilespuzzle://` routes widgets use to open a specific place in the app.
 ///
 /// Formats: `ninetilespuzzle://daily`, `ninetilespuzzle://resume`,
-/// `ninetilespuzzle://mode/<gameMode>/<gridSize>` (the size segment is optional).
+/// `ninetilespuzzle://mode/<gameMode>/<gridSize>` (the size segment is optional),
+/// `ninetilespuzzle://paywall`.
 ///
 /// Shared between the app and the widget extension: this file must be a member of both targets.
 enum DeepLink: Equatable {
     case daily
     case resume
     case mode(GameMode, gridSize: Int?)
+    /// A locked widget/Live Activity placeholder was tapped — open straight to the paywall.
+    case paywall
 
     static let scheme = "ninetilespuzzle"
     static let gridSizeRange = 3...8
@@ -36,6 +39,8 @@ enum DeepLink: Equatable {
             } else {
                 "/\(mode.rawValue)"
             }
+        case .paywall:
+            components.host = "paywall"
         }
         // URLComponents with a static scheme and validated segments always resolves.
         return components.url ?? URL(string: "\(Self.scheme)://")!
@@ -54,6 +59,8 @@ enum DeepLink: Equatable {
             self = .daily
         case "resume" where segments.isEmpty:
             self = .resume
+        case "paywall" where segments.isEmpty:
+            self = .paywall
         case "mode":
             guard let first = segments.first, let mode = GameMode(rawValue: first) else { return nil }
             switch segments.count {

@@ -20,6 +20,7 @@ struct WidgetSnapshotTests {
                 bestMoves: 32,
                 bestTime: 118
             ),
+            isPremiumUnlocked: true,
             updatedAt: Date(timeIntervalSinceReferenceDate: 800_000_100)
         )
     }
@@ -37,6 +38,15 @@ struct WidgetSnapshotTests {
         let json = Data(#"{"updatedAt":800000000}"#.utf8)
         let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: json)
         #expect(decoded.daily == nil)
+    }
+
+    @Test func decodesMissingEntitlementFieldAsLocked() throws {
+        // A snapshot written by the app before the paywall shipped has no
+        // `isPremiumUnlocked` key at all — it must decode as locked, not crash or
+        // accidentally unlock every widget.
+        let json = Data(#"{"updatedAt":800000000}"#.utf8)
+        let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: json)
+        #expect(decoded.isPremiumUnlocked == false)
     }
 
     @Test func savesAndLoadsThroughDefaultsSuite() throws {

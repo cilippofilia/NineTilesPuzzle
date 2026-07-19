@@ -20,11 +20,20 @@ final class GameSession {
     private let dailyChallengeStore: DailyChallengeStore
     private let powerUpStore: PowerUpStore
     private let challengeStore: ChallengeStore
+    /// Belt-and-suspenders premium check for `setGameMode`/`setMediaSourceType` — the real
+    /// gate lives in the UI (paywall sheets on locked rows), this just stops a locked value
+    /// from being persisted if a call site ever skips that UI. A closure rather than a
+    /// `StoreManager` dependency so this class stays StoreKit-free and previews/tests default
+    /// to unlocked without wiring a store. Deliberately NOT consulted by `enterDailyMode()` or
+    /// `enterQuickSnapMode(with:)`, which assign `selectedGameMode` directly — the Daily
+    /// Challenge and Quick Snap must stay playable for free players even when they land on a
+    /// premium mode.
+    private let isPremiumUnlocked: () -> Bool
     private let defaults: PersistenceStore
 
     private let swapEngine = SwapEngine()
     private let slideEngine = SlideEngine()
-    private let liveActivity = LiveActivityController()
+    private let liveActivity: LiveActivityController
     private let widgetData: WidgetDataController
     private var previewSleepTask: Task<Void, Never>?
     private var peekSleepTask: Task<Void, Never>?
@@ -273,6 +282,7 @@ final class GameSession {
         dailyChallengeStore: DailyChallengeStore,
         powerUpStore: PowerUpStore,
         challengeStore: ChallengeStore,
+        isPremiumUnlocked: @escaping () -> Bool = { true },
         defaults: PersistenceStore = UserDefaults.standard
     ) {
         self.statsStore = statsStore
@@ -281,6 +291,8 @@ final class GameSession {
         self.dailyChallengeStore = dailyChallengeStore
         self.powerUpStore = powerUpStore
         self.challengeStore = challengeStore
+        self.isPremiumUnlocked = isPremiumUnlocked
+        self.liveActivity = LiveActivityController(isPremiumUnlocked: isPremiumUnlocked)
         self.defaults = defaults
         // Widget syncing writes to the real App Group suite, so it only runs when this
         // session persists to real UserDefaults too — tests injecting an in-memory store
@@ -1297,6 +1309,7 @@ extension GameSession {
 
     func setMediaSourceType(_ type: MediaSourceType) {
         guard type != mediaSourceType else { return }
+        guard type.isFree || isPremiumUnlocked() else { return }
         mediaSourceType = type
         defaults.set(type.rawValue, forKey: Keys.mediaSourceType)
     }
@@ -1316,6 +1329,7 @@ extension GameSession {
 
     func setGameMode(_ mode: GameMode) {
         guard mode.isAvailable, mode != selectedGameMode else { return }
+        guard mode.isFree || isPremiumUnlocked() else { return }
         selectedGameMode = mode
         defaults.set(mode.rawValue, forKey: Keys.gameMode)
     }

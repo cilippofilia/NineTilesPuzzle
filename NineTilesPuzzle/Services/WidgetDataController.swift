@@ -49,6 +49,16 @@ final class WidgetDataController {
         updateDaily(from: dailyStore)
     }
 
+    /// Rewrites the entitlement flag locked/unlocked widget UI reads, reloading only when it
+    /// actually changed.
+    func updateEntitlement(isPremiumUnlocked: Bool) {
+        guard defaults != nil else { return }
+        var snapshot = WidgetDataStore.load(from: defaults) ?? WidgetSnapshot()
+        guard snapshot.isPremiumUnlocked != isPremiumUnlocked else { return }
+        snapshot.isPremiumUnlocked = isPremiumUnlocked
+        save(snapshot, reloading: [WidgetKind.dailyChallenge])
+    }
+
     private func save(_ snapshot: WidgetSnapshot, reloading kinds: [String]) {
         var stamped = snapshot
         stamped.updatedAt = .now

@@ -17,14 +17,47 @@ struct DailyChallengeWidgetView: View {
 
     var body: some View {
         Group {
-            switch family {
-            case .systemMedium:
-                DailyMediumView(entry: entry)
-            default:
-                DailySmallView(entry: entry)
+            if !entry.isPremiumUnlocked {
+                DailyUpgradeView()
+            } else {
+                switch family {
+                case .systemMedium:
+                    DailyMediumView(entry: entry)
+                default:
+                    DailySmallView(entry: entry)
+                }
             }
         }
-        .widgetURL(DeepLink.daily.url)
+        .widgetURL(entry.isPremiumUnlocked ? DeepLink.daily.url : DeepLink.paywall.url)
+    }
+}
+
+/// Shown instead of today's puzzle state when the player hasn't unlocked premium — Home
+/// Screen widgets are an "Always Connected" system-integration upsell (`PremiumFeature.widgets`),
+/// not a preview of the Daily Challenge itself. Tapping deep-links straight to the paywall.
+struct DailyUpgradeView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            DailyHeaderLabel()
+
+            Spacer()
+
+            Label("Upgrade to VIP", systemImage: "lock.fill")
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+
+            Text("Resume games and track your streak from the Home Screen.")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(DailyWidgetMetrics.padding)
+        .containerBackground(for: .widget) {
+            DailyWidgetBackground(imageData: nil)
+        }
     }
 }
 
@@ -538,8 +571,14 @@ private struct DailyWidgetBackground: View {
 #Preview("Small", as: .systemSmall) {
     DailyChallengeWidget()
 } timeline: {
-    DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide, imageData: nil)
-    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 4, mode: .slide, imageData: nil)
+    DailyChallengeEntry(
+        date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide,
+        imageData: nil, isPremiumUnlocked: true
+    )
+    DailyChallengeEntry(
+        date: .now, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 4, mode: .slide,
+        imageData: nil, isPremiumUnlocked: true
+    )
 }
 
 /// Long-running streaks push `DailyStreakFlame` to its size cap — this catches clipping that a
@@ -553,8 +592,23 @@ private struct DailyWidgetBackground: View {
 #Preview("Medium", as: .systemMedium) {
     DailyChallengeWidget()
 } timeline: {
-    DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 50, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
-    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 60, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
+    DailyChallengeEntry(
+        date: .now, isCompletedToday: false, streak: 50, bestStreak: 12, gridSize: 5, mode: .swap,
+        imageData: nil, isPremiumUnlocked: true
+    )
+    DailyChallengeEntry(
+        date: .now, isCompletedToday: true, streak: 60, bestStreak: 12, gridSize: 5, mode: .swap,
+        imageData: nil, isPremiumUnlocked: true
+    )
+}
+
+#Preview("Locked", as: .systemSmall) {
+    DailyChallengeWidget()
+} timeline: {
+    DailyChallengeEntry(
+        date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide,
+        imageData: nil, isPremiumUnlocked: false
+    )
 }
 
 /// The date badge's battery-style charge at each step through the day — cycle the canvas's
@@ -565,10 +619,16 @@ private struct DailyWidgetBackground: View {
 } timeline: {
     let calendar = Calendar.current
     let today = Date.now
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 1, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 6, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 11, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 16, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 21, minute: 0, second: 0, of: today)!, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
-    DailyChallengeEntry(date: calendar.date(bySettingHour: 21, minute: 0, second: 0, of: today)!, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 5, mode: .swap, imageData: nil)
+    for hour in [1, 6, 11, 16, 21] {
+        DailyChallengeEntry(
+            date: calendar.date(bySettingHour: hour, minute: 0, second: 0, of: today)!,
+            isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap,
+            imageData: nil, isPremiumUnlocked: true
+        )
+    }
+    DailyChallengeEntry(
+        date: calendar.date(bySettingHour: 21, minute: 0, second: 0, of: today)!,
+        isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 5, mode: .swap,
+        imageData: nil, isPremiumUnlocked: true
+    )
 }

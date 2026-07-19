@@ -15,6 +15,9 @@ struct MenuRow: View {
     let systemImage: String
     var detail: String?
     var isEnabled: Bool = true
+    /// Shows a lock glyph instead of the chevron. Unlike `isEnabled`, a locked row stays
+    /// tappable — the action is expected to present the paywall rather than navigate.
+    var isLocked: Bool = false
     let action: () -> Void
 
     var body: some View {
@@ -26,7 +29,11 @@ struct MenuRow: View {
                     Text(detail)
                         .foregroundStyle(.secondary)
                 }
-                if isEnabled {
+                if isLocked {
+                    Image(systemName: "lock.fill")
+                        .imageScale(.small)
+                        .foregroundStyle(.secondary)
+                } else if isEnabled {
                     Image(systemName: "chevron.forward")
                         .imageScale(.small)
                         .foregroundStyle(.secondary)
