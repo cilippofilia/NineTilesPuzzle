@@ -15,10 +15,12 @@ import SwiftUI
 struct PaywallView: View {
     @Environment(StoreManager.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     let context: PaywallContext
 
     @State private var isPurchasing = false
+    @State private var isRestoring = false
     @State private var errorMessage: String?
 
     private static let benefits: [(lead: String, detail: String)] = [
@@ -70,13 +72,18 @@ struct PaywallView: View {
                         }
 
                         if store.monthlyProduct == nil && store.lifetimeProduct == nil {
-                            ProgressView()
-                                .padding()
+                            if store.isLoadingProducts {
+                                ProgressView()
+                                    .padding()
+                            } else {
+                                Button("Try Again") { Task { await store.loadProducts() } }
+                                    .padding()
+                            }
                         }
                     }
                     .padding(.horizontal)
 
-                    if let errorMessage {
+                    if let errorMessage = errorMessage ?? store.purchaseError {
                         Text(errorMessage)
                             .font(.footnote)
                             .foregroundStyle(.red)
@@ -84,10 +91,29 @@ struct PaywallView: View {
                             .padding(.horizontal)
                     }
 
-                    Button("Restore Purchase") {
-                        Task { await store.restore() }
+                    // Guideline 3.1.2 requires this disclosure alongside an auto-renewable
+                    // subscription offer.
+                    Text("Premium Pass is \(store.monthlyProduct?.displayPrice ?? "$1.99")/month, charged to your "
+                        + "Apple ID account. It automatically renews unless canceled at least 24 hours before the "
+                        + "end of the current period. Manage or cancel anytime in Settings > Apple ID > "
+                        + "Subscriptions.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    if isRestoring {
+                        ProgressView()
+                    } else {
+                        Button("Restore Purchase") { restore() }
+                            .font(.footnote)
                     }
-                    .font(.footnote)
+
+                    HStack(spacing: 16) {
+                        Button("Terms of Use") { openURL(PaywallLegalLinks.termsOfUse) }
+                        Button("Privacy Policy") { openURL(PaywallLegalLinks.privacyPolicy) }
+                    }
+                    .font(.caption)
                 }
                 .padding(.vertical)
             }
@@ -117,6 +143,15 @@ struct PaywallView: View {
             } catch {
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    private func restore() {
+        errorMessage = nil
+        isRestoring = true
+        Task {
+            defer { isRestoring = false }
+            await store.restore()
         }
     }
 }

@@ -70,13 +70,22 @@ final class StoreManager {
         await refreshEntitlement()
     }
 
+    /// `Product.products(for:)` can return a partial result — some IDs missing but no error
+    /// thrown — while StoreKit's local/remote catalog is still warming up right after launch.
+    /// Retries a few times on a short delay so a cold start doesn't strand the paywall with
+    /// only one of the two products.
     func loadProducts() async {
         isLoadingProducts = true
         defer { isLoadingProducts = false }
+        let requestedIDs: Set<String> = [Self.lifetimeProductID, Self.monthlyProductID]
         do {
-            let products = try await Product.products(for: [Self.lifetimeProductID, Self.monthlyProductID])
-            lifetimeProduct = products.first { $0.id == Self.lifetimeProductID }
-            monthlyProduct = products.first { $0.id == Self.monthlyProductID }
+            for attempt in 0..<3 {
+                let products = try await Product.products(for: requestedIDs)
+                lifetimeProduct = products.first { $0.id == Self.lifetimeProductID }
+                monthlyProduct = products.first { $0.id == Self.monthlyProductID }
+                if Set(products.map(\.id)) == requestedIDs { break }
+                if attempt < 2 { try? await Task.sleep(for: .milliseconds(500)) }
+            }
             purchaseError = nil
         } catch {
             purchaseError = error.localizedDescription
