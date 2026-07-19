@@ -90,7 +90,6 @@ struct PaywallView: View {
                         onRestore: restore
                     )
                 }
-                .background(.ultraThinMaterial)
             }
             .scrollContentBackground(.hidden)
             .background(PaywallBackgroundView())

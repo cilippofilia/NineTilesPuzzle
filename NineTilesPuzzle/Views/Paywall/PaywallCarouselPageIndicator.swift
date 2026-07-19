@@ -18,6 +18,9 @@ struct PaywallCarouselPageIndicator: View {
     let activeIndex: Int
     /// How far the active page is through its dwell time, `0...1`. Drives the fill width.
     let progress: Double
+    /// How long the carousel's own slide glide takes — the dot morph is timed to match, so the
+    /// two finish together instead of the dot settling early on a faster timing of its own.
+    let transitionDuration: Double
 
     private let dotSize: CGFloat = 6
     private let activeWidth: CGFloat = 22
@@ -41,14 +44,14 @@ struct PaywallCarouselPageIndicator: View {
                     }
             }
         }
-        .animation(.snappy(duration: 0.32), value: activeIndex)
+        .animation(.smooth(duration: transitionDuration), value: activeIndex)
     }
 }
 
 #Preview {
     VStack(spacing: 24) {
-        PaywallCarouselPageIndicator(count: 4, activeIndex: 0, progress: 0.3)
-        PaywallCarouselPageIndicator(count: 4, activeIndex: 2, progress: 0.7)
+        PaywallCarouselPageIndicator(count: 4, activeIndex: 0, progress: 0.3, transitionDuration: 0.55)
+        PaywallCarouselPageIndicator(count: 4, activeIndex: 2, progress: 0.7, transitionDuration: 0.55)
     }
     .padding()
     .background(.black)
