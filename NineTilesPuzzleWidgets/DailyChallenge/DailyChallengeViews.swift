@@ -586,7 +586,7 @@ private struct DailyWidgetBackground: View {
 #Preview("Small — High Streak", as: .systemSmall) {
     DailyChallengeWidget()
 } timeline: {
-    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 20, bestStreak: 20, gridSize: 4, mode: .slide, imageData: nil)
+    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 20, bestStreak: 20, gridSize: 4, mode: .slide, imageData: nil, isPremiumUnlocked: true)
 }
 
 #Preview("Medium", as: .systemMedium) {
