@@ -17,20 +17,24 @@ struct PaywallCTAButton: View {
 
     var body: some View {
         Button(action: action) {
-            if isPurchasing {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-            } else {
-                Text(title)
-                    .contentTransition(.opacity)
-                    .bold()
-                    .frame(maxWidth: .infinity)
-            }
+            Text(title)
+                .contentTransition(.opacity)
+                .bold()
+                .opacity(isPurchasing ? 0 : 1)
+                .accessibilityHidden(isPurchasing)
+                .overlay {
+                    if isPurchasing {
+                        ProgressView()
+                            .transition(.opacity)
+                    }
+                }
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.glassProminent)
         .controlSize(.large)
         .disabled(isDisabled)
         .animation(.snappy, value: title)
+        .animation(.snappy, value: isPurchasing)
     }
 }
 

@@ -63,6 +63,7 @@ struct PaywallBenefitCarousel: View {
     }
 
     var body: some View {
+        let reduceMotion = reduceMotion
         VStack {
             ScrollView(.horizontal) {
                 // Eager HStack (not Lazy): the recenter jump lands on an off-screen copy, so
