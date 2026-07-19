@@ -15,6 +15,7 @@
   --brand-gradient: linear-gradient(135deg, var(--yellow), var(--orange) 55%, var(--red));
   --radius-lg: 26px;
   --radius-md: 16px;
+  --piece-svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-20 -20 140 140'%3E%3Cpath d='M10 0 H35 C35 -8.284 41.716 -15 50 -15 C58.284 -15 65 -8.284 65 0 H90 C95.523 0 100 4.477 100 10 V35 C108.284 35 115 41.716 115 50 C115 58.284 108.284 65 100 65 V90 C100 95.523 95.523 100 90 100 H10 C4.477 100 0 95.523 0 90 V10 C0 4.477 4.477 0 10 0 Z'/%3E%3C/svg%3E");
 }
 
 /* Dark theme variables */
@@ -109,6 +110,39 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .aurora::before,
   .aurora::after {
+    animation: none;
+  }
+}
+
+/* ---------- Floating puzzle pieces ---------- */
+
+.piece {
+  position: absolute;
+  background: var(--text);
+  opacity: var(--piece-opacity, 0.06);
+  -webkit-mask-image: var(--piece-svg);
+  mask-image: var(--piece-svg);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transform: rotate(var(--piece-rotate, 0deg));
+  animation: pieceFloat var(--piece-duration, 16s) ease-in-out infinite alternate;
+  animation-delay: var(--piece-delay, 0s);
+  will-change: transform;
+}
+
+@keyframes pieceFloat {
+  0% {
+    transform: rotate(var(--piece-rotate, 0deg)) translateY(0);
+  }
+  100% {
+    transform: rotate(var(--piece-rotate, 0deg)) translateY(-22px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piece {
     animation: none;
   }
 }
