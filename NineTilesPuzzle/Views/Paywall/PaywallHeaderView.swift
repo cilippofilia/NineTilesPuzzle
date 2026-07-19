@@ -14,11 +14,21 @@ struct PaywallHeaderView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: context.icon)
-                .font(.largeTitle)
-                .foregroundStyle(.tint)
-                .frame(width: 76, height: 76)
-                .glassEffect(.regular, in: .circle)
+            switch context.icon {
+            case .symbol(let name):
+                Image(systemName: name)
+                    .font(.largeTitle)
+                    .foregroundStyle(.tint)
+                    .frame(width: 76, height: 76)
+                    .glassEffect(.regular, in: .circle)
+            case .appIcon:
+                Image("PaywallAppIcon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 76, height: 76)
+                    .clipShape(.rect(cornerRadius: 18))
+                    .shadow(color: .black.opacity(0.35), radius: 12, y: 6)
+            }
 
             Text(context.headline)
                 .font(.title2)
