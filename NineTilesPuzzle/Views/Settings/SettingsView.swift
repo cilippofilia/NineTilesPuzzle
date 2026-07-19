@@ -52,6 +52,7 @@ struct SettingsView: View {
                     }
                 }
 
+                #if DEBUG
                 Section {
                     Toggle("Show debug tools", isOn: Binding(
                         get: { settings.debugOverlayEnabled },
@@ -68,6 +69,7 @@ struct SettingsView: View {
                 } footer: {
                     Text("This feature is for development testing only and is not intended for production use.")
                 }
+                #endif
 
                 if settings.debugOverlayEnabled {
                     Section {
