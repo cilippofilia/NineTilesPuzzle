@@ -14,7 +14,7 @@ struct PaywallPlanCard: View {
     let title: String
     let subtitle: String
     let priceText: String
-    let badge: String?
+    let showBadge: Bool
     let isSelected: Bool
     let action: () -> Void
 
@@ -24,44 +24,48 @@ struct PaywallPlanCard: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
+            HStack(spacing: 8) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(isSelected ? Color.green : Color.secondary)
                     .symbolEffect(.bounce, value: selectionBounce)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).bold()
+                    Text(title)
+                        .bold()
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
-
-                Text(priceText).bold()
+                Text(priceText)
+                    .bold()
             }
             .padding()
-            .contentShape(.rect(cornerRadius: 16))
+            .background(alignment: .topTrailing) {
+                if showBadge {
+                    Text("BEST VALUE")
+                        .font(.system(size: 10, weight: .bold))
+                        .bold()
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .foregroundStyle(.white)
+                        .background(.tint)
+                        .clipShape(
+                            .rect(topLeadingRadius: 0, bottomLeadingRadius: 4, bottomTrailingRadius: 0, topTrailingRadius: 0)
+                        )
+                }
+            }
+            .clipShape(.rect(cornerRadius: 12))
+            .contentShape(.rect(cornerRadius: 12))
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
         .glassEffect(
-            isSelected ? .regular.tint(.green.opacity(0.25)).interactive() : .regular.interactive(),
-            in: .rect(cornerRadius: 16)
+            isSelected ? .regular.tint(.green.opacity(0.15)).interactive() : .regular.interactive(),
+            in: .rect(cornerRadius: 12)
         )
-        .overlay(alignment: .topTrailing) {
-            if let badge {
-                Text(badge)
-                    .font(.caption2)
-                    .bold()
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .foregroundStyle(.white)
-                    .background(.tint, in: .capsule)
-                    .offset(x: 8, y: -8)
-            }
-        }
         .animation(.snappy, value: isSelected)
         .onChange(of: isSelected) { _, newValue in
             if newValue { selectionBounce += 1 }
@@ -76,7 +80,7 @@ struct PaywallPlanCard: View {
                 title: "Premium Pass",
                 subtitle: "Monthly, cancel anytime",
                 priceText: "$1.99/mo",
-                badge: nil,
+                showBadge: false,
                 isSelected: false,
                 action: {}
             )
@@ -84,7 +88,7 @@ struct PaywallPlanCard: View {
                 title: "Lifetime VIP Access",
                 subtitle: "One-time purchase, yours forever",
                 priceText: "$6.99",
-                badge: "BEST VALUE",
+                showBadge: true,
                 isSelected: true,
                 action: {}
             )

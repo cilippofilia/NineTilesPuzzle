@@ -25,40 +25,36 @@ struct PaywallPlanListView: View {
 
     var body: some View {
         if store.monthlyProduct == nil && store.lifetimeProduct == nil && store.isLoadingProducts {
-            GlassEffectContainer(spacing: 12) {
-                VStack(spacing: 12) {
-                    PaywallPlanCardPlaceholder()
-                    PaywallPlanCardPlaceholder()
-                }
+            VStack(spacing: 12) {
+                PaywallPlanCardPlaceholder()
+                PaywallPlanCardPlaceholder()
             }
             .redacted(reason: .placeholder)
         } else if store.monthlyProduct == nil && store.lifetimeProduct == nil {
             Button("Try Again") { Task { await store.loadProducts() } }
                 .padding()
         } else {
-            GlassEffectContainer(spacing: 12) {
-                VStack(spacing: 12) {
-                    if let monthly = store.monthlyProduct {
-                        PaywallPlanCard(
-                            title: "Premium Pass",
-                            subtitle: "Monthly, cancel anytime",
-                            priceText: "\(monthly.displayPrice)/mo",
-                            badge: nil,
-                            isSelected: selectedProductID == monthly.id,
-                            action: { selectedProductID = monthly.id }
-                        )
-                    }
+            VStack(spacing: 12) {
+                if let monthly = store.monthlyProduct {
+                    PaywallPlanCard(
+                        title: "Premium Pass",
+                        subtitle: "Monthly, cancel anytime",
+                        priceText: "\(monthly.displayPrice)/mo",
+                        showBadge: false,
+                        isSelected: selectedProductID == monthly.id,
+                        action: { selectedProductID = monthly.id }
+                    )
+                }
 
-                    if let lifetime = store.lifetimeProduct {
-                        PaywallPlanCard(
-                            title: "Lifetime VIP Access",
-                            subtitle: "One-time purchase, yours forever",
-                            priceText: lifetime.displayPrice,
-                            badge: lifetimeIsBestValue ? "BEST VALUE" : nil,
-                            isSelected: selectedProductID == lifetime.id,
-                            action: { selectedProductID = lifetime.id }
-                        )
-                    }
+                if let lifetime = store.lifetimeProduct {
+                    PaywallPlanCard(
+                        title: "Lifetime VIP Access",
+                        subtitle: "One-time purchase, yours forever",
+                        priceText: lifetime.displayPrice,
+                        showBadge: true,
+                        isSelected: selectedProductID == lifetime.id,
+                        action: { selectedProductID = lifetime.id }
+                    )
                 }
             }
         }
@@ -73,7 +69,7 @@ private struct PaywallPlanCardPlaceholder: View {
             title: "Premium Pass",
             subtitle: "Monthly, cancel anytime",
             priceText: "$0.00",
-            badge: nil,
+            showBadge: true,
             isSelected: false,
             action: {}
         )

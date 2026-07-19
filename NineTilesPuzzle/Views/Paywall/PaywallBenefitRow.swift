@@ -27,6 +27,18 @@ struct PaywallBenefitRow: View {
                 .frame(width: 28, height: 28)
                 .background(tint.gradient, in: .circle)
         }
+        .labelStyle(CenteredIconLabelStyle())
+    }
+}
+
+/// Centers the icon against the full (possibly multi-line) title, unlike the default
+/// label style which aligns the icon to the title's first line baseline.
+private struct CenteredIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .center) {
+            configuration.icon
+            configuration.title
+        }
     }
 }
 
