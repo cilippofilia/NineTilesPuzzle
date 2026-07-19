@@ -70,6 +70,7 @@ struct PaywallView: View {
                 }
                 .scrollBounceBehavior(.basedOnSize)
             }
+            .scrollIndicators(.hidden)
             .safeAreaInset(edge: .bottom) {
                 VStack {
                     PaywallPlanListView(selectedProductID: $selectedProductID)
