@@ -1,0 +1,185 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --text: #1c1c1e;
+  --muted: #6e6e73;
+  --accent: #ff8a3d;
+  --accent2: #ff3d6e;
+  --border: #e5e5ea;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0b0d;
+    --surface: #17171a;
+    --text: #f2f2f3;
+    --muted: #9a9aa0;
+    --border: #2c2c30;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+header.site {
+  padding: 3rem 0 2rem;
+  text-align: center;
+}
+
+.icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+h1 {
+  font-size: clamp(1.75rem, 5vw, 2.4rem);
+  margin: 1.25rem 0 0.4rem;
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: 1.1rem;
+  margin: 0 0 1.5rem;
+}
+
+.badge-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.7rem 1.4rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: opacity 0.15s ease;
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+}
+
+.btn.secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+main {
+  padding-bottom: 3rem;
+}
+
+section {
+  margin-bottom: 2.5rem;
+}
+
+section h2 {
+  font-size: 1.3rem;
+  margin-bottom: 0.9rem;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.features li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+}
+
+.features li strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.features li span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+footer.site {
+  border-top: 1px solid var(--border);
+  padding: 1.75rem 0 3rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+footer.site a {
+  color: var(--muted);
+}
+
+footer.site .links {
+  margin-bottom: 0.6rem;
+}
+
+footer.site .links a {
+  margin: 0 0.5rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+.legal h1 {
+  margin-top: 2.5rem;
+}
+
+.legal h2 {
+  font-size: 1.15rem;
+  margin-top: 2rem;
+}
+
+.legal p, .legal li {
+  color: var(--text);
+}
+
+.legal .updated {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
