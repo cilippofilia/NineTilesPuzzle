@@ -71,6 +71,20 @@ struct SettingsView: View {
 
                 if settings.debugOverlayEnabled {
                     Section {
+                        Toggle("Force VIP Unlocked", isOn: Binding(
+                            get: { settings.debugForcePremiumUnlocked },
+                            set: { newValue in
+                                settings.setDebugForcePremiumUnlocked(newValue)
+                                store.syncWidgetEntitlementForDebugOverride()
+                            }
+                        ))
+                    } header: {
+                        Text("Subscription")
+                    } footer: {
+                        Text("Simulates an active VIP entitlement without a sandbox purchase, so premium-gated features can be tested. Off by default.")
+                    }
+
+                    Section {
                         Stepper(
                             "Day offset: \(dailyStore.debugDayOffset > 0 ? "+" : "")\(dailyStore.debugDayOffset)",
                             value: Binding(

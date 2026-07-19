@@ -35,6 +35,10 @@ final class SettingsStore {
     /// When true, every `GameSession.use...PowerUp()` method skips `PowerUpStore.consume`
     /// entirely — power-ups can be spammed for testing without touching real inventory.
     var debugInfinitePowerUps: Bool = false
+    /// When true, `StoreManager.isPremiumUnlocked` reports unlocked regardless of real
+    /// entitlement — lets premium-gated features be exercised without a sandbox purchase.
+    /// Off by default, same as the other Dev Tools overrides.
+    var debugForcePremiumUnlocked: Bool = false
     /// The name shown to friends on a sent Challenge Friends puzzle. Empty until the
     /// player is prompted the first time they try to send a challenge.
     var senderDisplayName: String = ""
@@ -124,6 +128,11 @@ final class SettingsStore {
         defaults.set(value, forKey: Keys.debugInfinitePowerUps)
     }
 
+    func setDebugForcePremiumUnlocked(_ value: Bool) {
+        debugForcePremiumUnlocked = value
+        defaults.set(value, forKey: Keys.debugForcePremiumUnlocked)
+    }
+
     func setSenderDisplayName(_ name: String) {
         senderDisplayName = name
         defaults.set(name, forKey: Keys.senderDisplayName)
@@ -167,6 +176,7 @@ private extension SettingsStore {
         static let peekDuration = "puzzle.peekDuration"
         static let streakMilestoneInterval = "puzzle.streakMilestoneInterval"
         static let debugInfinitePowerUps = "puzzle.debugInfinitePowerUps"
+        static let debugForcePremiumUnlocked = "puzzle.debugForcePremiumUnlocked"
         static let senderDisplayName = "puzzle.senderDisplayName"
         static let challengeFriendsEnabled = "puzzle.challengeFriendsEnabled"
         static let dailyReminderEnabled = "puzzle.dailyReminderEnabled"
@@ -203,6 +213,9 @@ private extension SettingsStore {
         }
         if defaults.object(forKey: Keys.debugInfinitePowerUps) != nil {
             debugInfinitePowerUps = defaults.bool(forKey: Keys.debugInfinitePowerUps)
+        }
+        if defaults.object(forKey: Keys.debugForcePremiumUnlocked) != nil {
+            debugForcePremiumUnlocked = defaults.bool(forKey: Keys.debugForcePremiumUnlocked)
         }
         if let name = defaults.string(forKey: Keys.senderDisplayName) {
             senderDisplayName = name

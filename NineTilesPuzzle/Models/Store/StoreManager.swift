@@ -33,11 +33,20 @@ final class StoreManager {
     nonisolated static let lifetimeProductID = "cilia.filippo.NineTilesPuzzle.lifetime"
     nonisolated static let monthlyProductID = "cilia.filippo.NineTilesPuzzle.monthly"
 
-    private(set) var isPremiumUnlocked = false
+    private(set) var hasActiveEntitlement = false
     private(set) var lifetimeProduct: Product?
     private(set) var monthlyProduct: Product?
     private(set) var isLoadingProducts = false
     private(set) var purchaseError: String?
+
+    /// Lets Settings' Dev Tools "Force VIP Unlocked" toggle simulate premium without a
+    /// sandbox purchase — mirrors `GameSession`'s injected `isPremiumUnlocked` closure.
+    private let debugOverride: () -> Bool
+
+    /// True if either a real StoreKit entitlement is active or the debug override is on.
+    var isPremiumUnlocked: Bool {
+        hasActiveEntitlement || debugOverride()
+    }
 
     // `@ObservationIgnored` since this is a private implementation detail no view reads —
     // it also sidesteps an `@Observable`-macro conflict between tracked-property synthesis
@@ -51,7 +60,8 @@ final class StoreManager {
     /// `GameSession`'s use of the same controller for the daily section.
     private let widgetData = WidgetDataController()
 
-    init() {
+    init(debugOverride: @escaping () -> Bool = { false }) {
+        self.debugOverride = debugOverride
         transactionListenerTask = Task { [weak self] in
             for await result in Transaction.updates {
                 await self?.handle(result)
@@ -116,13 +126,20 @@ final class StoreManager {
         await refreshEntitlement()
     }
 
+    /// Re-mirrors `isPremiumUnlocked` into the shared App Group after the debug override
+    /// flips, without re-running the `Transaction.currentEntitlements` scan that
+    /// `refreshEntitlement()` does.
+    func syncWidgetEntitlementForDebugOverride() {
+        widgetData.updateEntitlement(isPremiumUnlocked: isPremiumUnlocked)
+    }
+
     func refreshEntitlement() async {
         var activeProductIDs: Set<String> = []
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result, transaction.revocationDate == nil else { continue }
             activeProductIDs.insert(transaction.productID)
         }
-        isPremiumUnlocked = StoreEntitlement.isPremiumUnlocked(activeProductIDs: activeProductIDs)
+        hasActiveEntitlement = StoreEntitlement.isPremiumUnlocked(activeProductIDs: activeProductIDs)
         // Mirrors the flag into the shared App Group so the widget extension — which never
         // links StoreKit — can read entitlement without a round trip through the app.
         widgetData.updateEntitlement(isPremiumUnlocked: isPremiumUnlocked)
