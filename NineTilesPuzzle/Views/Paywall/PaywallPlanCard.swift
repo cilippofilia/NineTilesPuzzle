@@ -60,7 +60,7 @@ struct PaywallPlanCard: View {
             .clipShape(.rect(cornerRadius: 12))
             .contentShape(.rect(cornerRadius: 12))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SteadyLabelButtonStyle())
         .foregroundStyle(.primary)
         .glassEffect(
             isSelected ? .regular.tint(.green.opacity(0.15)).interactive() : .regular.interactive(),
@@ -70,6 +70,17 @@ struct PaywallPlanCard: View {
         .onChange(of: isSelected) { _, newValue in
             if newValue { selectionBounce += 1 }
         }
+    }
+}
+
+/// Keeps the card's label fully opaque while the card is held. The default `.plain` (and
+/// `.borderless`) button styles fade the whole label's opacity on press, which sinks the
+/// already-faint `.secondary` subtitle all the way out — making the subheader look like it
+/// disappears while the button is held. The `.interactive()` glass effect already supplies the
+/// press feedback, so the label itself should stay put.
+private struct SteadyLabelButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
     }
 }
 
