@@ -45,6 +45,8 @@ struct DailyUpgradeView: View {
             Label("Upgrade to VIP", systemImage: "lock.fill")
                 .font(.system(size: 15, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             Text("Resume games and track your streak from the Home Screen.")
                 .font(.system(size: 11, weight: .semibold))
