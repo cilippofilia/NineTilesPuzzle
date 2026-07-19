@@ -622,13 +622,10 @@ final class GameSession {
                     }
                 }
             }
-            let slicer = ImageSlicer()
-            let cropped = slicer.centerCrop(image)
-            // The preview always shows this untouched crop — Chaos Mode's transform is baked
-            // in below, after the preview's source is captured, so "memorize the image" still
-            // teaches the real photo even though the tiles are about to show something else.
-            previewImage = cropped
-            var workingImage = cropped
+            // Cropping, Chaos Mode's transform (a CIContext render, tens of milliseconds), and
+            // slicing all run together off the main actor — Chaos's transform in particular is
+            // expensive enough to visibly stall the loading transition if left on Main.
+            //
             // Baked into the image itself, before slicing, rather than kept as separate
             // transform state — `sourceImage` (below) is what gets persisted and re-sliced
             // on restore, so a transformed image survives backgrounding for free with no
@@ -638,12 +635,25 @@ final class GameSession {
             // Chaos-transformed if applicable, since only the post-transform bytes travel in
             // the payload — so re-rolling a fresh transform here would show a different image
             // than the one the challenge's tiles were actually seeded against.
-            if selectedGameMode == .chaos && !isChallengeGameActive {
-                workingImage = ChaosTransform.random().apply(to: workingImage)
-            }
+            let isChaosMode = selectedGameMode == .chaos && !isChallengeGameActive
+            let tileCount = gridSize * gridSize
+            let (cropped, workingImage, slices) = await Task.detached {
+                let slicer = ImageSlicer()
+                let cropped = slicer.centerCrop(image)
+                var workingImage = cropped
+                if isChaosMode {
+                    workingImage = ChaosTransform.random().apply(to: workingImage)
+                }
+                let slices = slicer.slice(workingImage, into: tileCount)
+                return (cropped, workingImage, slices)
+            }.value
+
+            // The preview always shows the untouched crop — Chaos Mode's transform is baked
+            // in above, after the preview's source is captured, so "memorize the image" still
+            // teaches the real photo even though the tiles are about to show something else.
+            previewImage = cropped
             sourceImage = workingImage
             croppedSourceImage = workingImage
-            let slices = slicer.slice(workingImage, into: gridSize * gridSize)
             tileImages = Dictionary(uniqueKeysWithValues: slices.enumerated().map { ($0, $1) })
 
             isLoading = false

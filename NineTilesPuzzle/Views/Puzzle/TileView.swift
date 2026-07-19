@@ -38,8 +38,6 @@ struct TileView: View {
         ZStack {
             TileContentView(image: image, number: tile.id + 1, gridSize: gridSize, tileSize: tileSize)
                 .blur(radius: showFog ? 18 : showFrostedGlass ? 3 : 0)
-                .animation(.easeInOut(duration: 0.2), value: isDragging)
-                .animation(.easeInOut(duration: 1.2), value: tile.isLocked)
 
             if showFog {
                 // Just the darkening scrim here; the animated sparkles for every unrevealed

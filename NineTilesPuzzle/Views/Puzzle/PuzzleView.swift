@@ -559,9 +559,15 @@ struct PuzzleView: View {
         guard !isSolving else { return }
         isSolving = true
 
-        let moves = SlideSolver().solve(tiles: session.tiles, gridSize: session.gridSize)
+        let gridSize = session.gridSize
+        var board = [Int](repeating: 0, count: gridSize * gridSize)
+        for tile in session.tiles { board[tile.currentIndex] = tile.id }
 
         Task {
+            let moves = await Task.detached {
+                SlideSolver.solveBoard(board, gridSize: gridSize)
+            }.value
+
             for move in moves {
                 guard !session.isSolved else {
                     break

@@ -27,34 +27,34 @@ struct WallOfFameView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     boardSection(title: "Difficulty Highlights") {
                         ForEach(3...8, id: \.self) { size in
-                            heroCardSlot(forGridSize: size)
+                            WallOfFameHeroCardSlot(gridSize: size, engine: swingEngine, onSelect: selectCard)
                         }
                     }
                     boardSection(title: "Best Moves") {
                         let canonical = (3...8).map { WallOfFameSlot.bestMoves(gridSize: $0) }
                         ForEach(wallOfFameStore.orderedSlots(section: "bestMoves", canonical: canonical), id: \.self) { slot in
-                            curatedCardSlot(for: slot, section: "bestMoves", canonical: canonical)
+                            WallOfFameCuratedCardSlot(slot: slot, section: "bestMoves", canonical: canonical, engine: swingEngine, onSelect: selectCard)
                         }
                     }
                     boardSection(title: "Fastest Solve") {
                         let canonical = (3...8).map { WallOfFameSlot.bestTime(gridSize: $0) }
                         ForEach(wallOfFameStore.orderedSlots(section: "fastestSolve", canonical: canonical), id: \.self) { slot in
-                            curatedCardSlot(for: slot, section: "fastestSolve", canonical: canonical)
+                            WallOfFameCuratedCardSlot(slot: slot, section: "fastestSolve", canonical: canonical, engine: swingEngine, onSelect: selectCard)
                         }
                     }
                     boardSection(title: "Daily Challenge") {
                         let canonical: [WallOfFameSlot] = [.dailyBestMoves, .dailyBestTime]
                         ForEach(wallOfFameStore.orderedSlots(section: "dailyChallenge", canonical: canonical), id: \.self) { slot in
-                            curatedCardSlot(for: slot, section: "dailyChallenge", canonical: canonical)
+                            WallOfFameCuratedCardSlot(slot: slot, section: "dailyChallenge", canonical: canonical, engine: swingEngine, onSelect: selectCard)
                         }
                     }
                     boardSection(title: "Streaks") {
-                        curatedCardSlot(for: .calendarStreak, section: "streaks", canonical: [.calendarStreak])
+                        WallOfFameCuratedCardSlot(slot: .calendarStreak, section: "streaks", canonical: [.calendarStreak], engine: swingEngine, onSelect: selectCard)
                     }
                     boardSection(title: "Gauntlet Ladder") {
                         let canonical = (1...GauntletLadderRules.stageCount).map { WallOfFameSlot.ladderStage($0) }
                         ForEach(wallOfFameStore.orderedSlots(section: "gauntletLadder", canonical: canonical), id: \.self) { slot in
-                            curatedCardSlot(for: slot, section: "gauntletLadder", canonical: canonical)
+                            WallOfFameCuratedCardSlot(slot: slot, section: "gauntletLadder", canonical: canonical, engine: swingEngine, onSelect: selectCard)
                         }
                     }
                 }
@@ -159,36 +159,60 @@ struct WallOfFameView: View {
         }
     }
 
-    // MARK: - Hero card slot
+    // MARK: - Card selection
 
-    /// The "Difficulty Highlights" section's per-size tile: whichever of `.bestMoves`/`.bestTime` was
-    /// captured most recently for `size`, so each difficulty gets one representative photo
-    /// instead of the full moves/time breakdown shown further down the board.
-    @ViewBuilder
-    private func heroCardSlot(forGridSize size: Int) -> some View {
-        if let hero = wallOfFameStore.heroSlot(forGridSize: size) {
-            cardSlot(for: hero)
-        } else {
-            WallOfFameEmptySlot(slot: .bestMoves(gridSize: size))
+    /// The grid vends display-size thumbnails; the zoomed card wants the capture-resolution
+    /// PNG, decoded only now that one is actually needed.
+    private func selectCard(_ slot: WallOfFameSlot, image: CGImage) {
+        let fullRes = wallOfFameStore.fullResCardImage(for: slot) ?? image
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.85)) {
+            zoomedCardImage = fullRes
+            zoomedShareURL = wallOfFameStore.fileURL(for: slot)
+            zoomedSlot = slot
         }
     }
+}
 
-    // MARK: - Card slot
+/// The "Difficulty Highlights" section's per-size tile: whichever of `.bestMoves`/`.bestTime` was
+/// captured most recently for `size`, so each difficulty gets one representative photo instead
+/// of the full moves/time breakdown shown further down the board.
+///
+/// A dedicated `View` so `WallOfFameStore.heroSlot(forGridSize:)` — which depends on the
+/// store's `revision` counter, bumped on every background thumbnail decode — only invalidates
+/// this one card instead of the whole `WallOfFameView` body.
+private struct WallOfFameHeroCardSlot: View {
+    @Environment(WallOfFameStore.self) private var wallOfFameStore
 
-    @ViewBuilder
-    private func cardSlot(for slot: WallOfFameSlot) -> some View {
+    let gridSize: Int
+    let engine: WallOfFameSwingEngine
+    let onSelect: (WallOfFameSlot, CGImage) -> Void
+
+    var body: some View {
+        if let hero = wallOfFameStore.heroSlot(forGridSize: gridSize) {
+            WallOfFameCardSlot(slot: hero, engine: engine, onSelect: onSelect)
+        } else {
+            WallOfFameEmptySlot(slot: .bestMoves(gridSize: gridSize))
+        }
+    }
+}
+
+/// A single pinned card. A dedicated `View` so `WallOfFameStore.cardImage(for:)`/`hasCard(for:)`
+/// — both dependent on the store's `revision` counter — only invalidate this one card slot
+/// instead of the whole `WallOfFameView` body, which used to re-run its entire section layout
+/// once per card as background thumbnail decodes landed.
+private struct WallOfFameCardSlot: View {
+    @Environment(WallOfFameStore.self) private var wallOfFameStore
+
+    let slot: WallOfFameSlot
+    let engine: WallOfFameSwingEngine
+    let onSelect: (WallOfFameSlot, CGImage) -> Void
+
+    var body: some View {
         if let image = wallOfFameStore.cardImage(for: slot) {
             Button {
-                // The grid vends display-size thumbnails; the zoomed card wants the
-                // capture-resolution PNG, decoded only now that one is actually needed.
-                let fullRes = wallOfFameStore.fullResCardImage(for: slot) ?? image
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.85)) {
-                    zoomedCardImage = fullRes
-                    zoomedShareURL = wallOfFameStore.fileURL(for: slot)
-                    zoomedSlot = slot
-                }
+                onSelect(slot, image)
             } label: {
-                WallOfFamePinnedCard(slot: slot, cardImage: image, engine: swingEngine)
+                WallOfFamePinnedCard(slot: slot, cardImage: image, engine: engine)
             }
             .buttonStyle(.plain)
         } else if wallOfFameStore.hasCard(for: slot) {
@@ -199,17 +223,24 @@ struct WallOfFameView: View {
             WallOfFameEmptySlot(slot: slot)
         }
     }
+}
 
-    // MARK: - Manual curation (long-press to unpin / rearrange)
+/// Wraps `WallOfFameCardSlot` with long-press curation for the record sections (not the
+/// derived "Difficulty Highlights" hero cards, which don't have a single stable slot identity
+/// to hide or reorder). A slot never earned renders exactly as `WallOfFameCardSlot` would, with
+/// no menu — there's nothing yet to unpin or move.
+private struct WallOfFameCuratedCardSlot: View {
+    @Environment(WallOfFameStore.self) private var wallOfFameStore
 
-    /// Wraps `cardSlot(for:)` with long-press curation for the record sections (not the
-    /// derived "Difficulty Highlights" hero cards, which don't have a single stable slot
-    /// identity to hide or reorder). A slot never earned renders exactly as `cardSlot(for:)`
-    /// would, with no menu — there's nothing yet to unpin or move.
-    @ViewBuilder
-    private func curatedCardSlot(for slot: WallOfFameSlot, section: String, canonical: [WallOfFameSlot]) -> some View {
+    let slot: WallOfFameSlot
+    let section: String
+    let canonical: [WallOfFameSlot]
+    let engine: WallOfFameSwingEngine
+    let onSelect: (WallOfFameSlot, CGImage) -> Void
+
+    var body: some View {
         if !wallOfFameStore.hasCard(for: slot) {
-            cardSlot(for: slot)
+            WallOfFameCardSlot(slot: slot, engine: engine, onSelect: onSelect)
         } else if wallOfFameStore.isHidden(slot) {
             WallOfFameEmptySlot(slot: slot)
                 .contextMenu {
@@ -218,18 +249,18 @@ struct WallOfFameView: View {
                     }
                 }
         } else {
-            cardSlot(for: slot)
+            WallOfFameCardSlot(slot: slot, engine: engine, onSelect: onSelect)
                 .contextMenu {
                     Button("Unpin from Wall", systemImage: "pin.slash", role: .destructive) {
                         wallOfFameStore.setHidden(slot, hidden: true)
                     }
-                    moveMenuButtons(for: slot, section: section, canonical: canonical)
+                    moveMenuButtons
                 }
         }
     }
 
     @ViewBuilder
-    private func moveMenuButtons(for slot: WallOfFameSlot, section: String, canonical: [WallOfFameSlot]) -> some View {
+    private var moveMenuButtons: some View {
         let order = wallOfFameStore.orderedSlots(section: section, canonical: canonical)
         if let index = order.firstIndex(of: slot) {
             if index > 0 {

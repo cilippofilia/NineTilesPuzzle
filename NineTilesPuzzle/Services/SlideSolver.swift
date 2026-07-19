@@ -26,13 +26,24 @@ import Foundation
 /// to its target.
 @MainActor
 struct SlideSolver {
+    /// Converts `tiles` to a plain board snapshot and solves it. The board→moves search
+    /// itself (`solveBoard`) is `nonisolated` and does the actual (up to ~500ms) BFS work, so
+    /// callers that don't want to block the main actor — e.g. an animated "walk to solved"
+    /// feature — should call `solveBoard` directly from a detached `Task` instead of this
+    /// convenience wrapper.
     func solve(tiles: [TileModel], gridSize: Int) -> [Int] {
+        var board = [Int](repeating: 0, count: gridSize * gridSize)
+        for tile in tiles { board[tile.currentIndex] = tile.id }
+        return Self.solveBoard(board, gridSize: gridSize)
+    }
+
+    /// Value-type core of the solver — safe to call off the main actor. See `solve(tiles:gridSize:)`.
+    nonisolated static func solveBoard(_ initialBoard: [Int], gridSize: Int) -> [Int] {
         let n = gridSize
         guard n >= 3 else { return [] }
 
         let blankID = n * n - 1
-        var board = [Int](repeating: 0, count: n * n)
-        for tile in tiles { board[tile.currentIndex] = tile.id }
+        var board = initialBoard
 
         if n == 3 {
             return solveWholeBoard(board: board, gridSize: n)
@@ -205,7 +216,7 @@ struct SlideSolver {
     }
 
     /// Solves a 3x3 board directly via breadth-first search over the whole board.
-    private func solveWholeBoard(board: [Int], gridSize n: Int) -> [Int] {
+    private nonisolated static func solveWholeBoard(board: [Int], gridSize n: Int) -> [Int] {
         let blankID = n * n - 1
         let goal = Array(0..<(n * n))
         if board == goal { return [] }

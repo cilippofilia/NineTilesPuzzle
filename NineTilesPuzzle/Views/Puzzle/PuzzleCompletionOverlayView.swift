@@ -34,34 +34,7 @@ struct PuzzleCompletionOverlayView: View {
 
     var body: some View {
         VStack {
-            CompletionBannerView(
-                gameMode: session.selectedGameMode,
-                streak: session.currentStreakForCurrentSize,
-                isNewRecord: completion.showNewRecord,
-                moveCount: session.currentMoveCount,
-                personalBest: session.personalBestForCurrentSize,
-                elapsedTime: session.elapsedTime,
-                personalBestTime: session.personalBestTimeForCurrentSize,
-                isPracticeMode: settings.debugOverlayEnabled,
-                timeTrialScore: session.timeTrialScore,
-                personalBestScore: session.personalBestScoreForCurrentSize,
-                isNewTimeTrialScoreRecord: completion.showNewTimeTrialScoreRecord,
-                isLadderMode: session.isGauntletLadderMode,
-                isLadderRunComplete: session.isLadderRunComplete,
-                lastClearedLadderStage: session.lastClearedLadderStage,
-                ladderCumulativeScore: session.ladderCumulativeScore,
-                bestLadderScoreOverall: session.bestLadderScoreOverall,
-                isNewLadderScoreRecord: completion.showNewLadderScoreRecord
-            )
-            .padding(.top)
-            .padding(.horizontal)
-            .offset(x: completion.bannerOffset.width, y: (completion.showCompletion ? 0 : -300) + completion.bannerOffset.height)
-            .opacity(completion.showCompletion ? 1 : 0)
-            .gesture(
-                DragGesture()
-                    .onChanged { value in completion.updateBannerDrag(value.translation) }
-                    .onEnded { _ in completion.endBannerDrag() }
-            )
+            CompletionBanner(completion: completion)
 
             if completion.showCompletion && completion.hasNewBestBadge(selectedGameMode: session.selectedGameMode) {
                 NewBestBadgesView(
@@ -133,5 +106,46 @@ struct PuzzleCompletionOverlayView: View {
             }
         }
         .allowsHitTesting(completion.showCompletion)
+    }
+}
+
+/// Reads the session's per-second fields (`elapsedTime` and friends) on its own, so a
+/// stopwatch tick only re-evaluates this small banner instead of the whole completion
+/// overlay (which also builds the badges row, power-up grid, and challenge outcome view).
+private struct CompletionBanner: View {
+    @Environment(GameSession.self) private var session
+    @Environment(SettingsStore.self) private var settings
+
+    let completion: PuzzleCompletionViewModel
+
+    var body: some View {
+        CompletionBannerView(
+            gameMode: session.selectedGameMode,
+            streak: session.currentStreakForCurrentSize,
+            isNewRecord: completion.showNewRecord,
+            moveCount: session.currentMoveCount,
+            personalBest: session.personalBestForCurrentSize,
+            elapsedTime: session.elapsedTime,
+            personalBestTime: session.personalBestTimeForCurrentSize,
+            isPracticeMode: settings.debugOverlayEnabled,
+            timeTrialScore: session.timeTrialScore,
+            personalBestScore: session.personalBestScoreForCurrentSize,
+            isNewTimeTrialScoreRecord: completion.showNewTimeTrialScoreRecord,
+            isLadderMode: session.isGauntletLadderMode,
+            isLadderRunComplete: session.isLadderRunComplete,
+            lastClearedLadderStage: session.lastClearedLadderStage,
+            ladderCumulativeScore: session.ladderCumulativeScore,
+            bestLadderScoreOverall: session.bestLadderScoreOverall,
+            isNewLadderScoreRecord: completion.showNewLadderScoreRecord
+        )
+        .padding(.top)
+        .padding(.horizontal)
+        .offset(x: completion.bannerOffset.width, y: (completion.showCompletion ? 0 : -300) + completion.bannerOffset.height)
+        .opacity(completion.showCompletion ? 1 : 0)
+        .gesture(
+            DragGesture()
+                .onChanged { value in completion.updateBannerDrag(value.translation) }
+                .onEnded { _ in completion.endBannerDrag() }
+        )
     }
 }
