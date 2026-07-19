@@ -209,10 +209,12 @@ private struct DailyStreakFlame: View {
     let streak: Int
     let isCompletedToday: Bool
 
-    /// Tuned against a ~155pt small widget: capped small enough, and cropped hard enough, that
-    /// only a low ember stays visible above the bottom edge — clear of the header/mode row.
+    /// Capped small enough, and cropped hard enough, that only a low ember stays visible above
+    /// the bottom edge — clear of the header/mode row even on the smallest small-widget size
+    /// class. Long streaks (20+ days) hit the cap; verified against the "Small — High Streak"
+    /// preview below, since the default preview timeline never climbs past a streak of 6.
     private var flameSize: CGFloat {
-        min(96 + CGFloat(streak) * 4, 150)
+        min(90 + CGFloat(streak) * 2, 130)
     }
 
     /// The flame glyph is drawn much taller than what's kept on screen; clipping to a fixed,
@@ -254,7 +256,9 @@ private struct DailyStreakFlame: View {
                         .foregroundStyle(.white.opacity(0.75))
                 }
                 .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
-                .padding(.bottom, visibleHeight * 0.16)
+                // Fixed, not derived from visibleHeight: the streak number/label must keep the
+                // same safe clearance from the true bottom edge no matter how big the flame gets.
+                .padding(.bottom, 14)
             }
         }
         // Fill the whole background proposal and pin to its bottom — without the max-height
@@ -536,6 +540,14 @@ private struct DailyWidgetBackground: View {
 } timeline: {
     DailyChallengeEntry(date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide, imageData: nil)
     DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 4, mode: .slide, imageData: nil)
+}
+
+/// Long-running streaks push `DailyStreakFlame` to its size cap — this catches clipping that a
+/// low mock streak (like the "Small" preview above) never would.
+#Preview("Small — High Streak", as: .systemSmall) {
+    DailyChallengeWidget()
+} timeline: {
+    DailyChallengeEntry(date: .now, isCompletedToday: true, streak: 20, bestStreak: 20, gridSize: 4, mode: .slide, imageData: nil)
 }
 
 #Preview("Medium", as: .systemMedium) {
