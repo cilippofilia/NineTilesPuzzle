@@ -35,7 +35,7 @@ struct PaywallPlanCard: View {
                         .bold()
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary.opacity(0.65))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -60,16 +60,26 @@ struct PaywallPlanCard: View {
             .clipShape(.rect(cornerRadius: 12))
             .contentShape(.rect(cornerRadius: 12))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SteadyLabelButtonStyle())
         .foregroundStyle(.primary)
         .glassEffect(
-            isSelected ? .regular.tint(.green.opacity(0.15)).interactive() : .regular.interactive(),
+            isSelected ? .regular.tint(.green.opacity(0.15)) : .regular,
             in: .rect(cornerRadius: 12)
         )
         .animation(.snappy, value: isSelected)
         .onChange(of: isSelected) { _, newValue in
             if newValue { selectionBounce += 1 }
         }
+    }
+}
+
+/// Gives the card a press scale instead of relying on a `ButtonStyle`'s built-in opacity fade,
+/// which otherwise multiplies through the whole label.
+private struct SteadyLabelButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
