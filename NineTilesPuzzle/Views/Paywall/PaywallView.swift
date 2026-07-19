@@ -45,43 +45,51 @@ struct PaywallView: View {
 
     var body: some View {
         NavigationStack {
-            VStack {
-                PaywallHeaderView(context: context)
+            ScrollView {
+                VStack {
+                    PaywallHeaderView(context: context)
 
-                PaywallBenefitCarousel(benefits: PaywallBenefit.all)
-                    .glassEffect(.regular, in: .rect(cornerRadius: 16))
-                    .padding([.horizontal, .bottom])
+                    PaywallBenefitCarousel(benefits: PaywallBenefit.all)
+                        .frame(minHeight: 160)
+                        .glassEffect(.regular, in: .rect(cornerRadius: 16))
+                        .padding()
 
-                PaywallPlanListView(selectedProductID: $selectedProductID)
-                    .padding(.horizontal)
-
-                if let message = store.pendingApprovalMessage {
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                } else if let errorMessage = errorMessage ?? store.purchaseError {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                    if let message = store.pendingApprovalMessage {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    } else if let errorMessage = errorMessage ?? store.purchaseError {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
                 }
+                .scrollBounceBehavior(.basedOnSize)
+            }
+            .safeAreaInset(edge: .bottom) {
+                VStack {
+                    PaywallPlanListView(selectedProductID: $selectedProductID)
+                        .padding([.top, .horizontal])
 
-                PaywallCTAButton(
-                    title: ctaTitle,
-                    isPurchasing: isPurchasing,
-                    isDisabled: isPurchasing || selectedProduct == nil,
-                    action: purchaseSelected
-                )
-                .padding()
+                    PaywallCTAButton(
+                        title: ctaTitle,
+                        isPurchasing: isPurchasing,
+                        isDisabled: isPurchasing || selectedProduct == nil,
+                        action: purchaseSelected
+                    )
+                    .padding()
 
-                PaywallLegalFooterView(
-                    disclosureText: subscriptionDisclosure,
-                    isRestoring: isRestoring,
-                    onRestore: restore
-                )
+                    PaywallLegalFooterView(
+                        disclosureText: subscriptionDisclosure,
+                        isRestoring: isRestoring,
+                        onRestore: restore
+                    )
+                }
+                .background(.ultraThinMaterial)
             }
             .scrollContentBackground(.hidden)
             .background(PaywallBackgroundView())

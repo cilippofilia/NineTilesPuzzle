@@ -16,7 +16,7 @@ struct PaywallBenefitCarousel: View {
     @State private var currentID: String?
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack {
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 0) {
                     ForEach(benefits) { benefit in
@@ -38,7 +38,7 @@ struct PaywallBenefitCarousel: View {
                 }
             }
             .animation(.snappy, value: currentID)
-            .padding(.bottom)
+            .padding(.vertical, 8)
         }
         .task {
             if currentID == nil { currentID = benefits.first?.id }

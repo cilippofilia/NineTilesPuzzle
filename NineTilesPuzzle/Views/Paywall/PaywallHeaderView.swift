@@ -13,7 +13,7 @@ struct PaywallHeaderView: View {
     let context: PaywallContext
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             switch context.icon {
             case .symbol(let name):
                 Image(systemName: name)

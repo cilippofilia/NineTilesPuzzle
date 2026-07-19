@@ -13,15 +13,16 @@ struct PaywallBenefitSlide: View {
     let benefit: PaywallBenefit
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 6) {
             HStack {
                 Image(systemName: benefit.icon)
-                    .font(.system(size: 18))
-                    .frame(width: 33, height: 33)
+                    .font(.system(size: 16))
+                    .frame(width: 28, height: 28)
                     .background(benefit.tint, in: .circle)
 
                 Text(benefit.lead)
-                    .font(.title2.bold())
+                    .font(.system(size: 18))
+                    .bold()
                     .foregroundStyle(.primary)
             }
 
@@ -29,13 +30,13 @@ struct PaywallBenefitSlide: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+                
         }
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity)
+        .padding([.horizontal, .top])
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 }
 
 #Preview {
     PaywallBenefitSlide(benefit: PaywallBenefit.all[0])
-        .padding()
 }

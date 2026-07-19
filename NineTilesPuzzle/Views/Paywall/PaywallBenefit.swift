@@ -33,7 +33,7 @@ struct PaywallBenefit: Identifiable {
         PaywallBenefit(
             lead: "Claim Your Seat",
             detail: "Unlock the 3D motion-reactive Wall of Fame, the full Daily Challenge archive, "
-                + "and all 39 achievements.",
+                + "and all the achievements.",
             icon: "trophy.fill",
             tint: .orange
         ),

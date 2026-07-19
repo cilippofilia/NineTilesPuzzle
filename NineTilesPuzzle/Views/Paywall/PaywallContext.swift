@@ -55,7 +55,7 @@ struct PaywallContext: Identifiable, Hashable {
 
     static let achievementsArchive = PaywallContext(
         headline: "Achievements",
-        subheadline: "Track all 39 achievements across 6 categories — your full record of every milestone "
+        subheadline: "Track all the achievements across 6 categories — your full record of every milestone "
             + "along the way.",
         icon: .symbol("trophy.fill")
     )
