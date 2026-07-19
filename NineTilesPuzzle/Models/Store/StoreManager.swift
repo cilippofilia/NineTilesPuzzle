@@ -54,9 +54,15 @@ final class StoreManager {
     /// sandbox purchase — mirrors `GameSession`'s injected `isPremiumUnlocked` closure.
     private let debugOverride: () -> Bool
 
-    /// True if either a real StoreKit entitlement is active or the debug override is on.
+    /// Lets Settings' Dev Tools "Remove VIP Lifetime Access" button suppress a real
+    /// entitlement (or the force-unlock override) so the non-VIP experience can be tested
+    /// without deleting the transaction in Xcode's StoreKit Transaction Manager.
+    private let debugForceRemoved: () -> Bool
+
+    /// True if a real StoreKit entitlement is active or the force-unlock override is on,
+    /// unless the debug removal override is suppressing access — that wins over both.
     var isPremiumUnlocked: Bool {
-        hasActiveEntitlement || debugOverride()
+        (hasActiveEntitlement || debugOverride()) && !debugForceRemoved()
     }
 
     // `@ObservationIgnored` since this is a private implementation detail no view reads —
@@ -71,8 +77,12 @@ final class StoreManager {
     /// `GameSession`'s use of the same controller for the daily section.
     private let widgetData = WidgetDataController()
 
-    init(debugOverride: @escaping () -> Bool = { false }) {
+    init(
+        debugOverride: @escaping () -> Bool = { false },
+        debugForceRemoved: @escaping () -> Bool = { false }
+    ) {
         self.debugOverride = debugOverride
+        self.debugForceRemoved = debugForceRemoved
         transactionListenerTask = Task { [weak self] in
             for await result in Transaction.updates {
                 await self?.handle(result)

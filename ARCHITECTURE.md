@@ -887,7 +887,10 @@ the former case, since a lifetime purchaser has nothing to manage. A `.pending` 
 result (Ask to Buy, SCA/bank approval) sets `pendingApprovalMessage`, shown as neutral inline
 copy on the paywall instead of the purchase silently doing nothing. `isPremiumUnlocked` also
 ORs in a `debugOverride` closure so Settings' Dev Tools "Force VIP Unlocked" toggle can
-simulate premium without a sandbox purchase — mirrors `GameSession`'s injected
+simulate premium without a sandbox purchase, and ANDs in the negation of a `debugForceRemoved`
+closure so the Dev Tools "Remove VIP Lifetime Access" button can suppress a real (or forced)
+entitlement — removal wins over both — to test the non-VIP experience without deleting the
+transaction in Xcode's StoreKit Transaction Manager. Both mirror `GameSession`'s injected
 `isPremiumUnlocked` closure pattern below. The entitlement is mirrored into the shared App
 Group via `WidgetDataController.updateEntitlement` (not written directly — that controller
 owns every App Group write + the paired `WidgetCenter` reload) so the widget extension, which

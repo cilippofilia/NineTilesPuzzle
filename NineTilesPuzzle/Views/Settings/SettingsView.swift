@@ -86,10 +86,15 @@ struct SettingsView: View {
                                 store.syncWidgetEntitlementForDebugOverride()
                             }
                         ))
+
+                        Button(settings.debugForcePremiumRemoved ? "Restore VIP Lifetime Access" : "Remove VIP Lifetime Access") {
+                            settings.setDebugForcePremiumRemoved(!settings.debugForcePremiumRemoved)
+                            store.syncWidgetEntitlementForDebugOverride()
+                        }
                     } header: {
                         Text("Subscription")
                     } footer: {
-                        Text("Simulates an active VIP entitlement without a sandbox purchase, so premium-gated features can be tested. Off by default.")
+                        Text("Force VIP Unlocked simulates an active VIP entitlement without a sandbox purchase, so premium-gated features can be tested. Remove VIP Lifetime Access suppresses a real (or forced) entitlement so the non-VIP experience can be tested without deleting the transaction in Xcode. Both are off by default.")
                     }
 
                     Section {
