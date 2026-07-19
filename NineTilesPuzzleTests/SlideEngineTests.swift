@@ -35,7 +35,7 @@ struct SlideEngineTests {
     // MARK: - blankIndex
 
     @Test func blankIndexReturnsPositionOfHighestIDTile() {
-        var tiles = (0..<9).map { TileModel(id: $0, currentIndex: $0, isLocked: false) }
+        let tiles = (0..<9).map { TileModel(id: $0, currentIndex: $0, isLocked: false) }
         tiles[8].currentIndex = 3
         #expect(engine.blankIndex(in: tiles) == 3)
     }

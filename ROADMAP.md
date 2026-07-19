@@ -10,7 +10,7 @@ implementation details live in `ARCHITECTURE.md`; this file tracks what's still 
 
 Six of seven originally-sketched modes have shipped — Slide, Swap, Time Trial (with the
 Gauntlet Ladder sub-mode), Limited Moves, Zen, Haze, and Chaos, all routed through
-`GameSession` via the `GameMode` enum in `Views/MenuView.swift`. See `ARCHITECTURE.md` for
+`GameSession` via the `GameMode` enum in `Views/Menu/MenuView.swift`. See `ARCHITECTURE.md` for
 how `GameSession`, `StatsStore`, `SettingsStore`, and `AchievementsStore` fit together.
 Outstanding follow-ups on shipped modes:
 
@@ -26,11 +26,17 @@ Outstanding follow-ups on shipped modes:
 - The low-time vignette pulse and BPM-escalating audio sensory layer (the countdown
   currently only recolors text).
 - Restricting Time Trial to a curated, high-contrast image source for leaderboard fairness.
-- `scenePhase`-based countdown freeze + 3-2-1 resume overlay on backgrounding/interruption
-  (today the countdown has no background handling at all).
+
+**Backgrounding/interruption resume grace — shipped (2026-07-16):** `scenePhase` handling now
+distinguishes `.background` (real backgrounding) from `.inactive` (phone call, Face ID prompt,
+Control Center, app-switcher preview) — both freeze the countdown via `pauseTimers()`, but only
+returning to `.active` mid-run triggers a 3-2-1 "Get Ready" grace period
+(`TimeTrialResumeOverlay`) before `resumeTimers()` actually restarts the clock, so the countdown
+never resumes ticking the instant the screen becomes visible again. See `ARCHITECTURE.md`.
 
 ### Limited Moves
-- Pairs naturally with the power-up economy (§2).
+- Power-ups (§2, shipped) already work here with no special-casing needed — not gated by
+  game mode.
 - The move-budget table could use difficulty-based tuning passes if playtesting shows the
   flat numbers are too generous/strict.
 
@@ -75,25 +81,18 @@ likely more fun to play.
 
 ---
 
-## 2. Power-ups & Twists
+## 2. Power-ups & Twists — shipped (2026-07-07)
 
-Earned rather than bought (at least initially): award them at streak milestones, achievement
-unlocks, and daily-challenge completions. Inventory is a handful of counters persisted
-alongside the existing per-store `Keys` enums (each store now sits behind the
-`PersistenceStore` protocol, so a power-up counter store is straightforward to keep
-testable too). Each one is small because the mechanics it manipulates already exist:
-
-| Power-up | Effort | How it works |
-|---|---|---|
-| **Peek** | S | Re-show the full image mid-game for a few seconds — `ImagePreviewView` already does this pre-shuffle. |
-| **Hint** | S | Briefly highlight where one selected tile belongs. |
-| **Auto-place** | S | Lock one random unlocked tile into its correct cell via the existing swap/lock logic. |
-| **Streak Freeze** | S | Pause the streak countdown once per game. |
-| **Re-shuffle** | S | Reshuffle only the unlocked tiles (a constrained `GameEngine.shuffle`) when stuck. |
-
-**Economy note:** milestone-based earning keeps the game fully offline-friendly and
-pressure-free. If monetization ever lands (§4), power-up bundles become an obvious IAP
-without redesigning anything.
+All five originally-sketched power-ups shipped exactly as planned: **Peek**, **Hint**,
+**Auto-place**, **Streak Freeze**, **Re-shuffle** (`Models/PowerUps/`). Earned (not bought) at
+streak milestones (every 5), achievement unlocks, and Daily Challenge completions; spent
+mid-game via `GameSession`'s `use…PowerUp()` methods, each gated on mode/media applicability.
+See `ARCHITECTURE.md`'s Power-ups section for the full mechanics. Still outstanding:
+- Challenge Friends completion doesn't earn a power-up (unlike Daily) — see §3, decide if
+  intentional.
+- **Economy note:** the Hard-Feature Gate (§4, shipped 2026-07-18) monetizes game modes/media
+  sources/system integration, not power-ups themselves — power-up bundles as their own IAP are
+  still just an unexplored idea, not implemented, and nothing about the shipped gate blocks it.
 
 ---
 
@@ -110,14 +109,41 @@ The stats are already tracked in `StatsStore`; submission is a thin `GameCenterS
 - Daily challenge: recurring leaderboard for moves (and time)
 
 ### Achievements sync — **M**
-Mirror the 39 local achievements (`Resources/achievements.json`) to Game Center, reporting
+Mirror the 42 local achievements (`Resources/achievements.json`) to Game Center, reporting
 on unlock. Keep the local system as the source of truth so the game still works fully
 offline. While in this area: `AchievementService.remoteURL` still points at
 `example.com` — either wire up a real hosted JSON or remove the remote path.
 
-### Friend challenges — **L** *(defer)*
-Send a friend the same seeded puzzle and compare move counts. Builds directly on the
-Daily Challenge seeding work, but should wait until leaderboards prove engagement.
+### Challenge Friends — shipped (2026-07-08 → 2026-07-12)
+Send a friend a seeded puzzle and compare move counts/time — shipped as a fully
+self-contained feature (no backend), well beyond the original "send + compare moves, wait
+for leaderboards" sketch. Two transports share one payload: a custom `.ntpchallenge` file
+(`Transferable`, ShareLink/AirDrop/Messages/Files, with a `QLThumbnailProvider` extension
+rendering a branded preview instead of a generic document icon) and a real-time nearby
+transport (migrated from Multipeer to Network.framework — `NWListener`/`NWBrowser`/
+`NWConnection` over Bonjour, peer-to-peer/AWDL enabled). `ChallengeStore` tracks win/lose/tie
+history with "Challenge Them Back" chains; malformed/unreadable/version-mismatched files
+surface a proper "Couldn't Open Challenge" alert instead of silently no-opping. Achievement
+metrics (`.challengesSent`, `.challengesWon`, `.challengesPlayed`) are wired up. See
+`ARCHITECTURE.md` and this project's memory for full detail.
+
+**Gated behind Settings (2026-07-16):** pending the manual two-device verification below, the whole feature —
+menu entry, sending eligibility, and receiving `.ntpchallenge` files (an alert explains why a
+tapped file won't open) — is hidden behind an off-by-default "Enable Challenge Friends" toggle
+in Settings' Dev Tools section, the same pattern as Power-ups. The three Challenge Friends
+achievements (`firstChallengeSent`, `firstChallengeWon`, `challengeChampion`) are likewise
+excluded from the Achievements list/tally and can't unlock while the toggle is off — see §5.
+
+Still outstanding:
+- **Manual two-device verification** — neither transport (file or nearby) has been
+  end-to-end tested on two physical devices; Simulator can't do Bonjour discovery or real
+  share-sheet destinations.
+- **Image quality degradation in shared images** — reports of low-quality images on the
+  receiving end; check compression during transfer/encode/decode and Messages/AirDrop-side
+  re-compression.
+- Power-ups can be *spent* during a challenge game but none are *earned* from completing
+  one (unlike Daily Challenge's completion path) — decide if that asymmetry is intentional.
+- No Game Center leaderboard/achievement tie-in yet (ties into this section generally).
 
 ---
 
@@ -153,17 +179,36 @@ fuller option.
 
 ### Widgets — follow-ups
 Three home-screen widgets (Daily Challenge, Streaks & Records, Resume Puzzle) plus deep
-links have shipped — see `ARCHITECTURE.md` §Home-screen widgets. Still outstanding:
-- `widgetURL`/deep link on the Live Activity itself (a tap currently just opens the app;
-  routing it through `ninetilespuzzle://resume` would reuse the existing plumbing).
+links have shipped — see `ARCHITECTURE.md` §Home-screen widgets. Since then: the Daily
+Challenge widget was redesigned and consolidated (2026-07-12) with a Duolingo-style streak
+row and a configurable "Show Puzzle Photo" option (`WidgetConfigurationIntent`, off by
+default) that overlays the day's seeded photo on the puzzle-piece watermark; a daily
+reminder local notification also shipped (configurable time, rotating message pool, skips a
+day already completed); and the Live Activity/Dynamic Island gained its own `widgetURL`
+(2026-07-16) — tapping it now resumes the in-progress game via the existing
+`ninetilespuzzle://resume` deep link instead of just opening the app. Still outstanding:
 - Lock Screen / StandBy accessory widgets, if revisited later.
 - StandBy/tinted-mode polish pass on real hardware (accented rendering is wired via
   `widgetAccentedRenderingMode(.accentedDesaturated)` but only Simulator-verified).
 
-### Monetization *(optional, later)* — **L**
-Lightest-touch options first: tip jar, then premium image packs and power-up bundles via
-StoreKit 2. Nothing in the current architecture blocks this; the power-up economy and image
-packs are designed to make it bolt-on.
+### Monetization / Hard-Feature Gate — shipped (2026-07-18), paywall rebuilt (2026-07-19)
+The Hard-Feature Gate freemium model (StoreKit 2, $6.99 lifetime + $1.99/mo subscription
+gating Chaos/Haze, personal-photo media sources, Wall of Fame, Achievements, the Daily
+archive, and system integration) has shipped — see `ARCHITECTURE.md`'s Monetization / Hard-
+Feature Gate section for the full architecture. The paywall itself was rebuilt 2026-07-19
+around selectable plan cards, a single confirm CTA, Liquid Glass, a dynamically-computed
+best-value badge, proper `.pending` (Ask to Buy) handling, and a native Manage Subscription
+sheet in Settings. Still outstanding:
+- **Manual purchase/restore verification** — no real-device or two-device purchase/restore
+  test has been run yet (mirrors the same gap Challenge Friends has in §3).
+- **Stale ASC review screenshots** — the review screenshots already uploaded for both the
+  lifetime IAP and the monthly subscription were captured against the old dual-button paywall
+  and should be recaptured against the new selectable-card layout before submitting.
+- Premium image packs and power-up bundles as their *own* separate IAPs (beyond the Hard-
+  Feature Gate) are still just an idea — nothing in the current architecture blocks it.
+- A free trial / introductory offer on the monthly subscription was explicitly deferred —
+  needs a real offer configured in App Store Connect first, not just the local `.storekit`
+  test file.
 
 ### Smaller polish — **S each**
 - [ ] Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
@@ -175,10 +220,15 @@ details). Still deferred: Instruments before/after captures on a Release build (
 Profiler around `registerMove`, Animation Hitches on an 8×8 Fog board) to quantify the wins.
 
 ### Wall of Fame — follow-ups
-The cork-board of auto-pinned personal records has shipped (see `ARCHITECTURE.md`). Still
-deferred:
-- Manual curation (long-press to unpin / rearrange slots).
-- Tapping a card's share button from the zoomed overlay (currently only the nav bar item).
+The cork-board of auto-pinned personal records has shipped (see `ARCHITECTURE.md`). Both
+follow-ups tracked here shipped 2026-07-16:
+- Manual curation — long-press a card for "Unpin from Wall" (or "Re-pin to Wall" on an
+  already-hidden slot) and "Move Earlier"/"Move Later" reordering within its section, both
+  persisted.
+- The zoomed overlay's Share button moved off the nav bar into `ZoomedCardOverlay`'s own
+  footer slot.
+
+No outstanding items here currently.
 
 ---
 
@@ -187,7 +237,20 @@ deferred:
 Take inspiration from Apple Fitness awards: badges grouped by category, tiered medals with
 progress shown toward the next tier, earned dates, and occasional limited-edition awards.
 The data-driven model, categories, and progress bars have all shipped (see
-`ARCHITECTURE.md`). Outstanding:
+`ARCHITECTURE.md`).
+
+**Challenge Friends gating (2026-07-16):** while Challenge Friends is off in Settings (§3),
+`AchievementMetric.isChallengeFriendsMetric` flags the three metrics that read
+`ChallengeStore` (`.challengesSent`/`.challengesWon`/`.challengesPlayed`), and
+`AchievementsStore` excludes their achievements (`firstChallengeSent`, `firstChallengeWon`,
+`challengeChampion`) from `checkAchievements`, the visible list, and the "x/y" tally — they
+simply don't appear, the same way the feature itself is hidden from the menu. Completionist
+excludes them from its "every other achievement" requirement too while disabled, so it can
+still unlock without the player ever touching Challenge Friends. The now-empty "Social"
+category section is skipped entirely in `AchievementsView` rather than rendering a bare
+header. Turning Challenge Friends on reinstates all three immediately (locked, in progress).
+
+Outstanding:
 
 ### Tiered achievements (bronze / silver / gold) — **M**
 Collapse "count ladder" achievements into one badge with tiers, like Fitness's Move Goal
@@ -216,7 +279,8 @@ achievement, or to one achievement using `percentComplete`.
 - **Monthly challenge**: one personalized goal per month computed from the player's own
   stats ("Solve 20 puzzles in June"), shown as a card with a progress ring on the menu.
 - **Badge detail sheet**: tapping a badge opens a large rendering with earned date, tier
-  history, and a share button (`ImageRenderer`, pairs with the share polish item in §4).
+  history, and a share button (`ImageRenderer`) — same shape as the Wall of Fame's zoomed-card
+  Share button (§4, shipped).
 - **Generated commemorative badges (Image Playground)**: for gold-tier unlocks and monthly
   challenge completions, generate a one-of-a-kind celebratory image via the `ImageCreator`
   API (e.g. "golden trophy made of puzzle pieces") in the background at unlock time, persist

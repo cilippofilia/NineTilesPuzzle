@@ -147,7 +147,7 @@ struct SwapEngineTests {
     }
 
     @Test func isSolvedReturnsFalseWhenATileIsOutOfPosition() {
-        var tiles = solvedTiles()
+        let tiles = solvedTiles()
         tiles[4].currentIndex = 5
         tiles[5].currentIndex = 4
         #expect(!engine.isSolved(tiles))

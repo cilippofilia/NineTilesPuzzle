@@ -43,6 +43,18 @@ enum AchievementMetric: Equatable {
     /// type-checked metric string instead of borrowing an unrelated one.
     case completionist
 
+    /// Whether this metric reads from Challenge Friends data (`ChallengeStore`) — the three
+    /// cases `AchievementsStore` skips evaluating (and excludes from the visible list/
+    /// Completionist requirement) while Challenge Friends itself is turned off in Settings.
+    var isChallengeFriendsMetric: Bool {
+        switch self {
+        case .challengesSent, .challengesWon, .challengesPlayed:
+            true
+        default:
+            false
+        }
+    }
+
     /// Current value of this metric, compared against an achievement's `target`.
     /// `challengeStore` is optional — only the three Challenge Friends metrics read it,
     /// so existing call sites that don't have one on hand can omit it.

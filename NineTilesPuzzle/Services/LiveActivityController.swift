@@ -46,14 +46,23 @@ final class LiveActivityController {
     /// once superseded or when the activity ends.
     private var currentImageName: String?
 
+    /// Live Activities are a premium, "Always Connected" feature — this gates `start`/`refresh`
+    /// only (never `end`, which must always be allowed to clean up). Defaults to unlocked so
+    /// existing tests/previews that don't inject a `StoreManager` keep working unchanged.
+    private let isPremiumUnlocked: () -> Bool
+
+    init(isPremiumUnlocked: @escaping () -> Bool = { true }) {
+        self.isPremiumUnlocked = isPremiumUnlocked
+    }
+
     /// Whether the user has Live Activities enabled for this app.
     private var isEnabled: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
 
     /// Starts a fresh Live Activity for the given board, ending any previous one first so two
-    /// never run at once (e.g. across a "Play Again"). No-ops if Live Activities are disabled or
-    /// the snapshot can't be written to the shared container.
+    /// never run at once (e.g. across a "Play Again"). No-ops if Live Activities are disabled,
+    /// premium is locked, or the snapshot can't be written to the shared container.
     func start(_ input: LiveActivityBoardInput) {
-        guard isEnabled else { return }
+        guard isEnabled, isPremiumUnlocked() else { return }
 
         guard let imageName = writeSnapshot(input) else { return }
         // Deliberately don't call `end()` here: it ends *all* activities on a detached task, which
@@ -94,9 +103,11 @@ final class LiveActivityController {
     }
 
     /// Refreshes the running activity with the current board and counters. No-ops if no activity
-    /// is running (nothing to remind about) or the new snapshot can't be written.
+    /// is running (nothing to remind about), premium is locked, or the new snapshot can't be
+    /// written.
     func refresh(_ input: LiveActivityBoardInput) {
         guard let activity else { return }
+        guard isPremiumUnlocked() else { return }
         guard let imageName = writeSnapshot(input) else { return }
 
         let previous = currentImageName

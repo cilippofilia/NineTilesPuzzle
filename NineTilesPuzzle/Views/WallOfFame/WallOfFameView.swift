@@ -31,25 +31,30 @@ struct WallOfFameView: View {
                         }
                     }
                     boardSection(title: "Best Moves") {
-                        ForEach(3...8, id: \.self) { size in
-                            cardSlot(for: .bestMoves(gridSize: size))
+                        let canonical = (3...8).map { WallOfFameSlot.bestMoves(gridSize: $0) }
+                        ForEach(wallOfFameStore.orderedSlots(section: "bestMoves", canonical: canonical), id: \.self) { slot in
+                            curatedCardSlot(for: slot, section: "bestMoves", canonical: canonical)
                         }
                     }
                     boardSection(title: "Fastest Solve") {
-                        ForEach(3...8, id: \.self) { size in
-                            cardSlot(for: .bestTime(gridSize: size))
+                        let canonical = (3...8).map { WallOfFameSlot.bestTime(gridSize: $0) }
+                        ForEach(wallOfFameStore.orderedSlots(section: "fastestSolve", canonical: canonical), id: \.self) { slot in
+                            curatedCardSlot(for: slot, section: "fastestSolve", canonical: canonical)
                         }
                     }
                     boardSection(title: "Daily Challenge") {
-                        cardSlot(for: .dailyBestMoves)
-                        cardSlot(for: .dailyBestTime)
+                        let canonical: [WallOfFameSlot] = [.dailyBestMoves, .dailyBestTime]
+                        ForEach(wallOfFameStore.orderedSlots(section: "dailyChallenge", canonical: canonical), id: \.self) { slot in
+                            curatedCardSlot(for: slot, section: "dailyChallenge", canonical: canonical)
+                        }
                     }
                     boardSection(title: "Streaks") {
-                        cardSlot(for: .calendarStreak)
+                        curatedCardSlot(for: .calendarStreak, section: "streaks", canonical: [.calendarStreak])
                     }
                     boardSection(title: "Gauntlet Ladder") {
-                        ForEach(1...GauntletLadderRules.stageCount, id: \.self) { stage in
-                            cardSlot(for: .ladderStage(stage))
+                        let canonical = (1...GauntletLadderRules.stageCount).map { WallOfFameSlot.ladderStage($0) }
+                        ForEach(wallOfFameStore.orderedSlots(section: "gauntletLadder", canonical: canonical), id: \.self) { slot in
+                            curatedCardSlot(for: slot, section: "gauntletLadder", canonical: canonical)
                         }
                     }
                 }
@@ -68,8 +73,16 @@ struct WallOfFameView: View {
                     .transition(.opacity)
             }
 
-            if let image = zoomedCardImage, zoomedShareURL != nil, let slot = zoomedSlot {
-                ZoomedCardOverlay(cardImage: image, title: slot.displayTitle, onDismiss: dismissCard)
+            if let image = zoomedCardImage, let url = zoomedShareURL, let slot = zoomedSlot {
+                ZoomedCardOverlay(cardImage: image, title: slot.displayTitle, onDismiss: dismissCard) {
+                    ShareLink(item: url, preview: SharePreview("Record Card")) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
                     // Spring-scale in, but fade straight out: reversing the scale on
                     // removal read as a half-hearted shrink and the spring's long
                     // settling tail made the fade feel laggy.
@@ -90,14 +103,6 @@ struct WallOfFameView: View {
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.55), radius: 3, x: 0, y: 1)
-            }
-            if let url = zoomedShareURL {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: url, preview: SharePreview("Record Card")) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                    }
-                    .labelStyle(.iconOnly)
-                }
             }
         }
         .onAppear { motionManager.startUpdates() }
@@ -192,6 +197,51 @@ struct WallOfFameView: View {
             WallOfFameLoadingSlot()
         } else {
             WallOfFameEmptySlot(slot: slot)
+        }
+    }
+
+    // MARK: - Manual curation (long-press to unpin / rearrange)
+
+    /// Wraps `cardSlot(for:)` with long-press curation for the record sections (not the
+    /// derived "Difficulty Highlights" hero cards, which don't have a single stable slot
+    /// identity to hide or reorder). A slot never earned renders exactly as `cardSlot(for:)`
+    /// would, with no menu — there's nothing yet to unpin or move.
+    @ViewBuilder
+    private func curatedCardSlot(for slot: WallOfFameSlot, section: String, canonical: [WallOfFameSlot]) -> some View {
+        if !wallOfFameStore.hasCard(for: slot) {
+            cardSlot(for: slot)
+        } else if wallOfFameStore.isHidden(slot) {
+            WallOfFameEmptySlot(slot: slot)
+                .contextMenu {
+                    Button("Re-pin to Wall", systemImage: "pin.fill") {
+                        wallOfFameStore.setHidden(slot, hidden: false)
+                    }
+                }
+        } else {
+            cardSlot(for: slot)
+                .contextMenu {
+                    Button("Unpin from Wall", systemImage: "pin.slash", role: .destructive) {
+                        wallOfFameStore.setHidden(slot, hidden: true)
+                    }
+                    moveMenuButtons(for: slot, section: section, canonical: canonical)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func moveMenuButtons(for slot: WallOfFameSlot, section: String, canonical: [WallOfFameSlot]) -> some View {
+        let order = wallOfFameStore.orderedSlots(section: section, canonical: canonical)
+        if let index = order.firstIndex(of: slot) {
+            if index > 0 {
+                Button("Move Earlier", systemImage: "arrow.backward") {
+                    wallOfFameStore.move(slot, section: section, canonical: canonical, earlier: true)
+                }
+            }
+            if index < order.count - 1 {
+                Button("Move Later", systemImage: "arrow.forward") {
+                    wallOfFameStore.move(slot, section: section, canonical: canonical, earlier: false)
+                }
+            }
         }
     }
 }

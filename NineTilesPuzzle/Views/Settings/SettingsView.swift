@@ -5,6 +5,7 @@
 //  Created by Filippo Cilia on 6/6/26.
 //
 
+import StoreKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -15,15 +16,49 @@ struct SettingsView: View {
     @Environment(PowerUpStore.self) private var powerUpStore
     @Environment(SoundService.self) private var soundService
     @Environment(GameCenterService.self) private var gameCenterService
+    @Environment(DailyReminderService.self) private var dailyReminderService
+    @Environment(StoreManager.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var showResetStatsAlert = false
     @State private var showResetSettingsAlert = false
     @State private var showDebugOverlayAlert = false
+    @State private var showNotificationDeniedAlert = false
+    @State private var paywallContext: PaywallContext?
+    @State private var showManageSubscriptions = false
 
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    if store.isPremiumUnlocked {
+                        Label {
+                            Text("VIP Unlocked")
+                        } icon: {
+                            Image(systemName: "checkmark.seal.fill")
+                        }
+
+                        if store.hasActiveSubscription {
+                            Button("Manage Subscription") { showManageSubscriptions = true }
+                        }
+                    } else {
+                        Button {
+                            paywallContext = .general
+                        } label: {
+                            Label {
+                                Text("Unlock Nine Tiles Puzzle VIP")
+                            } icon: {
+                                Image(systemName: "crown.fill")
+                            }
+                        }
+                    }
+                } footer: {
+                    if !store.isPremiumUnlocked {
+                        Text("Unlock every game mode, personalize puzzles with your own photos, and get the full experience.")
+                    }
+                }
+
+                #if DEBUG
                 Section {
                     Toggle("Show debug tools", isOn: Binding(
                         get: { settings.debugOverlayEnabled },
@@ -40,8 +75,23 @@ struct SettingsView: View {
                 } footer: {
                     Text("This feature is for development testing only and is not intended for production use.")
                 }
+                #endif
 
                 if settings.debugOverlayEnabled {
+                    Section {
+                        Toggle("Force VIP Unlocked", isOn: Binding(
+                            get: { settings.debugForcePremiumUnlocked },
+                            set: { newValue in
+                                settings.setDebugForcePremiumUnlocked(newValue)
+                                store.syncWidgetEntitlementForDebugOverride()
+                            }
+                        ))
+                    } header: {
+                        Text("Subscription")
+                    } footer: {
+                        Text("Simulates an active VIP entitlement without a sandbox purchase, so premium-gated features can be tested. Off by default.")
+                    }
+
                     Section {
                         Stepper(
                             "Day offset: \(dailyStore.debugDayOffset > 0 ? "+" : "")\(dailyStore.debugDayOffset)",
@@ -98,6 +148,24 @@ struct SettingsView: View {
                     } footer: {
                         Text("Enable Power-ups turns on the power-up system in-game — it's off by default while still being tuned. Infinite Power-ups lets every power-up be used without spending inventory. The steppers tune how long a Peek/Hint shows and how often a streak milestone earns a power-up. Refill tops every power-up back up to 3 for testing.")
                     }
+
+                    Section {
+                        Toggle("Enable Challenge Friends", isOn: Binding(
+                            get: { settings.challengeFriendsEnabled },
+                            set: { settings.setChallengeFriendsEnabled($0) }
+                        ))
+
+                        if settings.challengeFriendsEnabled {
+                            TextField("Your Game tag", text: Binding(
+                                get: { settings.senderDisplayName },
+                                set: { settings.setSenderDisplayName($0) }
+                            ))
+                        }
+                    } header: {
+                        Text("Challenge Friends")
+                    } footer: {
+                        Text("Send a friend a seeded puzzle and compare move counts, by file share or nearby device — it's off by default while it's still unverified on real hardware. Your Game tag is shown to friends when you send them a challenge.")
+                    }
                 }
 
                 Section("Game") {
@@ -130,6 +198,35 @@ struct SettingsView: View {
                     }
                 }
 
+                Section {
+                    Toggle("Daily Reminder", isOn: Binding(
+                        get: { settings.dailyReminderEnabled },
+                        set: handleReminderToggle
+                    ))
+
+                    if settings.dailyReminderEnabled {
+                        DatePicker(
+                            "Reminder Time",
+                            selection: Binding(
+                                get: { settings.dailyReminderTime },
+                                set: { newTime in
+                                    settings.setDailyReminderTime(newTime)
+                                    dailyReminderService.rescheduleIfNeeded(
+                                        enabled: true,
+                                        time: newTime,
+                                        completedToday: dailyStore.isDailyCompletedToday
+                                    )
+                                }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                    }
+                } header: {
+                    Text("Notifications")
+                } footer: {
+                    Text("A single reminder to play today's Daily Challenge — only sent if you haven't completed it yet.")
+                }
+
                 Section("Audio") {
                     Toggle("Sound Effects", isOn: Binding(
                         get: { soundService.isEnabled },
@@ -143,17 +240,6 @@ struct SettingsView: View {
                     .sensoryFeedback(.impact, trigger: settings.hapticsEnabled) { _, newValue in
                         newValue
                     }
-                }
-
-                Section {
-                    TextField("Your Game tag", text: Binding(
-                        get: { settings.senderDisplayName },
-                        set: { settings.setSenderDisplayName($0) }
-                    ))
-                } header: {
-                    Text("Challenge Friends")
-                } footer: {
-                    Text("Shown to friends when you send them a challenge.")
                 }
 
                 Section("How to...") {
@@ -231,8 +317,50 @@ struct SettingsView: View {
             } message: {
                 Text("While enabled, your streak, best moves, games played, and achievements won't be updated. Turn this off to resume tracking your progress.")
             }
+            .alert("Notifications Are Off", isPresented: $showNotificationDeniedAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Allow notifications for Nine Tiles Puzzle in Settings to turn on the Daily Reminder.")
+            }
         }
+        .paywallSheet(context: $paywallContext)
+        .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
         .presentationDetents([.medium, .large])
+    }
+
+    /// Turning the toggle on needs a round trip through the system permission prompt (or,
+    /// if already denied, a nudge to the Settings app) before the reminder can actually be
+    /// armed — so the store's `dailyReminderEnabled` is only set once that's resolved.
+    private func handleReminderToggle(_ isOn: Bool) {
+        guard isOn else {
+            settings.setDailyReminderEnabled(false)
+            dailyReminderService.cancelReminder()
+            return
+        }
+        if dailyReminderService.authorizationStatus == .denied {
+            showNotificationDeniedAlert = true
+            return
+        }
+        Task {
+            let granted = dailyReminderService.authorizationStatus == .authorized
+                ? true
+                : await dailyReminderService.requestAuthorization()
+            guard granted else {
+                showNotificationDeniedAlert = true
+                return
+            }
+            settings.setDailyReminderEnabled(true)
+            dailyReminderService.rescheduleIfNeeded(
+                enabled: true,
+                time: settings.dailyReminderTime,
+                completedToday: dailyStore.isDailyCompletedToday
+            )
+        }
     }
 }
 
@@ -249,7 +377,10 @@ struct SettingsView: View {
                 .environment(stats)
                 .environment(settings)
                 .environment(daily)
+                .environment(powerUps)
                 .environment(SoundService())
                 .environment(GameCenterService())
+                .environment(DailyReminderService())
+                .environment(StoreManager())
         }
 }

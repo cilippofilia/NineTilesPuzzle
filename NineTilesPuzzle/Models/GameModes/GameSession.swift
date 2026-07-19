@@ -20,11 +20,20 @@ final class GameSession {
     private let dailyChallengeStore: DailyChallengeStore
     private let powerUpStore: PowerUpStore
     private let challengeStore: ChallengeStore
+    /// Belt-and-suspenders premium check for `setGameMode`/`setMediaSourceType` — the real
+    /// gate lives in the UI (paywall sheets on locked rows), this just stops a locked value
+    /// from being persisted if a call site ever skips that UI. A closure rather than a
+    /// `StoreManager` dependency so this class stays StoreKit-free and previews/tests default
+    /// to unlocked without wiring a store. Deliberately NOT consulted by `enterDailyMode()` or
+    /// `enterQuickSnapMode(with:)`, which assign `selectedGameMode` directly — the Daily
+    /// Challenge and Quick Snap must stay playable for free players even when they land on a
+    /// premium mode.
+    private let isPremiumUnlocked: () -> Bool
     private let defaults: PersistenceStore
 
     private let swapEngine = SwapEngine()
     private let slideEngine = SlideEngine()
-    private let liveActivity = LiveActivityController()
+    private let liveActivity: LiveActivityController
     private let widgetData: WidgetDataController
     private var previewSleepTask: Task<Void, Never>?
     private var peekSleepTask: Task<Void, Never>?
@@ -69,6 +78,10 @@ final class GameSession {
     var isNewTimeTrialScoreRecord: Bool = false
     var timeTrialScore: Int = 0
     var isNewCalendarStreakRecord: Bool = false
+    /// True for the single move that completes the player's very first Daily Challenge
+    /// ever, used to prompt the notification-permission flow at a moment they're engaged
+    /// rather than on cold launch.
+    var isFirstDailyCompletion: Bool = false
 
     /// True while the player is in a Daily Challenge game. Transient — not persisted,
     /// so a force-quit always starts fresh on the next launch rather than accidentally
@@ -269,6 +282,7 @@ final class GameSession {
         dailyChallengeStore: DailyChallengeStore,
         powerUpStore: PowerUpStore,
         challengeStore: ChallengeStore,
+        isPremiumUnlocked: @escaping () -> Bool = { true },
         defaults: PersistenceStore = UserDefaults.standard
     ) {
         self.statsStore = statsStore
@@ -277,6 +291,8 @@ final class GameSession {
         self.dailyChallengeStore = dailyChallengeStore
         self.powerUpStore = powerUpStore
         self.challengeStore = challengeStore
+        self.isPremiumUnlocked = isPremiumUnlocked
+        self.liveActivity = LiveActivityController(isPremiumUnlocked: isPremiumUnlocked)
         self.defaults = defaults
         // Widget syncing writes to the real App Group suite, so it only runs when this
         // session persists to real UserDefaults too — tests injecting an in-memory store
@@ -285,12 +301,15 @@ final class GameSession {
         self.widgetData = WidgetDataController(defaults: defaults is UserDefaults ? WidgetDataStore.sharedDefaults : nil)
         restoreFromUserDefaults()
         reconcileLiveActivityOnLaunch()
-        syncResumeWidget()
         widgetData.syncAll(dailyStore: dailyChallengeStore, statsStore: statsStore)
-        achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore)
+        achievementsStore.checkAchievements(
+            using: statsStore, challengeStore: challengeStore, challengeFriendsEnabled: settingsStore.challengeFriendsEnabled
+        )
         Task {
             await achievementsStore.refreshAchievementsFromRemote()
-            achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore)
+            achievementsStore.checkAchievements(
+                using: statsStore, challengeStore: challengeStore, challengeFriendsEnabled: settingsStore.challengeFriendsEnabled
+            )
         }
     }
 
@@ -354,7 +373,6 @@ final class GameSession {
                     if isGauntletLadderMode { isLadderRunFailed = true }
                     stopTimeTrialCountdown()
                     liveActivity.end()
-                    widgetData.clearResume()
                     saveToUserDefaults()
                     return
                 }
@@ -474,7 +492,6 @@ final class GameSession {
                     if isGauntletLadderMode { isLadderRunFailed = true }
                     stopTimeTrialCountdown()
                     liveActivity.end()
-                    widgetData.clearResume()
                     saveToUserDefaults()
                     return
                 }
@@ -515,6 +532,7 @@ final class GameSession {
         isNewBestTime = false
         isNewTimeTrialScoreRecord = false
         isNewCalendarStreakRecord = false
+        isFirstDailyCompletion = false
         timeTrialScore = 0
         isLadderRunComplete = false
         isNewLadderScoreRecord = false
@@ -552,7 +570,6 @@ final class GameSession {
             if currentStreakForCurrentSize > 0 { startCountdown() }
             if isTimeTrialMode { startTimeTrialCountdown() }
             saveToUserDefaults()
-            syncResumeWidget()
             return
         }
 
@@ -689,7 +706,6 @@ final class GameSession {
             // has nothing to preview. Starting now (in the foreground) is the reliable moment —
             // the reminder stays invisible until the player leaves the app, then refreshes.
             if let input = makeLiveActivityInput() { liveActivity.start(input) }
-            syncResumeWidget()
         } catch {
             self.error = error
             isLoading = false
@@ -919,6 +935,7 @@ final class GameSession {
             liveActivity.end()
             if isDailyGameActive {
                 if !debugOverlayEnabled {
+                    let isFirstEverCompletion = dailyChallengeStore.completedDayKeys.isEmpty
                     let result = dailyChallengeStore.recordCompletion(
                         moves: currentMoveCount,
                         time: elapsedTime,
@@ -928,6 +945,7 @@ final class GameSession {
                     isNewMovesRecord = result.isNewMovesRecord
                     isNewBestTime = result.isNewTimeRecord
                     isNewCalendarStreakRecord = result.isNewCalendarStreakRecord
+                    isFirstDailyCompletion = isFirstEverCompletion
                     if settingsStore.powerUpsEnabled {
                         powerUpStore.earnRandom()
                     }
@@ -1039,10 +1057,16 @@ final class GameSession {
         // Zen clear) could never unlock. Practice/debug play is still excluded — it never
         // touches `StatsStore` records above, so it shouldn't unlock achievements either.
         if !debugOverlayEnabled {
-            let unlockedBefore = achievementsStore.unlockedCount
-            achievementsStore.checkAchievements(using: statsStore, challengeStore: challengeStore, justSolved: isSolved)
+            let unlockedBefore = achievementsStore.unlockedCount(challengeFriendsEnabled: settingsStore.challengeFriendsEnabled)
+            achievementsStore.checkAchievements(
+                using: statsStore,
+                challengeStore: challengeStore,
+                challengeFriendsEnabled: settingsStore.challengeFriendsEnabled,
+                justSolved: isSolved
+            )
             if settingsStore.powerUpsEnabled {
-                for _ in 0..<(achievementsStore.unlockedCount - unlockedBefore) {
+                let unlockedAfter = achievementsStore.unlockedCount(challengeFriendsEnabled: settingsStore.challengeFriendsEnabled)
+                for _ in 0..<(unlockedAfter - unlockedBefore) {
                     powerUpStore.earnRandom()
                 }
             }
@@ -1050,11 +1074,7 @@ final class GameSession {
         // Widget sync happens only on the solving move (never per move — refresh budget),
         // and after the streak/records bookkeeping above so the snapshot includes the
         // solving move's own streak increment.
-        if isSolved {
-            widgetData.clearResume()
-            syncStatsWidget()
-            if isDailyGameActive { syncDailyWidget() }
-        }
+        if isSolved, isDailyGameActive { syncDailyWidget() }
         // The source image can't change mid-game, so only the cheap dynamic state needs
         // rewriting here — re-encoding the image JPEG on every tap was the old hot path.
         saveDynamicState()
@@ -1078,7 +1098,6 @@ final class GameSession {
             if isGauntletLadderMode { isLadderRunFailed = true }
             stopTimeTrialCountdown()
             liveActivity.end()
-            widgetData.clearResume()
         }
     }
 
@@ -1089,7 +1108,6 @@ final class GameSession {
         guard !isSolved, currentMoveCount >= movesBudgetForCurrentSize else { return }
         isLimitedMovesFailed = true
         liveActivity.end()
-        widgetData.clearResume()
     }
 
     func skipPreview() {
@@ -1161,10 +1179,6 @@ final class GameSession {
 
     /// Stops the countdown when the user quits mid-game; streak is preserved.
     func leaveGame() {
-        // Before the daily/Quick Snap teardown below, so the resume card still says
-        // "Daily Challenge"/"Quick Snap" rather than the mode the player had before.
-        syncResumeWidget()
-        syncStatsWidget()
         if let backup = preDailyGameMode {
             selectedGameMode = backup
             preDailyGameMode = nil
@@ -1216,40 +1230,10 @@ final class GameSession {
         return pendingResume
     }
 
-    /// Brings the Resume widget in line with the session: an up-to-date card while a game
-    /// is in progress, cleared otherwise. Called at game start/leave/background — never
-    /// per move, to respect the WidgetKit refresh budget.
-    func syncResumeWidget() {
-        guard hasResumableGame else {
-            widgetData.clearResume()
-            return
-        }
-        widgetData.updateResume(
-            // `nil` for numbers games (no picture) — the card renders without a thumbnail.
-            boardInput: makeLiveActivityInput(),
-            state: WidgetSnapshot.ResumeState(
-                gameModeRaw: selectedGameMode.rawValue,
-                displayTitle: liveActivityTitle,
-                displayIcon: liveActivityIcon,
-                gridSize: gridSize,
-                moveCount: currentMoveCount,
-                elapsedTime: elapsedTime,
-                progress: Double(tiles.filter(\.isCorrect).count) / Double(tiles.count),
-                savedAt: .now
-            )
-        )
-    }
-
     /// Re-syncs everything widget-visible after a Settings reset, where the stores change
     /// without the usual gameplay hooks firing.
     func syncWidgetsAfterReset() {
-        syncStatsWidget()
         syncDailyWidget()
-        syncResumeWidget()
-    }
-
-    private func syncStatsWidget() {
-        widgetData.updateStats(from: statsStore)
     }
 
     private func syncDailyWidget() {
@@ -1307,8 +1291,6 @@ extension GameSession {
         defaults.set(gridSize, forKey: Keys.gridSize)
         defaults.removeObject(forKey: Keys.tiles)
         defaults.removeObject(forKey: Keys.sourceImage)
-        // The in-progress game was just discarded, so the Resume widget must forget it too.
-        widgetData.clearResume()
     }
 
     func setRandomSize() {
@@ -1323,12 +1305,11 @@ extension GameSession {
         defaults.set(true, forKey: Keys.useRandomSize)
         defaults.removeObject(forKey: Keys.tiles)
         defaults.removeObject(forKey: Keys.sourceImage)
-        // The in-progress game was just discarded, so the Resume widget must forget it too.
-        widgetData.clearResume()
     }
 
     func setMediaSourceType(_ type: MediaSourceType) {
         guard type != mediaSourceType else { return }
+        guard type.isFree || isPremiumUnlocked() else { return }
         mediaSourceType = type
         defaults.set(type.rawValue, forKey: Keys.mediaSourceType)
     }
@@ -1348,6 +1329,7 @@ extension GameSession {
 
     func setGameMode(_ mode: GameMode) {
         guard mode.isAvailable, mode != selectedGameMode else { return }
+        guard mode.isFree || isPremiumUnlocked() else { return }
         selectedGameMode = mode
         defaults.set(mode.rawValue, forKey: Keys.gameMode)
     }

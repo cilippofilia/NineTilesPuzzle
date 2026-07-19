@@ -20,35 +20,7 @@ struct WidgetSnapshotTests {
                 bestMoves: 32,
                 bestTime: 118
             ),
-            modeStats: [
-                WidgetSnapshot.ModeStats(
-                    gameModeRaw: GameMode.slide.rawValue,
-                    gridSize: 4,
-                    currentStreak: 3,
-                    allTimeHighStreak: 9,
-                    personalBestMoves: 41,
-                    personalBestTime: 133,
-                    personalBestScore: nil,
-                    gamesPlayed: 27
-                ),
-                WidgetSnapshot.ModeStats(
-                    gameModeRaw: GameMode.timeTrial.rawValue,
-                    gridSize: 5,
-                    personalBestScore: 1240,
-                    gamesPlayed: 8
-                )
-            ],
-            resume: WidgetSnapshot.ResumeState(
-                boardImageName: "widget-board-test.png",
-                gameModeRaw: GameMode.swap.rawValue,
-                displayTitle: "Daily Challenge",
-                displayIcon: "calendar",
-                gridSize: 5,
-                moveCount: 17,
-                elapsedTime: 92,
-                progress: 0.44,
-                savedAt: Date(timeIntervalSinceReferenceDate: 800_000_000)
-            ),
+            isPremiumUnlocked: true,
             updatedAt: Date(timeIntervalSinceReferenceDate: 800_000_100)
         )
     }
@@ -61,13 +33,20 @@ struct WidgetSnapshotTests {
     }
 
     @Test func decodesWithoutOptionalSections() throws {
-        // A snapshot written before a game was ever played or a daily completed — both
-        // optional sections absent must decode cleanly rather than failing the whole read.
-        let json = Data(#"{"modeStats":[],"updatedAt":800000000}"#.utf8)
+        // A snapshot written before any daily was ever completed — the optional section
+        // absent must decode cleanly rather than failing the whole read.
+        let json = Data(#"{"updatedAt":800000000}"#.utf8)
         let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: json)
         #expect(decoded.daily == nil)
-        #expect(decoded.resume == nil)
-        #expect(decoded.modeStats.isEmpty)
+    }
+
+    @Test func decodesMissingEntitlementFieldAsLocked() throws {
+        // A snapshot written by the app before the paywall shipped has no
+        // `isPremiumUnlocked` key at all — it must decode as locked, not crash or
+        // accidentally unlock every widget.
+        let json = Data(#"{"updatedAt":800000000}"#.utf8)
+        let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: json)
+        #expect(decoded.isPremiumUnlocked == false)
     }
 
     @Test func savesAndLoadsThroughDefaultsSuite() throws {

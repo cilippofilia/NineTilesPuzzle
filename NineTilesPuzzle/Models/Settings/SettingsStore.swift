@@ -35,9 +35,25 @@ final class SettingsStore {
     /// When true, every `GameSession.use...PowerUp()` method skips `PowerUpStore.consume`
     /// entirely — power-ups can be spammed for testing without touching real inventory.
     var debugInfinitePowerUps: Bool = false
+    /// When true, `StoreManager.isPremiumUnlocked` reports unlocked regardless of real
+    /// entitlement — lets premium-gated features be exercised without a sandbox purchase.
+    /// Off by default, same as the other Dev Tools overrides.
+    var debugForcePremiumUnlocked: Bool = false
     /// The name shown to friends on a sent Challenge Friends puzzle. Empty until the
     /// player is prompted the first time they try to send a challenge.
     var senderDisplayName: String = ""
+    /// Master switch for Challenge Friends (menu entry, "Challenge a Friend" button, and
+    /// receiving shared `.ntpchallenge` files). Off by default, same as Power-ups — the
+    /// feature isn't manually verified on real hardware yet, so it ships hidden behind
+    /// Settings' Dev Tools section rather than visible to everyone.
+    var challengeFriendsEnabled: Bool = false
+    /// Whether the Daily Challenge reminder notification is armed. Turned on automatically
+    /// the first time the player grants notification permission (prompted after their
+    /// first-ever daily completion), and toggleable afterward in Settings.
+    var dailyReminderEnabled: Bool = false
+    /// Only the hour/minute of this date are used — the day is irrelevant, it just needs
+    /// to be a `Date` for `DatePicker` to bind to.
+    var dailyReminderTime: Date = Calendar.current.date(bySettingHour: 20, minute: 0, second: 0, of: .now) ?? .now
 
     init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
@@ -112,9 +128,29 @@ final class SettingsStore {
         defaults.set(value, forKey: Keys.debugInfinitePowerUps)
     }
 
+    func setDebugForcePremiumUnlocked(_ value: Bool) {
+        debugForcePremiumUnlocked = value
+        defaults.set(value, forKey: Keys.debugForcePremiumUnlocked)
+    }
+
     func setSenderDisplayName(_ name: String) {
         senderDisplayName = name
         defaults.set(name, forKey: Keys.senderDisplayName)
+    }
+
+    func setChallengeFriendsEnabled(_ value: Bool) {
+        challengeFriendsEnabled = value
+        defaults.set(value, forKey: Keys.challengeFriendsEnabled)
+    }
+
+    func setDailyReminderEnabled(_ value: Bool) {
+        dailyReminderEnabled = value
+        defaults.set(value, forKey: Keys.dailyReminderEnabled)
+    }
+
+    func setDailyReminderTime(_ time: Date) {
+        dailyReminderTime = time
+        defaults.set(time, forKey: Keys.dailyReminderTime)
     }
 
     func resetSettings() {
@@ -140,7 +176,11 @@ private extension SettingsStore {
         static let peekDuration = "puzzle.peekDuration"
         static let streakMilestoneInterval = "puzzle.streakMilestoneInterval"
         static let debugInfinitePowerUps = "puzzle.debugInfinitePowerUps"
+        static let debugForcePremiumUnlocked = "puzzle.debugForcePremiumUnlocked"
         static let senderDisplayName = "puzzle.senderDisplayName"
+        static let challengeFriendsEnabled = "puzzle.challengeFriendsEnabled"
+        static let dailyReminderEnabled = "puzzle.dailyReminderEnabled"
+        static let dailyReminderTime = "puzzle.dailyReminderTime"
     }
 
     func restoreFromUserDefaults() {
@@ -174,8 +214,20 @@ private extension SettingsStore {
         if defaults.object(forKey: Keys.debugInfinitePowerUps) != nil {
             debugInfinitePowerUps = defaults.bool(forKey: Keys.debugInfinitePowerUps)
         }
+        if defaults.object(forKey: Keys.debugForcePremiumUnlocked) != nil {
+            debugForcePremiumUnlocked = defaults.bool(forKey: Keys.debugForcePremiumUnlocked)
+        }
         if let name = defaults.string(forKey: Keys.senderDisplayName) {
             senderDisplayName = name
+        }
+        if defaults.object(forKey: Keys.challengeFriendsEnabled) != nil {
+            challengeFriendsEnabled = defaults.bool(forKey: Keys.challengeFriendsEnabled)
+        }
+        if defaults.object(forKey: Keys.dailyReminderEnabled) != nil {
+            dailyReminderEnabled = defaults.bool(forKey: Keys.dailyReminderEnabled)
+        }
+        if let time = defaults.object(forKey: Keys.dailyReminderTime) as? Date {
+            dailyReminderTime = time
         }
     }
 }

@@ -9,17 +9,24 @@ import SwiftUI
 
 struct GameModeView: View {
     @Environment(GameSession.self) private var session
+    @Environment(StoreManager.self) private var store
+    @State private var paywallContext: PaywallContext?
 
     var body: some View {
         List {
             ForEach(GameMode.allCases) { mode in
                 if mode.isAvailable {
+                    let isLocked = PremiumFeature.gameMode(mode).isLocked(isPremiumUnlocked: store.isPremiumUnlocked)
                     Button {
-                        withAnimation {
-                            session.setGameMode(mode)
+                        if isLocked {
+                            paywallContext = .gameMode(mode)
+                        } else {
+                            withAnimation {
+                                session.setGameMode(mode)
+                            }
                         }
                     } label: {
-                        GameModeRowView(mode: mode, isSelected: session.selectedGameMode == mode)
+                        GameModeRowView(mode: mode, isSelected: session.selectedGameMode == mode, isLocked: isLocked)
                     }
                     .foregroundStyle(.primary)
                 } else {
@@ -55,6 +62,7 @@ struct GameModeView: View {
         }
         .navigationTitle("Game Modes")
         .navigationBarTitleDisplayMode(.inline)
+        .paywallSheet(context: $paywallContext)
     }
 }
 
@@ -65,5 +73,6 @@ struct GameModeView: View {
     NavigationStack {
         GameModeView()
             .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: PowerUpStore(), challengeStore: ChallengeStore()))
+            .environment(StoreManager())
     }
 }
