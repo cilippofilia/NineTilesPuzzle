@@ -39,6 +39,7 @@ struct PaywallHeaderView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.7)
             }
         }
         .padding(.horizontal)

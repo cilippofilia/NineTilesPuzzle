@@ -27,7 +27,7 @@ struct MenuOptionsCardView: View {
                 Divider()
             }
 
-            MenuRow(title: "Game Mode", systemImage: "gamecontroller", detail: session.selectedGameMode.title) {
+            MenuRow(title: "Game Mode", systemImage: "gamecontroller.fill", detail: session.selectedGameMode.title) {
                 path.append(.gameModes)
             }
 
