@@ -5,6 +5,7 @@
 //  Created by Filippo Cilia on 6/6/26.
 //
 
+import StoreKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -24,6 +25,7 @@ struct SettingsView: View {
     @State private var showDebugOverlayAlert = false
     @State private var showNotificationDeniedAlert = false
     @State private var paywallContext: PaywallContext?
+    @State private var showManageSubscriptions = false
 
     var body: some View {
         NavigationStack {
@@ -34,6 +36,10 @@ struct SettingsView: View {
                             Text("VIP Unlocked")
                         } icon: {
                             Image(systemName: "checkmark.seal.fill")
+                        }
+
+                        if store.hasActiveSubscription {
+                            Button("Manage Subscription") { showManageSubscriptions = true }
                         }
                     } else {
                         Button {
@@ -323,6 +329,7 @@ struct SettingsView: View {
             }
         }
         .paywallSheet(context: $paywallContext)
+        .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
         .presentationDetents([.medium, .large])
     }
 

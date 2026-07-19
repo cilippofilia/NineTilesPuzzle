@@ -1,11 +1,12 @@
 # NineTilesPuzzle — Architecture Overview
 
-Snapshot of the current codebase structure, as of 2026-07-16 (updated for Wall of Fame +
+Snapshot of the current codebase structure, as of 2026-07-19 (updated for Wall of Fame +
 Stats→Settings, a July 2026 performance pass, the Live Activity, home-screen widgets + deep
 links, the power-up economy, Challenge Friends, the July 2026 `Models/` feature-folder
 restructure, the Daily Challenge widget/reminder-notification follow-ups, the Time Trial
-resume grace period, Wall of Fame manual curation, and Challenge Friends being gated behind
-a Settings toggle — along with the matching Achievements gating). This is a
+resume grace period, Wall of Fame manual curation, Challenge Friends being gated behind
+a Settings toggle — along with the matching Achievements gating — and the Hard-Feature Gate
+monetization system, including its 2026-07-19 StoreKit 2 paywall rebuild). This is a
 descriptive document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in
 sync with it) for how the "does mode-specific behavior need a shared abstraction" question was
 revisited once Time Trial and Limited Moves both existed, and what would justify
@@ -861,6 +862,87 @@ requires the toggle before offering the send-a-challenge action on a finished ga
 `.ntpchallenge` file, showing a "Challenge Friends is Off" alert instead of silently opening it
 (or silently no-opping) when disabled. The matching achievement gating is covered in the
 Achievements section above.
+
+**Monetization / Hard-Feature Gate** (shipped 2026-07-18, paywall UI rebuilt 2026-07-19): a
+freemium split where Slide/Swap/Time Trial/Limited Moves/Zen stay free forever and the
+highest-converting surfaces — Chaos/Haze game modes, personal-photo media sources (Photos/
+Quick Snap/Mixed), Wall of Fame, the Achievements archive, the Daily Challenge calendar
+archive, and system integration (Live Activities/Dynamic Island/Home Screen widgets) — are
+gated behind a $6.99 lifetime non-consumable (`cilia.filippo.NineTilesPuzzle.lifetime`) or a
+$1.99/mo auto-renewable subscription (`cilia.filippo.NineTilesPuzzle.monthly`, subscription
+group "Premium Pass"). Shipped as a full gate in v1 (not staged) since the app was pre-launch
+— no grandfathering logic exists or is needed.
+
+`StoreManager` (`Models/Store/StoreManager.swift`, `@MainActor @Observable`) owns the
+entitlement: loads both products via `Product.products(for:)` (retried up to 3× on a 500ms gap
+if StoreKit's catalog returns a partial result right after a cold launch — a real race hit
+during first manual testing), derives `hasActiveEntitlement` from `Transaction
+.currentEntitlements` through the pure, StoreKit-free `StoreEntitlement
+.isPremiumUnlocked(activeProductIDs:)` (unit-testable with no transaction plumbing), and
+listens for `Transaction.updates` for out-of-band changes (Ask to Buy approval, renewal,
+another device). `activeProductIDs` is retained (not thrown away after the scan) so
+`hasActiveSubscription` can distinguish "active via the monthly subscription" from "active via
+the lifetime non-consumable" — Settings only offers the native manage-subscription sheet in
+the former case, since a lifetime purchaser has nothing to manage. A `.pending` purchase
+result (Ask to Buy, SCA/bank approval) sets `pendingApprovalMessage`, shown as neutral inline
+copy on the paywall instead of the purchase silently doing nothing. `isPremiumUnlocked` also
+ORs in a `debugOverride` closure so Settings' Dev Tools "Force VIP Unlocked" toggle can
+simulate premium without a sandbox purchase — mirrors `GameSession`'s injected
+`isPremiumUnlocked` closure pattern below. The entitlement is mirrored into the shared App
+Group via `WidgetDataController.updateEntitlement` (not written directly — that controller
+owns every App Group write + the paired `WidgetCenter` reload) so the widget extension, which
+never links StoreKit, can read it without a round trip through the app.
+
+`PremiumFeature` (`Models/Store/PremiumFeature.swift`) plus `GameMode.isFree`/
+`MediaSourceType.isFree` are the pure, StoreKit-free gating rules, fully unit tested.
+`GameSession` takes an injected `isPremiumUnlocked: () -> Bool` closure (default `{ true }`, so
+none of the existing test files or `#Preview` blocks needed touching) as a belt-and-suspenders
+guard in `setGameMode`/`setMediaSourceType`; `LiveActivityController` takes the same closure
+pattern to gate `start`/`refresh` (never `end`, so an already-running Live Activity for a
+formerly-premium player who un-subscribes still ends cleanly). **Critical invariant — do not
+break:** `DailyChallengeSeeder.availableGameModes = [.slide, .swap, .limitedMoves]` assigns
+premium modes to the free Daily Challenge; the gate is bypassed entirely for
+`enterDailyMode()`/`enterQuickSnapMode(with:)` since they assign `selectedGameMode` directly,
+not through the guarded setters.
+
+`PaywallView` + `PaywallContext` (`Views/Paywall/`) is the contextual sheet, presented
+everywhere via the `.paywallSheet(context:)` view modifier — one `PaywallContext` case per
+trigger (a specific `GameMode`, a `MediaSourceType`, Wall of Fame, Achievements, the Daily
+archive, system integration, or `.general` from Settings) drives the headline/subheadline/icon
+so the sheet reads as contextual rather than one generic upsell. Guideline 3.1.2 compliance —
+`PaywallLegalLinks.swift` (Terms of Use: Apple's Standard EULA; Privacy Policy: the real
+GitHub Pages URL) plus the auto-renewal disclosure text — are both always on screen, since the
+monthly subscription is always one of the two offered plans.
+
+**Paywall rebuilt around StoreKit 2 depth, not just visuals (2026-07-19):** the original
+paywall paired two independent buy buttons with a "monthly is a decoy" framing (`PaywallProductButton`,
+now removed). Rebuilt as selectable plan cards confirmed by one CTA — the user chose this over
+keeping the decoy layout, and explicitly declined adding a free trial/introductory offer this
+round since that needs a real ASC-side offer configured first, not just a local `.storekit`
+change. `PaywallPlanCard.swift` renders each plan as a tappable row — a green radio checkmark
+(only the newly-selected card's icon plays `.symbolEffect(.bounce)`, gated on a counter that
+increments solely on its own false→true transition, so the sibling card losing selection stays
+still) and a green-tinted Liquid Glass background via `.glassEffect(...tint...)` when selected.
+`PaywallPlanListView.swift` owns the plan list — a `.redacted(reason: .placeholder)` skeleton
+while `StoreManager.isLoadingProducts`, a retry button if loading came back empty, or the two
+real cards once StoreKit has them — and shows the lifetime card's "BEST VALUE" badge only once
+`lifetimeIsBestValue` confirms both real `Product.price` values loaded and the lifetime price
+is nonzero and cheaper than paying monthly indefinitely, rather than showing it unconditionally.
+`PaywallCTAButton.swift` is the single `.buttonStyle(.glassProminent)` confirm button — its
+title tracking whichever plan `PaywallView`'s `selectedProductID` currently points at (defaults
+to lifetime once products load, matching the old default-emphasized option), crossfading via
+`.contentTransition(.opacity)` instead of snapping instantly when the selection changes. Whole
+app targets iOS 26.2 (confirmed via `IPHONEOS_DEPLOYMENT_TARGET`), so no `#available` gating was
+needed for `glassEffect`/`GlassEffectContainer`/`.buttonStyle(.glassProminent)`. Same session:
+`SettingsView` gained a "Manage Subscription" row (shown only when
+`store.hasActiveSubscription`) wired to the native `.manageSubscriptionsSheet(isPresented:)` —
+didn't exist before.
+
+**Not yet done:** no manual purchase/restore verification on a real device or two-device
+setup; the App Store Connect review screenshots already uploaded for both the lifetime IAP and
+the monthly subscription were captured against the *old* dual-button paywall and are stale
+against this rebuild — should be recaptured before submitting. See `ROADMAP.md` §4 and this
+project's memory for the full ASC submission trail.
 
 **Wall of Fame** (shipped June 2026): a cork-board view where every personal best is
 automatically captured and pinned as a polaroid card. `PuzzleView` renders `ShareCardView`

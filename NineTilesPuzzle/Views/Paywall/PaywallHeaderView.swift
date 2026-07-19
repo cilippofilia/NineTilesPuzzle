@@ -17,6 +17,8 @@ struct PaywallHeaderView: View {
             Image(systemName: context.icon)
                 .font(.largeTitle)
                 .foregroundStyle(.tint)
+                .frame(width: 76, height: 76)
+                .glassEffect(.regular, in: .circle)
 
             Text(context.headline)
                 .font(.title2)

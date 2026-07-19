@@ -34,10 +34,21 @@ final class StoreManager {
     nonisolated static let monthlyProductID = "cilia.filippo.NineTilesPuzzle.monthly"
 
     private(set) var hasActiveEntitlement = false
+    private(set) var activeProductIDs: Set<String> = []
     private(set) var lifetimeProduct: Product?
     private(set) var monthlyProduct: Product?
     private(set) var isLoadingProducts = false
     private(set) var purchaseError: String?
+    /// Set when a purchase returns `.pending` (Ask to Buy, SCA, etc.) so the paywall can show
+    /// neutral "awaiting approval" messaging instead of silently doing nothing.
+    private(set) var pendingApprovalMessage: String?
+
+    /// True when the active entitlement is the auto-renewable Premium Pass rather than the
+    /// lifetime non-consumable — drives whether Settings offers the native manage-subscription
+    /// sheet, which has nothing to show a lifetime-only purchaser.
+    var hasActiveSubscription: Bool {
+        activeProductIDs.contains(Self.monthlyProductID)
+    }
 
     /// Lets Settings' Dev Tools "Force VIP Unlocked" toggle simulate premium without a
     /// sandbox purchase — mirrors `GameSession`'s injected `isPremiumUnlocked` closure.
@@ -104,13 +115,17 @@ final class StoreManager {
 
     func purchase(_ product: Product) async throws {
         purchaseError = nil
+        pendingApprovalMessage = nil
         let result = try await product.purchase()
         switch result {
         case .success(let verification):
             let transaction = try Self.checkVerified(verification)
             await transaction.finish()
             await refreshEntitlement()
-        case .userCancelled, .pending:
+        case .pending:
+            pendingApprovalMessage = "This purchase needs approval — from a family organizer, or your bank. "
+                + "It'll unlock automatically as soon as it's approved."
+        case .userCancelled:
             break
         @unknown default:
             break
@@ -139,6 +154,7 @@ final class StoreManager {
             guard case .verified(let transaction) = result, transaction.revocationDate == nil else { continue }
             activeProductIDs.insert(transaction.productID)
         }
+        self.activeProductIDs = activeProductIDs
         hasActiveEntitlement = StoreEntitlement.isPremiumUnlocked(activeProductIDs: activeProductIDs)
         // Mirrors the flag into the shared App Group so the widget extension — which never
         // links StoreKit — can read entitlement without a round trip through the app.

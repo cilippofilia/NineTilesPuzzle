@@ -90,8 +90,9 @@ mid-game via `GameSession`'s `use…PowerUp()` methods, each gated on mode/media
 See `ARCHITECTURE.md`'s Power-ups section for the full mechanics. Still outstanding:
 - Challenge Friends completion doesn't earn a power-up (unlike Daily) — see §3, decide if
   intentional.
-- **Economy note (still relevant):** if monetization ever lands (§4), power-up bundles become
-  an obvious IAP without redesigning anything.
+- **Economy note:** the Hard-Feature Gate (§4, shipped 2026-07-18) monetizes game modes/media
+  sources/system integration, not power-ups themselves — power-up bundles as their own IAP are
+  still just an unexplored idea, not implemented, and nothing about the shipped gate blocks it.
 
 ---
 
@@ -190,10 +191,24 @@ day already completed); and the Live Activity/Dynamic Island gained its own `wid
 - StandBy/tinted-mode polish pass on real hardware (accented rendering is wired via
   `widgetAccentedRenderingMode(.accentedDesaturated)` but only Simulator-verified).
 
-### Monetization *(optional, later)* — **L**
-Lightest-touch options first: tip jar, then premium image packs and power-up bundles via
-StoreKit 2. Nothing in the current architecture blocks this; the power-up economy and image
-packs are designed to make it bolt-on.
+### Monetization / Hard-Feature Gate — shipped (2026-07-18), paywall rebuilt (2026-07-19)
+The Hard-Feature Gate freemium model (StoreKit 2, $6.99 lifetime + $1.99/mo subscription
+gating Chaos/Haze, personal-photo media sources, Wall of Fame, Achievements, the Daily
+archive, and system integration) has shipped — see `ARCHITECTURE.md`'s Monetization / Hard-
+Feature Gate section for the full architecture. The paywall itself was rebuilt 2026-07-19
+around selectable plan cards, a single confirm CTA, Liquid Glass, a dynamically-computed
+best-value badge, proper `.pending` (Ask to Buy) handling, and a native Manage Subscription
+sheet in Settings. Still outstanding:
+- **Manual purchase/restore verification** — no real-device or two-device purchase/restore
+  test has been run yet (mirrors the same gap Challenge Friends has in §3).
+- **Stale ASC review screenshots** — the review screenshots already uploaded for both the
+  lifetime IAP and the monthly subscription were captured against the old dual-button paywall
+  and should be recaptured against the new selectable-card layout before submitting.
+- Premium image packs and power-up bundles as their *own* separate IAPs (beyond the Hard-
+  Feature Gate) are still just an idea — nothing in the current architecture blocks it.
+- A free trial / introductory offer on the monthly subscription was explicitly deferred —
+  needs a real offer configured in App Store Connect first, not just the local `.storekit`
+  test file.
 
 ### Smaller polish — **S each**
 - [ ] Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
