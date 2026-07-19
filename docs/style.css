@@ -252,6 +252,12 @@ h1.title {
   flex-wrap: wrap;
 }
 
+.beta-note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.9rem 0 0;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
