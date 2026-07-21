@@ -118,6 +118,7 @@ struct MenuView: View {
                 .paywallSheet(context: $paywallContext)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .background(AppBackgroundView())
         }
     }
 

@@ -14,7 +14,7 @@ import CoreImage
 /// tone always pick exactly one option each (never a no-op); posterize is an independent
 /// coin flip on top, while pixelate is weighted lower since its block size reads as a much
 /// stronger effect than the others, so a game can stack 2-4 modifications total.
-struct ChaosTransform {
+nonisolated struct ChaosTransform {
     /// Mutually exclusive — picking more than one of these at once isn't meaningful, since
     /// e.g. a horizontal mirror plus a vertical flip is just a 180° rotation already in this
     /// list, so combining them would silently duplicate/cancel rather than add chaos.

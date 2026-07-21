@@ -71,6 +71,9 @@ struct NineTilesPuzzleApp: App {
                     .environment(wallOfFameStore)
                     .environment(motionManager)
                     .environment(dailyReminderService)
+                    .overlay(alignment: .top) {
+                        HiddenBrandMarkView()
+                    }
 
                 if showSplash {
                     SplashScreenView {

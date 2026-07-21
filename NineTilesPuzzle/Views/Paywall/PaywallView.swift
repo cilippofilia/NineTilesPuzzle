@@ -92,7 +92,7 @@ struct PaywallView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(PaywallBackgroundView())
+            .background(AppBackgroundView())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

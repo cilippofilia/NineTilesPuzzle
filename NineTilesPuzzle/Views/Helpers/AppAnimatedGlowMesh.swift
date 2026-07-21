@@ -1,5 +1,5 @@
 //
-//  PaywallAnimatedGlowMesh.swift
+//  AppAnimatedGlowMesh.swift
 //  NineTilesPuzzle
 //
 //  Created by Filippo Cilia on 7/19/26.
@@ -7,10 +7,10 @@
 
 import SwiftUI
 
-/// The ambient warm glow behind `PaywallView`'s header — a 3x3 `MeshGradient` whose control
+/// The ambient warm glow behind `AppBackgroundView` — a 3x3 `MeshGradient` whose control
 /// points and colors slowly drift between two states in a forever-repeating loop, so the
 /// light itself feels alive rather than two fixed, static blurred circles.
-struct PaywallAnimatedGlowMesh: View {
+struct AppAnimatedGlowMesh: View {
     private static let ember = Color(red: 0xff / 255, green: 0x3d / 255, blue: 0x5e / 255)
     private static let gold = Color(red: 0xff / 255, green: 0xd2 / 255, blue: 0x3d / 255)
 
@@ -60,7 +60,7 @@ struct PaywallAnimatedGlowMesh: View {
 #Preview {
     ZStack {
         Color(red: 0x06 / 255, green: 0x06 / 255, blue: 0x0a / 255)
-        PaywallAnimatedGlowMesh()
+        AppAnimatedGlowMesh()
     }
     .ignoresSafeArea()
 }

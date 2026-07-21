@@ -1,5 +1,5 @@
 //
-//  PaywallDriftingPuzzlePiece.swift
+//  AppDriftingPuzzlePiece.swift
 //  NineTilesPuzzle
 //
 //  Created by Filippo Cilia on 7/19/26.
@@ -7,11 +7,11 @@
 
 import SwiftUI
 
-/// One faint puzzle-piece watermark in `PaywallBackgroundView`, gently bobbing and rotating
+/// One faint puzzle-piece watermark in `AppBackgroundView`, gently bobbing and rotating
 /// in a slow forever-repeating loop so the background reads as alive rather than static.
 /// Each instance is given its own duration and delay so the pieces drift out of phase with
 /// one another instead of moving in lockstep.
-struct PaywallDriftingPuzzlePiece: View {
+struct AppDriftingPuzzlePiece: View {
     let rotation: Double
     var size: CGFloat = 90
     var tint: Color = .white
@@ -54,7 +54,7 @@ struct PaywallDriftingPuzzlePiece: View {
 #Preview {
     ZStack {
         Color.black
-        PaywallDriftingPuzzlePiece(
+        AppDriftingPuzzlePiece(
             rotation: -18, alignment: .center, offsetX: 0, offsetY: 0, driftDuration: 7, driftDelay: 0
         )
     }
