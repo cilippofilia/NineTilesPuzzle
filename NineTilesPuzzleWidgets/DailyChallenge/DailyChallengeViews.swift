@@ -106,49 +106,58 @@ struct DailyMediumView: View {
     private let accent = Color.orange
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 14) {
-                CalendarPageChip(date: entry.date, chargeFraction: chargeFraction)
+        VStack(alignment: .leading) {
+            HStack {
+                CalendarPageChip(
+                    date: entry.date,
+                    chargeFraction: chargeFraction
+                )
 
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        DailyHeaderLabel()
-                        Spacer(minLength: 0)
-                        if entry.streak > 0 {
-                            DailyStreakBadge(icon: "flame.fill", count: entry.streak, accent: accent)
-                        }
-                    }
-                    HStack(spacing: 8) {
+                VStack(alignment: .leading) {
+                    DailyHeaderLabel()
+
+                    HStack {
                         ModeIconChip(icon: entry.mode.icon, size: 26)
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(entry.mode.title)
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
-                            Text("\(entry.gridSize) × \(entry.gridSize) grid")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
-                        if entry.isCompletedToday {
-                            SolvedSeal(size: 34)
-                        } else {
-                            PlayCTAButton()
+                        Text(entry.mode.title)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                        Text("\(entry.gridSize) × \(entry.gridSize) grid")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        Group {
+                            if entry.isCompletedToday {
+                                SolvedSeal(size: 34)
+                            } else {
+                                PlayCTAButton()
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                     }
+                    .padding(.top, 4)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity, alignment: .top)
 
-            StreakPieceRow(
-                date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
-                accent: accent, maxCapacity: 9, pieceSize: 18, spacing: 16, showsWeekdayLabels: true,
-                alignment: .leading
-            )
-            .padding(.horizontal, 8)
+            HStack(alignment: .lastTextBaseline) {
+                StreakPieceRow(
+                    date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
+                    accent: accent, maxCapacity: 7, pieceSize: 18, spacing: 16, showsWeekdayLabels: true,
+                    alignment: .leading
+                )
+
+                if entry.streak > 0 {
+                    DailyStreakBadge(
+                        icon: "flame.fill",
+                        count: entry.streak,
+                        accent: accent
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .bottom)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .padding(DailyWidgetMetrics.padding)
-        .containerBackground(for: .widget) { DailyWidgetBackground(markOffsetX: 70, imageData: entry.imageData) }
+        .containerBackground(for: .widget) { DailyWidgetBackground(markOffsetX: 75, imageData: entry.imageData) }
     }
 
     /// The date badge's battery-style charge: pinned full once today is solved, otherwise
@@ -318,9 +327,10 @@ private struct DailyStreakBadge: View {
             Text("\(count)")
                 .foregroundStyle(.white)
         }
-        .font(.system(size: 16, weight: .heavy, design: .rounded))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .font(.system(size: 18, weight: .heavy, design: .rounded))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .background(.ultraThinMaterial, in: .capsule)
     }
 }
@@ -488,8 +498,8 @@ private struct CalendarPageChip: View {
                 .textCase(.uppercase)
         }
         .foregroundStyle(.white)
-        .frame(width: 58)
-        .padding(.vertical, 7)
+        .frame(width: 60)
+        .padding(.vertical, 8)
         .background {
             let drainedFraction = 1 - chargeFraction
             ZStack {
