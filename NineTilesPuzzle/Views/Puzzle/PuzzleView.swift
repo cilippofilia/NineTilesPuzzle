@@ -51,80 +51,87 @@ struct PuzzleView: View {
         // expression complexity limit on long modifier chains.
         let gameView = ZStack {
             // Layer 1: centered main content — only Spacer/content/Spacer so centering
-            // is never affected by supplementary elements in other layers.
+            // is never affected by supplementary elements in other layers. Crucially, this
+            // sits outside the `safeAreaInset`s below: those resize the safe area of whatever
+            // they're attached to, and attaching them here would reflow this layer's Spacers
+            // (and visibly shift the solved grid) every time the achievement toast or the
+            // power-up toolbar appears or disappears.
             PuzzleMainContentLayer(
                 completion: completion,
                 startNewGame: startNewGame,
                 switchToPhotosAndRetry: switchToPhotosAndRetry
             )
 
-            // Layers 2 & 3: floating status bar and completion banner. Both are hidden in
-            // Zen mode, which shows nothing but the puzzle itself.
-            if !session.isZenMode {
-                PuzzleStatusOverlayLayer(completion: completion, showTimeTrialDelta: showTimeTrialDelta)
-                PuzzleCompletionOverlayView(
-                    completion: completion,
-                    continueAction: handleContinue,
-                    dismissAction: leaveDailyChallenge,
-                    rechallengeAction: rechallengeActionIfChallengeActive,
-                    sendResultAction: sendResultActionIfChallengeActive
-                )
-            }
+            ZStack {
+                // Layers 2 & 3: floating status bar and completion banner. Both are hidden in
+                // Zen mode, which shows nothing but the puzzle itself.
+                if !session.isZenMode {
+                    PuzzleStatusOverlayLayer(completion: completion, showTimeTrialDelta: showTimeTrialDelta)
+                    PuzzleCompletionOverlayView(
+                        completion: completion,
+                        continueAction: handleContinue,
+                        dismissAction: leaveDailyChallenge,
+                        rechallengeAction: rechallengeActionIfChallengeActive,
+                        sendResultAction: sendResultActionIfChallengeActive
+                    )
+                }
 
-            // Layer 3b: Time Trial fail overlay — shown instead of the completion banner
-            // when the countdown reaches zero unsolved.
-            if session.isTimeTrialMode {
-                TimeTrialFailOverlay(completion: completion, onTryAgain: startNewGame)
-            }
+                // Layer 3b: Time Trial fail overlay — shown instead of the completion banner
+                // when the countdown reaches zero unsolved.
+                if session.isTimeTrialMode {
+                    TimeTrialFailOverlay(completion: completion, onTryAgain: startNewGame)
+                }
 
-            // Layer 3c: Limited Moves fail overlay — mirrors the Time Trial fail overlay
-            // for a spent move budget.
-            if session.isLimitedMovesMode {
-                LimitedMovesFailOverlay(completion: completion, onTryAgain: startNewGame)
-            }
+                // Layer 3c: Limited Moves fail overlay — mirrors the Time Trial fail overlay
+                // for a spent move budget.
+                if session.isLimitedMovesMode {
+                    LimitedMovesFailOverlay(completion: completion, onTryAgain: startNewGame)
+                }
 
-            // Layer 3d: Peek power-up — re-shows the full image mid-game, reusing the same
-            // view the pre-shuffle "memorize the image" step uses.
-            if session.isPeeking, let previewImage = session.previewImage {
-                ImagePreviewView(
-                    image: previewImage,
-                    duration: settings.peekDuration,
-                    isFogMode: false,
-                    isDailyChallenge: session.isDailyGameActive,
-                    gameMode: session.selectedGameMode,
-                    onSkip: session.skipPeek
-                )
-                .transition(.opacity)
-            }
+                // Layer 3d: Peek power-up — re-shows the full image mid-game, reusing the same
+                // view the pre-shuffle "memorize the image" step uses.
+                if session.isPeeking, let previewImage = session.previewImage {
+                    ImagePreviewView(
+                        image: previewImage,
+                        duration: settings.peekDuration,
+                        isFogMode: false,
+                        isDailyChallenge: session.isDailyGameActive,
+                        gameMode: session.selectedGameMode,
+                        onSkip: session.skipPeek
+                    )
+                    .transition(.opacity)
+                }
 
-            // Layer 3e: Time Trial / Gauntlet Ladder resume grace — shown while the app is
-            // back in the foreground but the countdown is deliberately still frozen.
-            if session.isTimeTrialMode {
-                TimeTrialResumeOverlay(isShowing: isShowingResumeCountdown, value: resumeCountdownValue)
+                // Layer 3e: Time Trial / Gauntlet Ladder resume grace — shown while the app is
+                // back in the foreground but the countdown is deliberately still frozen.
+                if session.isTimeTrialMode {
+                    TimeTrialResumeOverlay(isShowing: isShowingResumeCountdown, value: resumeCountdownValue)
+                }
             }
-
-        }
-        // Layer 4: achievement unlock toast. Every achievement metric is only evaluated at
-        // the instant a puzzle is solved (see `AchievementMetric.value`), so `isSolved` is
-        // already true whenever `newlyUnlockedAchievement` is set — gating the toast on
-        // `!session.isSolved` meant it could never actually render. `safeAreaInset` reserves
-        // room for it at the bottom instead, which pushes the completion banner's
-        // Continue/Back-to-Menu button up rather than sitting underneath the toast.
-        .safeAreaInset(edge: .bottom) {
-            if let achievement = achievementsStore.newlyUnlockedAchievement {
-                AchievementToastView(achievement: achievement)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            // Layer 4: achievement unlock toast. Every achievement metric is only evaluated at
+            // the instant a puzzle is solved (see `AchievementMetric.value`), so `isSolved` is
+            // already true whenever `newlyUnlockedAchievement` is set — gating the toast on
+            // `!session.isSolved` meant it could never actually render. `safeAreaInset` reserves
+            // room for it at the bottom instead, which pushes the completion banner's
+            // Continue/Back-to-Menu button up rather than sitting underneath the toast — scoped
+            // to this inner ZStack (not `gameView`) so that reserved space never touches
+            // Layer 1's centering.
+            .safeAreaInset(edge: .bottom) {
+                if let achievement = achievementsStore.newlyUnlockedAchievement {
+                    AchievementToastView(achievement: achievement)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
-        }
-        // Layer 5: power-up inventory bar, shown below the grid whenever a game is actually
-        // in progress. Hidden in Zen mode along with the rest of the HUD — Zen is meant to be
-        // nothing but the puzzle.
-        .safeAreaInset(edge: .bottom) {
-            if settings.powerUpsEnabled && !session.isZenMode && isGameActive {
-                PuzzlePowerUpToolbarView()
-                    .padding(.bottom, 8)
+            // Layer 5: power-up inventory bar, shown below the grid whenever a game is actually
+            // in progress. Hidden in Zen mode along with the rest of the HUD — Zen is meant to be
+            // nothing but the puzzle. Same scoping rationale as Layer 4 above.
+            .safeAreaInset(edge: .bottom) {
+                if settings.powerUpsEnabled && !session.isZenMode && isGameActive {
+                    PuzzlePowerUpToolbarView()
+                        .padding(.bottom, 8)
+                }
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: achievementsStore.newlyUnlockedAchievement)

@@ -83,13 +83,13 @@ struct WallOfFameView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
-                    // Spring-scale in, but fade straight out: reversing the scale on
-                    // removal read as a half-hearted shrink and the spring's long
-                    // settling tail made the fade feel laggy.
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.88).combined(with: .opacity),
-                        removal: .opacity
-                    ))
+                // Spring-scale in, but fade straight out: reversing the scale on
+                // removal read as a half-hearted shrink and the spring's long
+                // settling tail made the fade feel laggy.
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.88).combined(with: .opacity),
+                    removal: .opacity
+                ))
             }
         }
         .navigationTitle("Wall of Fame")
