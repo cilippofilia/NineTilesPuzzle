@@ -139,10 +139,12 @@ struct DailyMediumView: View {
             }
             .frame(maxWidth: .infinity, alignment: .top)
 
+            Spacer(minLength: 0)
+
             HStack(alignment: .lastTextBaseline) {
                 StreakPieceRow(
                     date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
-                    accent: accent, maxCapacity: 7, pieceSize: 18, spacing: 16, showsWeekdayLabels: true,
+                    accent: accent, pieceSize: 18, spacing: 16, showsWeekdayLabels: true,
                     alignment: .leading
                 )
 
@@ -156,6 +158,7 @@ struct DailyMediumView: View {
             }
             .frame(maxWidth: .infinity, alignment: .bottom)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .padding(DailyWidgetMetrics.padding)
         .containerBackground(for: .widget) { DailyWidgetBackground(markOffsetX: 75, imageData: entry.imageData) }
     }
@@ -348,44 +351,26 @@ private struct SolvedSeal: View {
     }
 }
 
-/// A Duolingo-style row of puzzle pieces, one per recent day: filled and tinted for a completed
-/// day, outlined and dimmed for a day not yet played. Capacity adapts to the streak's length
-/// (3 pieces minimum for visual rhythm even at streak 0, `maxCapacity` at most so it fits the
-/// widget) — today sits on the trailing end, exactly like the checkmark row it's modeled on. Only
-/// the completed run gets the brand-gradient capsule; days still pending sit outside it, bare.
-/// When `showsWeekdayLabels` is set, the initials render as their own row above the pieces —
-/// never inside the capsule stroke — so the capsule always wraps just the pieces.
+/// A Duolingo-style row of puzzle pieces, one per day of the current calendar week, Monday
+/// through Sunday: filled and tinted for a day inside the still-alive streak, outlined and
+/// dimmed for a day missed or still ahead. Unlike a rolling window, the week is fixed — so a
+/// short streak started mid-week leaves the earlier days visibly unfilled, and days after today
+/// sit there as the week ahead. Only the completed run gets the brand-gradient capsule; days
+/// outside it sit bare, whether they come before or after the run. When `showsWeekdayLabels` is
+/// set, the initials render as their own row above the pieces — never inside the capsule stroke —
+/// so the capsule always wraps just the pieces.
 private struct StreakPieceRow: View {
     let date: Date
     let streak: Int
     let isCompletedToday: Bool
     let accent: Color
-    var maxCapacity: Int = 7
     var pieceSize: CGFloat = 18
     var spacing: CGFloat = 6
     var showsWeekdayLabels: Bool = true
     var alignment: Alignment = .center
 
-    private var capacity: Int {
-        min(max(streak + (isCompletedToday ? 0 : 1), 3), maxCapacity)
-    }
-
-    /// "Days ago" (0 = today) that fall within the still-alive streak.
-    private var filledDaysAgo: Set<Int> {
-        guard streak > 0 else { return [] }
-        let start = isCompletedToday ? 0 : 1
-        return Set(start..<(start + streak))
-    }
-
-    /// Oldest to newest (today trailing), split into the completed run and the still-pending tail.
-    private var filledSlots: [Int] {
-        slots.filter { filledDaysAgo.contains($0) }
-    }
-    private var pendingSlots: [Int] {
-        slots.filter { !filledDaysAgo.contains($0) }
-    }
-    private var slots: [Int] {
-        Array((0..<capacity).reversed())
+    private var runs: [[WeeklyStreakLayout.Day]] {
+        WeeklyStreakLayout(referenceDate: date, streak: streak, isCompletedToday: isCompletedToday).runs
     }
 
     var body: some View {
@@ -398,61 +383,58 @@ private struct StreakPieceRow: View {
         .frame(maxWidth: .infinity, alignment: alignment)
     }
 
-    /// A standalone row of weekday initials, mirroring the piece row's filled/pending grouping
-    /// (including the capsule's horizontal padding) so each letter lines up with its piece below —
-    /// without being wrapped by the capsule stroke itself.
+    /// A standalone row of weekday initials, applying the same per-run padding and inter-run gap
+    /// as the piece row unconditionally — filled or not — so every letter lines up with its piece
+    /// below no matter which days are filled.
     private var weekdayLabelRow: some View {
-        HStack(spacing: spacing) {
-            if !filledSlots.isEmpty {
+        HStack(spacing: Self.runGap) {
+            ForEach(runs, id: \.self) { run in
                 HStack(spacing: spacing) {
-                    ForEach(filledSlots, id: \.self) { daysAgo in
-                        weekdayLabel(daysAgo: daysAgo)
-                    }
+                    ForEach(run, id: \.self) { day in weekdayLabel(for: day) }
                 }
-                .padding(.horizontal, 8)
-            }
-
-            ForEach(pendingSlots, id: \.self) { daysAgo in
-                weekdayLabel(daysAgo: daysAgo)
+                .padding(.horizontal, Self.runHorizontalPadding)
             }
         }
     }
 
+    /// Every run gets identical padding and a capsule overlay regardless of fill state — only
+    /// the stroke's opacity differs — so the row's proportions never shift based on the streak.
     private var pieceRow: some View {
-        HStack(spacing: spacing) {
-            if !filledSlots.isEmpty {
+        HStack(spacing: Self.runGap) {
+            ForEach(runs, id: \.self) { run in
+                let isFilled = run.first?.isFilled == true
                 HStack(spacing: spacing) {
-                    ForEach(filledSlots, id: \.self) { daysAgo in
-                        piece(daysAgo: daysAgo, filled: true)
-                    }
+                    ForEach(run, id: \.self) { day in piece(filled: isFilled) }
                 }
-                .padding(8)
+                .padding(.vertical, 8)
+                .padding(.horizontal, Self.runHorizontalPadding)
                 .overlay {
                     Capsule(style: .continuous)
                         .stroke(BrandGradient.diagonal, lineWidth: 2)
+                        .opacity(isFilled ? 1 : 0)
                 }
-            }
-
-            ForEach(pendingSlots, id: \.self) { daysAgo in
-                piece(daysAgo: daysAgo, filled: false)
             }
         }
     }
 
-    private func piece(daysAgo: Int, filled: Bool) -> StreakPiece {
+    /// Clearance between the capsule stroke and the pieces it wraps — shared by both rows so the
+    /// letters stay aligned with their pieces. Kept generous (unlike `runGap`) since this is
+    /// what keeps the stroke from crowding the first/last piece it wraps.
+    private static let runHorizontalPadding: CGFloat = 8
+    /// Gap between separate runs (a capsule and the plain pieces beside it) — deliberately
+    /// tighter than the piece-to-piece spacing within a run, so pending days don't drift far
+    /// from the streak they're adjacent to.
+    private static let runGap: CGFloat = 6
+
+    private func piece(filled: Bool) -> StreakPiece {
         StreakPiece(filled: filled, accent: accent, size: pieceSize)
     }
 
-    private func weekdayLabel(daysAgo: Int) -> some View {
-        Text(weekdayLetter(daysAgo: daysAgo))
+    private func weekdayLabel(for day: WeeklyStreakLayout.Day) -> some View {
+        Text(day.date.formatted(.dateTime.weekday(.narrow)))
             .font(.system(size: 8, weight: .heavy))
             .foregroundStyle(.secondary)
             .frame(width: pieceSize)
-    }
-
-    private func weekdayLetter(daysAgo: Int) -> String {
-        guard let day = Calendar.current.date(byAdding: .day, value: -daysAgo, to: date) else { return "" }
-        return day.formatted(.dateTime.weekday(.narrow))
     }
 }
 
@@ -612,6 +594,20 @@ private struct DailyWidgetBackground: View {
         date: .now, isCompletedToday: true, streak: 60, bestStreak: 12, gridSize: 5, mode: .swap,
         imageData: nil, isPremiumUnlocked: true
     )
+}
+
+/// The streak row's fixed Monday–Sunday week at a few notable lengths: no streak, a short one
+/// starting mid-week, one nearing the end of the week, and a full week — cycle the canvas's
+/// timeline scrubber to see all four.
+#Preview("Medium — Streak Lengths", as: .systemMedium) {
+    DailyChallengeWidget()
+} timeline: {
+    for streak in [0, 3, 5, 7] {
+        DailyChallengeEntry(
+            date: .now, isCompletedToday: true, streak: streak, bestStreak: 12, gridSize: 5, mode: .swap,
+            imageData: nil, isPremiumUnlocked: true
+        )
+    }
 }
 
 #Preview("Locked", as: .systemSmall) {

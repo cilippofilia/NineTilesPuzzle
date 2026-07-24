@@ -93,6 +93,7 @@
 				Shared/DeepLink.swift,
 				Shared/LiveActivityStore.swift,
 				Shared/PuzzleActivityAttributes.swift,
+				Shared/WeeklyStreakLayout.swift,
 				Shared/WidgetDataStore.swift,
 			);
 			target = 1826D79E2FF9192400927433 /* NineTilesPuzzleWidgetsExtension */;
