@@ -119,11 +119,13 @@ struct DailyMediumView: View {
                     HStack {
                         ModeIconChip(icon: entry.mode.icon, size: 26)
 
-                        Text(entry.mode.title)
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                        Text("\(entry.gridSize) × \(entry.gridSize) grid")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        VStack(alignment: .leading) {
+                            Text(entry.mode.title)
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                            Text("\(entry.gridSize) × \(entry.gridSize) grid")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
 
                         Group {
                             if entry.isCompletedToday {
@@ -134,7 +136,6 @@ struct DailyMediumView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     }
-                    .padding(.top, 4)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .top)

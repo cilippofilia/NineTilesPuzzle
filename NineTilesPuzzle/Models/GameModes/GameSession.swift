@@ -94,12 +94,11 @@ final class GameSession {
     /// `isDailyGameActive`; cleared in `leaveGame()`.
     private var dailyGameDate: Date? = nil
 
-    /// True while the player is in a Quick Snap game — a plain Swap puzzle whose image was
-    /// just captured by the camera. Transient like `isDailyGameActive`, so a force-quit
-    /// resumes the puzzle as an ordinary Swap game rather than re-routing through capture.
+    /// True while the player is in a Quick Snap game — a puzzle, in whatever mode the player
+    /// already had selected, whose image was just captured by the camera. Transient like
+    /// `isDailyGameActive`, so a force-quit resumes the puzzle as an ordinary game in that
+    /// same mode rather than re-routing through capture.
     private(set) var isQuickSnapActive: Bool = false
-    /// The user's `selectedGameMode` before entering Quick Snap, restored in `leaveGame()`.
-    private var preQuickSnapGameMode: GameMode? = nil
     /// The frame captured for the current Quick Snap game, consumed by `startNewGame()` in
     /// place of a network/photo-library fetch. Kept until `leaveGame()` so "Continue" reshuffles
     /// the same shot rather than falling through to a source that doesn't exist for this mode.
@@ -195,21 +194,17 @@ final class GameSession {
 
     /// Marks this session as a Quick Snap game using the just-captured camera `image`. Must be
     /// called before navigating to `PuzzleView` — `startNewGame()` checks `isQuickSnapActive`
-    /// to slice this frame directly instead of fetching from a headless image source. Forces
-    /// Swap play (the mode Quick Snap runs on) and saves the user's mode for `leaveGame()` to
-    /// restore, mirroring `enterDailyMode()`.
+    /// to slice this frame directly instead of fetching from a headless image source.
+    /// Leaves `selectedGameMode` untouched — Quick Snap only supplies the image, the player's
+    /// already-chosen mode still governs which engine and rules apply, same as every other
+    /// media source.
     func enterQuickSnapMode(with image: CGImage) {
-        preQuickSnapGameMode = selectedGameMode
-        selectedGameMode = .swap
         quickSnapImage = image
         isQuickSnapActive = true
     }
 
     /// Replaces the captured frame for an already-active Quick Snap game with a freshly snapped
     /// `image`, so "Play Again" starts on a brand-new shot rather than reshuffling the old one.
-    /// Unlike `enterQuickSnapMode(with:)` this leaves the saved pre-Quick-Snap mode untouched —
-    /// the player is still inside the same Quick Snap session, so `leaveGame()` must restore the
-    /// mode they had before the *first* capture, not `.swap`.
     func refreshQuickSnapImage(with image: CGImage) {
         quickSnapImage = image
     }
@@ -1192,10 +1187,6 @@ final class GameSession {
         if let backup = preDailyGameMode {
             selectedGameMode = backup
             preDailyGameMode = nil
-        }
-        if let backup = preQuickSnapGameMode {
-            selectedGameMode = backup
-            preQuickSnapGameMode = nil
         }
         if let backup = preChallengeGameMode {
             selectedGameMode = backup
