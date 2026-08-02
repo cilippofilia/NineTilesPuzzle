@@ -43,6 +43,12 @@ struct PaywallBenefit: Identifiable {
                 + "so you can check your game at a glance.",
             icon: "widget.small.badge.plus",
             tint: .blue
+        ),
+        PaywallBenefit(
+            lead: "Play Uninterrupted",
+            detail: "No cross-promo ads between games — just you and the puzzle.",
+            icon: "nosign",
+            tint: .red
         )
     ]
 }

@@ -14,6 +14,7 @@
 		4D99D52BFFCC4762933DCB0E /* QuickLookThumbnailing.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80AAADD4C002484BBC1B8CC0 /* QuickLookThumbnailing.framework */; };
 		DDEE000000000000000000A2 /* NineTilesPuzzlePreviewExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DDEE000000000000000000A1 /* NineTilesPuzzlePreviewExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DDEE000000000000000000A4 /* QuickLook.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDEE000000000000000000A3 /* QuickLook.framework */; };
+		CBA623FB3C8240E385957B86 /* Billboard in Frameworks */ = {isa = PBXBuildFile; productRef = 4C6171EEA05A48ACA53628EB /* Billboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -197,6 +198,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CBA623FB3C8240E385957B86 /* Billboard in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -324,6 +326,7 @@
 			);
 			name = NineTilesPuzzle;
 			packageProductDependencies = (
+				4C6171EEA05A48ACA53628EB /* Billboard */,
 			);
 			productName = NineTilesPuzzle;
 			productReference = 18ADCFA12FC4C364001C204F /* NineTilesPuzzle.app */;
@@ -410,6 +413,9 @@
 			);
 			mainGroup = 18ADCF982FC4C364001C204F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				069309724FFD47FC872F2AF4 /* XCRemoteSwiftPackageReference "Billboard" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 18ADCFA22FC4C364001C204F /* Products */;
 			projectDirPath = "";
@@ -1129,6 +1135,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		069309724FFD47FC872F2AF4 /* XCRemoteSwiftPackageReference "Billboard" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/hiddevdploeg/Billboard";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4C6171EEA05A48ACA53628EB /* Billboard */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 069309724FFD47FC872F2AF4 /* XCRemoteSwiftPackageReference "Billboard" */;
+			productName = Billboard;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 18ADCF992FC4C364001C204F /* Project object */;
 }

@@ -289,6 +289,10 @@ struct PuzzleView: View {
                 onCapture: { image in
                     showQuickSnapRecapture = false
                     session.refreshQuickSnapImage(with: image)
+                    // Bumped here rather than when "Continue" first opened the camera sheet, so
+                    // it can't race Billboard's `.fullScreenCover` against this one still being
+                    // presented — by the time this fires, the camera sheet is already closing.
+                    session.completedGameSignal += 1
                     startNewGame()
                 },
                 // Backing out of the re-capture means the player is done — the puzzle they
@@ -365,6 +369,7 @@ struct PuzzleView: View {
         }
         .onDisappear {
             resumeCountdownTask?.cancel()
+            if session.isSolved { session.completedGameSignal += 1 }
             session.leaveGame()
         }
     }
@@ -497,11 +502,14 @@ struct PuzzleView: View {
 
     /// "Continue"/"Play Again" from the completion banner. Quick Snap re-opens the camera so the
     /// next round plays a freshly snapped scene rather than reshuffling the shot just solved;
-    /// every other mode simply starts a new game in place.
+    /// every other mode simply starts a new game in place. Quick Snap's `completedGameSignal`
+    /// bump happens later, in the recapture sheet's `onCapture` — not here — so it can't race
+    /// Billboard's own `.fullScreenCover` against the camera sheet still being on screen.
     private func handleContinue() {
         if session.isQuickSnapActive {
             showQuickSnapRecapture = true
         } else {
+            session.completedGameSignal += 1
             startNewGame()
         }
     }

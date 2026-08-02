@@ -78,6 +78,16 @@ final class GameSession {
     var isNewTimeTrialScoreRecord: Bool = false
     var timeTrialScore: Int = 0
     var isNewCalendarStreakRecord: Bool = false
+    /// Bumped once per solved game — by `PuzzleView`'s `onDisappear` when the puzzle screen goes
+    /// away right after a solve, and by `handleContinue()` (and Quick Snap's recapture
+    /// `onCapture`) right before starting the next round in place. Never bumped on a mid-game
+    /// quit (unsolved), and deliberately not touched by `challengeThemBack()`'s `leaveGame()`
+    /// call, which stays on `PuzzleView` for an immediate rechallenge rather than a genuine
+    /// "finished a round" moment. `MenuView` observes this to show a Billboard cross-promo ad
+    /// every 3rd bump — a `.fullScreenCover` presents over the whole window regardless of where
+    /// in the nav stack it's declared, so this works whether the player is back at the menu or
+    /// mid-`PuzzleView` chaining "Continue" taps.
+    var completedGameSignal: Int = 0
     /// True for the single move that completes the player's very first Daily Challenge
     /// ever, used to prompt the notification-permission flow at a moment they're engaged
     /// rather than on cold launch.

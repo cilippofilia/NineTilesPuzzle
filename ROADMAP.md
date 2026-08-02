@@ -210,6 +210,20 @@ sheet in Settings. Still outstanding:
   needs a real offer configured in App Store Connect first, not just the local `.storekit`
   test file.
 
+### Billboard cross-promo ads / "Remove Ads" perk — shipped (2026-08-02)
+Free players now see a single [Billboard](https://github.com/hiddevdploeg/Billboard) cross-promo
+ad (the app's first third-party SPM dependency) at a natural break point — right after solving a
+puzzle, on the way back to the menu, never mid-game or on a quit — bundled into the existing
+Lifetime/Monthly entitlement rather than a new SKU. See `ARCHITECTURE.md`'s Monetization /
+Hard-Feature Gate section for the full placement/gating mechanics. Still outstanding:
+- **ASC price bump not applied** — the plan discussed alongside this feature was to raise
+  Lifetime ($6.99→~$7.99) and Monthly ($1.99→~$2.49) slightly to reflect the added "no ads"
+  perk; both are still at their original prices pending an explicit go-ahead (live pricing
+  change on existing products).
+- **No on-device/simulator visual verification** — build- and test-verified only.
+- Submitting this app to Billboard's own directory (for reciprocal cross-promo exposure in
+  *other* indie apps) is an external step, handled outside the codebase.
+
 ### Smaller polish — **S each**
 - [ ] Accessibility audit — drag-to-swap needs a VoiceOver-friendly alternative (e.g.
   select-then-place via accessibility actions).

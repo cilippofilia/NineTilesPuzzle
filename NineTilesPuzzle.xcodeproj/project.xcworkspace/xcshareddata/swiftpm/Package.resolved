@@ -1,0 +1,15 @@
+{
+  "originHash" : "aa4d07a25eb097bdbdf79cd68e1267f1dec97a0d3e72cd9e3a8da86c57cdca6d",
+  "pins" : [
+    {
+      "identity" : "billboard",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/hiddevdploeg/Billboard",
+      "state" : {
+        "revision" : "cd6c78366979cc116ba78654dc84c8d1ca4b11c2",
+        "version" : "1.2.0"
+      }
+    }
+  ],
+  "version" : 3
+}

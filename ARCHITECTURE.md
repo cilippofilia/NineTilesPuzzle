@@ -1,12 +1,14 @@
 # NineTilesPuzzle — Architecture Overview
 
-Snapshot of the current codebase structure, as of 2026-07-19 (updated for Wall of Fame +
+Snapshot of the current codebase structure, as of 2026-08-02 (updated for Wall of Fame +
 Stats→Settings, a July 2026 performance pass, the Live Activity, home-screen widgets + deep
 links, the power-up economy, Challenge Friends, the July 2026 `Models/` feature-folder
 restructure, the Daily Challenge widget/reminder-notification follow-ups, the Time Trial
 resume grace period, Wall of Fame manual curation, Challenge Friends being gated behind
-a Settings toggle — along with the matching Achievements gating — and the Hard-Feature Gate
-monetization system, including its 2026-07-19 StoreKit 2 paywall rebuild). This is a
+a Settings toggle — along with the matching Achievements gating — the Hard-Feature Gate
+monetization system including its 2026-07-19 StoreKit 2 paywall rebuild, a 2026-08-02 fix so
+Quick Snap no longer overrides the player's chosen `GameMode`, and the Billboard cross-promo
+ads shipped the same day). This is a
 descriptive document — see this file's own §6 resolution below (and `ROADMAP.md` §6, kept in
 sync with it) for how the "does mode-specific behavior need a shared abstraction" question was
 revisited once Time Trial and Limited Moves both existed, and what would justify
@@ -27,7 +29,8 @@ revisiting it again.
   rich Files/Messages/Finder previews for shared `.ntpchallenge` files (see Challenge Friends
   below); shares a few `Models/Challenge/` files with the main app target the same way
 - Swift Testing (not XCTest) for unit tests
-- No third-party dependencies
+- One third-party dependency: [Billboard](https://github.com/hiddevdploeg/Billboard) (SPM,
+  MIT), used for the free-tier cross-promo ad — see Monetization / Hard-Feature Gate below
 
 ## Directory layout
 
@@ -666,9 +669,10 @@ done or the time already passed; an 8-message pool rotates with no immediate rep
 Rescheduled on daily completion and app foreground. The first-ever daily completion prompts
 for notification permission and auto-enables the toggle if granted.
 
-**Quick Snap** (shipped July 2026): a new `.camera` `MediaSourceType` rather than a new
-`GameMode` — underneath it plays plain Swap. Selecting it in `MediaSourcePickerView` (only
-offered when `QuickSnapCameraSession.isCameraAvailable`) makes "Play" open a full-screen
+**Quick Snap** (shipped July 2026, mode-independence fix 2026-08-02): a new `.camera`
+`MediaSourceType` rather than a new `GameMode` — it supplies only the image, never the
+ruleset. Selecting it in `MediaSourcePickerView` (only offered when
+`QuickSnapCameraSession.isCameraAvailable`) makes "Play" open a full-screen
 `QuickSnapCameraView` instead of pushing the puzzle. That view wraps a `@MainActor @Observable`
 `QuickSnapCameraSession` (an `AVCaptureSession`) bridged to SwiftUI through `CameraPreviewView`,
 overlaid with a countdown ring that recolors under pressure like the streak timer. The whole
@@ -677,14 +681,22 @@ frame is captured automatically at zero. Each second down fires a `.selection` h
 capture a firmer `.impact`, both gated on `SettingsStore.hapticsEnabled`. The countdown length
 is its own preference — `SettingsStore.quickSnapDuration` (3/5/10s via
 `QuickSnapDurationPickerView`, read through `GameSession.currentQuickSnapDuration`) — no longer
-piggybacking on `previewDuration`. On capture, `GameSession.enterQuickSnapMode(with:)` follows
-the same transient-flag pattern as Daily: it forces `.swap`, saves the player's prior mode, and
-stores the `CGImage` so `startNewGame()` slices it directly (bypassing `ImageService`) and skips
-the "memorize the image" preview. Quick Snap counts toward Swap stats/streaks with no exemption.
-"Play Again" from the completion banner re-opens `QuickSnapCameraView` (presented by `PuzzleView`
-this time) so each round is a fresh shot; `refreshQuickSnapImage(with:)` swaps in the new frame
-without disturbing the saved pre-Quick-Snap mode. `leaveGame()` restores that mode and clears
-the flag, so a force-quit mid-game resumes as an ordinary Swap game.
+piggybacking on `previewDuration`. On capture, `GameSession.enterQuickSnapMode(with:)` stores the
+`CGImage` and flags `isQuickSnapActive` so `startNewGame()` slices it directly (bypassing
+`ImageService`) and skips the "memorize the image" preview — `selectedGameMode` is left
+untouched, so whatever mode the player already picked in `GameModeView` (Slide, Swap, Chaos,
+etc.) still governs the engine, exactly like every other media source. **Fixed 2026-08-02:**
+this method used to force `selectedGameMode = .swap` and save/restore the player's prior mode
+around the Quick Snap session — a leftover simplification from when Quick Snap shipped as "just
+a Swap puzzle with a camera photo" that silently discarded the player's actual mode choice (e.g.
+picking Slide + Quick Snap played Swap instead). `activeEngine`'s dispatch on `selectedGameMode`
+and every mode-specific branch in `startNewGame()` were already generic — the override in
+`enterQuickSnapMode` was the only Quick-Snap-specific engine coupling in the codebase, so
+removing it was the entire fix. Quick Snap now counts toward whichever mode's stats/streaks the
+player selected, same as before but correctly attributed. "Play Again" from the completion
+banner re-opens `QuickSnapCameraView` (presented by `PuzzleView` this time) so each round is a
+fresh shot; `refreshQuickSnapImage(with:)` swaps in the new frame. `leaveGame()` clears the
+Quick Snap flags; mode was never touched, so there's nothing to restore.
 
 **Live Activity + Dynamic Island** (shipped July 2026): a "puzzle in progress" Live Activity
 (`PuzzleLiveActivity` in the widget extension) showing the board, mode, moves/time, streak,
@@ -904,9 +916,11 @@ guard in `setGameMode`/`setMediaSourceType`; `LiveActivityController` takes the 
 pattern to gate `start`/`refresh` (never `end`, so an already-running Live Activity for a
 formerly-premium player who un-subscribes still ends cleanly). **Critical invariant — do not
 break:** `DailyChallengeSeeder.availableGameModes = [.slide, .swap, .limitedMoves]` assigns
-premium modes to the free Daily Challenge; the gate is bypassed entirely for
-`enterDailyMode()`/`enterQuickSnapMode(with:)` since they assign `selectedGameMode` directly,
-not through the guarded setters.
+premium modes to the free Daily Challenge; the gate is bypassed entirely for `enterDailyMode()`,
+which assigns `selectedGameMode` directly rather than through the guarded setters. (Quick Snap
+no longer needs this carve-out as of the 2026-08-02 fix described in the Quick Snap section
+above — `enterQuickSnapMode(with:)` doesn't touch `selectedGameMode` at all anymore, so a free
+player's mode there is whatever they already legitimately have access to.)
 
 `PaywallView` + `PaywallContext` (`Views/Paywall/`) is the contextual sheet, presented
 everywhere via the `.paywallSheet(context:)` view modifier — one `PaywallContext` case per
@@ -946,6 +960,37 @@ setup; the App Store Connect review screenshots already uploaded for both the li
 the monthly subscription were captured against the *old* dual-button paywall and are stale
 against this rebuild — should be recaptured before submitting. See `ROADMAP.md` §4 and this
 project's memory for the full ASC submission trail.
+
+**Billboard cross-promo ads / "Remove Ads" perk (shipped 2026-08-02):** the app's first
+third-party dependency, [Billboard](https://github.com/hiddevdploeg/Billboard) (SPM, MIT), a
+free indie cross-promotion network — it shows a full-screen promo for another indie app (never
+this app's own, see below) and generates no ad revenue itself; the value is entirely the
+existing Hard-Feature Gate entitlement removing it, not a new revenue stream. Deliberately
+bundled into the existing Lifetime/Monthly entitlement rather than a separate SKU — no new
+`PremiumFeature` case was needed, the gate is just `!store.isPremiumUnlocked` at the call site.
+
+Placement is the single hardest part of doing this without being obnoxious: `GameSession` gained
+`completedGameLeaveSignal: Int`, bumped only by `PuzzleView`'s `.onDisappear` when
+`session.isSolved` is true at that moment — so it fires once per solved game, right as the
+player leaves the puzzle screen, and specifically not on a mid-game quit (blocked upstream by
+`isGameActive`/`showQuitAlert` gating the quit path to unsolved games only) and not during
+"Challenge Them Back" (`challengeThemBack()` calls `session.leaveGame()` but never dismisses
+`PuzzleView`, so `onDisappear` never fires there). `MenuView` — the stable `NavigationStack`
+root that `PuzzleView` pops back to — observes the signal via `.onChange` and presents the ad
+through Billboard's own `.showBillboard(when:)` modifier, gated on `!store.isPremiumUnlocked`.
+`BillboardConfiguration(excludedIDs: ["6776386637"])` excludes this app's own Apple ID (the ASC
+app resource id, same number as the App Store URL) so Billboard never advertises this app to its
+own free players — relevant since the app is being submitted to Billboard's own directory
+separately. Tapping "Remove Ads" inside the ad overlay shows the existing `PaywallView` with a
+new `.removeAds` `PaywallContext`; the benefit carousel (`PaywallBenefit.swift`) that every
+paywall view already shows also gained a "Play Uninterrupted" card, so the perk is visible
+even to players who reach the paywall from an unrelated locked feature.
+
+**Not yet done:** the Lifetime/Monthly price bump discussed alongside this feature (to reflect
+the added perk) hasn't been applied in App Store Connect — that's a live pricing change on
+existing products, left for an explicit follow-up rather than done as a side effect of the code
+change. No on-device/simulator visual verification of the ad flow yet either (build- and
+test-verified only, per this project's "no `axe` without permission" convention).
 
 **Wall of Fame** (shipped June 2026): a cork-board view where every personal best is
 automatically captured and pinned as a polaroid card. `PuzzleView` renders `ShareCardView`

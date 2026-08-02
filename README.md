@@ -49,7 +49,7 @@ Image preview before the shuffle, a haptics toggle, automatic resume of an in-pr
 - WidgetKit and ActivityKit for the widgets, Live Activity, and Dynamic Island
 - GameKit for the Game Center access point
 - Persistence sits behind a `PersistenceStore` protocol backed by `UserDefaults`; an App Group shares a single JSON snapshot with the widget extension
-- No third-party dependencies
+- One third-party dependency: [Billboard](https://github.com/hiddevdploeg/Billboard) (SPM, MIT) for the free-tier cross-promo ad
 - Unit tests use **Swift Testing** (`@Suite`, `@Test`, `#expect`)
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a deeper dive into state ownership, persistence, and the widget data-sharing model, and [ROADMAP.md](ROADMAP.md) for what's planned next.

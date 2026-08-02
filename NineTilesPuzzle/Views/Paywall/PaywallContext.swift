@@ -66,6 +66,12 @@ struct PaywallContext: Identifiable, Hashable {
         icon: .symbol("calendar")
     )
 
+    static let removeAds = PaywallContext(
+        headline: "Remove Ads",
+        subheadline: "No more cross-promo interruptions between games — just you and the puzzle.",
+        icon: .symbol("nosign")
+    )
+
     static let systemIntegration = PaywallContext(
         headline: "Always Connected",
         subheadline: "Live Activities, Dynamic Island tracking, and Home Screen widgets keep your game "
