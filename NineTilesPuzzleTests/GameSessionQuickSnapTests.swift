@@ -10,10 +10,11 @@ import Foundation
 import Testing
 @testable import NineTilesPuzzle
 
-/// Covers Quick Snap's contract: it's a plain Swap game whose image is a captured camera
-/// frame. `enterQuickSnapMode(with:)` forces Swap and remembers the player's mode; the
-/// captured frame is sliced directly (no fetch, no "memorize" preview); and `leaveGame()`
-/// restores everything, mirroring the Daily Challenge transient-flag pattern.
+/// Covers Quick Snap's contract: it's a game, in whatever mode the player already selected,
+/// whose image is a captured camera frame. `enterQuickSnapMode(with:)` leaves `selectedGameMode`
+/// untouched; the captured frame is sliced directly (no fetch, no "memorize" preview); and
+/// `leaveGame()` clears the Quick Snap flags, mirroring the Daily Challenge transient-flag
+/// pattern minus the mode save/restore (Quick Snap never changes the mode in the first place).
 @Suite("GameSession – Quick Snap")
 @MainActor
 struct GameSessionQuickSnapTests {
@@ -44,14 +45,14 @@ struct GameSessionQuickSnapTests {
 
     // MARK: - Entering
 
-    @Test func enterQuickSnapForcesSwapAndFlagsActive() {
+    @Test func enterQuickSnapPreservesModeAndFlagsActive() {
         let session = makeSession()
         session.selectedGameMode = .timeTrial
 
         session.enterQuickSnapMode(with: makeImage())
 
         #expect(session.isQuickSnapActive)
-        #expect(session.selectedGameMode == .swap)
+        #expect(session.selectedGameMode == .timeTrial)
     }
 
     // MARK: - Starting a game
@@ -73,9 +74,10 @@ struct GameSessionQuickSnapTests {
         #expect(!session.isLoading)
     }
 
-    @Test func quickSnapPlaysWithSwapEngineNotSlide() async {
+    @Test func quickSnapPlaysWithSwapEngineWhenSwapSelected() async {
         let session = makeSession()
         session.gridSize = 3
+        session.selectedGameMode = .swap
         session.mediaSourceType = .camera
         session.enterQuickSnapMode(with: makeImage())
         await session.startNewGame()
@@ -89,11 +91,32 @@ struct GameSessionQuickSnapTests {
         #expect(session.isSolved)
     }
 
-    // MARK: - Stats (no exemption)
-
-    @Test func quickSnapCountsTowardSwapStatsAndStreak() async {
+    @Test func quickSnapPlaysWithSlideEngineWhenSlideSelected() async {
         let session = makeSession()
         session.gridSize = 3
+        session.selectedGameMode = .slide
+        session.mediaSourceType = .camera
+        session.enterQuickSnapMode(with: makeImage())
+        await session.startNewGame()
+
+        // Slide engine: tile id 8 is the blank. One tile out of place, adjacent to the
+        // blank — sliding it in should solve the board.
+        session.tiles = (0..<9).map { id in
+            let currentIndex = id == 7 ? 8 : (id == 8 ? 7 : id)
+            return TileModel(id: id, currentIndex: currentIndex, isLocked: false)
+        }
+        let moved = session.slideTile(from: 8)
+
+        #expect(moved)
+        #expect(session.isSolved)
+    }
+
+    // MARK: - Stats (no exemption)
+
+    @Test func quickSnapCountsTowardSelectedModeStatsAndStreak() async {
+        let session = makeSession()
+        session.gridSize = 3
+        session.selectedGameMode = .swap
         session.mediaSourceType = .camera
         session.enterQuickSnapMode(with: makeImage())
         await session.startNewGame()
@@ -104,14 +127,14 @@ struct GameSessionQuickSnapTests {
         }
         session.swapTiles(from: 0, to: 1)
 
-        // currentStatsKey resolves to Swap, so the streak lands there — no exemption.
+        // currentStatsKey follows the player's selected mode — no Quick Snap exemption.
         #expect(session.currentStatsKey.gameMode == .swap)
         #expect(session.currentStreakForCurrentSize > 0)
     }
 
     // MARK: - Re-capture ("Play Again")
 
-    @Test func refreshQuickSnapImageKeepsSessionActiveAndRestoresOriginalMode() async {
+    @Test func refreshQuickSnapImageKeepsSessionActiveAndModeUnchanged() async {
         let session = makeSession()
         session.gridSize = 3
         session.mediaSourceType = .camera
@@ -126,8 +149,9 @@ struct GameSessionQuickSnapTests {
         #expect(session.isQuickSnapActive)
         #expect(session.tiles.count == 9)
         #expect(session.sourceImage != nil)
+        #expect(session.selectedGameMode == .fog)
 
-        // …and leaving still restores the mode from *before the first* capture, not `.swap`.
+        // …and leaving never touched the mode, so it's still exactly what the player picked.
         session.leaveGame()
         #expect(!session.isQuickSnapActive)
         #expect(session.selectedGameMode == .fog)
@@ -135,11 +159,11 @@ struct GameSessionQuickSnapTests {
 
     // MARK: - Leaving
 
-    @Test func leaveGameRestoresModeAndClearsQuickSnapState() {
+    @Test func leaveGamePreservesModeAndClearsQuickSnapState() {
         let session = makeSession()
         session.selectedGameMode = .fog
         session.enterQuickSnapMode(with: makeImage())
-        #expect(session.selectedGameMode == .swap)
+        #expect(session.selectedGameMode == .fog)
 
         session.leaveGame()
 
