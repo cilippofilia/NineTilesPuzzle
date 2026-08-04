@@ -12,12 +12,12 @@
 		<key>NineTilesPuzzlePreviewExtension.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>2</integer>
+			<integer>3</integer>
 		</dict>
 		<key>NineTilesPuzzleThumbnailExtension.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>3</integer>
+			<integer>2</integer>
 		</dict>
 		<key>NineTilesPuzzleWidgetsExtension.xcscheme_^#shared#^_</key>
 		<dict>

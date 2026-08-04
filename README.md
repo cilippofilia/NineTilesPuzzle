@@ -4,6 +4,8 @@ A sliding-image puzzle for iOS. Fetch a photo, slice it into a grid, scramble th
 
 [//]: # (Hero section: this would benefit from a screenshot or short GIF of the puzzle grid mid-solve — no visual assets exist in the repo yet.)
 
+**[Landing page](https://cilippofilia.github.io/NineTilesPuzzle/)** — served via GitHub Pages from [`docs/`](docs/).
+
 ## Features
 
 ### Seven ways to play
