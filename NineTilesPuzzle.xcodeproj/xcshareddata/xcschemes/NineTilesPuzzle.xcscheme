@@ -63,7 +63,7 @@
          </BuildableReference>
       </BuildableProductRunnable>
       <StoreKitConfigurationFileReference
-         identifier = "../../../NineTilesPuzzle/NineTilesPuzzle.storekit">
+         identifier = "../../NineTilesPuzzle/NineTilesPuzzle.storekit">
       </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction

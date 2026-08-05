@@ -154,6 +154,18 @@ struct MenuView: View {
             .safeAreaInset(edge: .bottom) {
                 if !store.isPremiumUnlocked, let bannerAd {
                     BillboardBannerView(advert: bannerAd, config: billboardConfiguration, hideDismissButtonAndTimer: true)
+                        .overlay(alignment: .topTrailing) {
+                            Button("Remove Ads", systemImage: "xmark") {
+                                paywallContext = .removeAds
+                            }
+                            .labelStyle(.iconOnly)
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .padding(6)
+                            .background(.black.opacity(0.45), in: .circle)
+                            .buttonStyle(.plain)
+                            .padding(8)
+                        }
                         .padding()
                 }
             }
