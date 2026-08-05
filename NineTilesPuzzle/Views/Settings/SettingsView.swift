@@ -14,16 +14,15 @@ struct SettingsView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(DailyChallengeStore.self) private var dailyStore
     @Environment(PowerUpStore.self) private var powerUpStore
-    @Environment(SoundService.self) private var soundService
     @Environment(GameCenterService.self) private var gameCenterService
-    @Environment(DailyReminderService.self) private var dailyReminderService
     @Environment(StoreManager.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var showResetStatsAlert = false
     @State private var showResetSettingsAlert = false
     @State private var showDebugOverlayAlert = false
-    @State private var showNotificationDeniedAlert = false
+    @State private var showContactOptions = false
     @State private var paywallContext: PaywallContext?
     @State private var showManageSubscriptions = false
 
@@ -31,7 +30,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    if store.isPremiumUnlocked {
+                    if !store.isPremiumUnlocked {
                         Label {
                             Text("VIP Unlocked")
                         } icon: {
@@ -41,16 +40,42 @@ struct SettingsView: View {
                         if store.hasActiveSubscription {
                             Button("Manage Subscription") { showManageSubscriptions = true }
                         }
+
+                        NavigationLink {
+                            WidgetsGuideView()
+                        } label: {
+                            Label {
+                                Text("How to Add Widgets")
+                            } icon: {
+                                Image(systemName: "widget.small.badge.plus")
+                                    .foregroundStyle(.white)
+                            }
+                        }
+
+                        if settings.powerUpsEnabled {
+                            NavigationLink {
+                                PowerUpsGuideView()
+                            } label: {
+                                Label {
+                                    Text("How to Use Power-ups")
+                                } icon: {
+                                    Image(systemName: "wand.and.stars")
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                        }
                     } else {
                         Button {
                             paywallContext = .general
                         } label: {
                             Label {
                                 Text("Unlock Nine Tiles Puzzle VIP")
+                                    .foregroundStyle(.primary)
                             } icon: {
                                 Image(systemName: "crown.fill")
                             }
                         }
+                        .buttonStyle(.plain)
                     }
                 } footer: {
                     if !store.isPremiumUnlocked {
@@ -75,7 +100,6 @@ struct SettingsView: View {
                 } footer: {
                     Text("This feature is for development testing only and is not intended for production use.")
                 }
-                #endif
 
                 if settings.debugOverlayEnabled {
                     Section {
@@ -172,104 +196,19 @@ struct SettingsView: View {
                         Text("Send a friend a seeded puzzle and compare move counts, by file share or nearby device — it's off by default while it's still unverified on real hardware. Your Game tag is shown to friends when you send them a challenge.")
                     }
                 }
+                #endif
 
-                Section("Game") {
-                    NavigationLink {
-                        PreviewTimePickerView()
-                    } label: {
-                        LabeledContent("Preview Time", value: settings.previewDurationLabel)
+                Section("Game Settings") {
+                    NavigationLink("Gameplay") {
+                        GameplaySettingsView()
                     }
 
-                    NavigationLink {
-                        StreakCountdownPickerView()
-                    } label: {
-                        LabeledContent("Streak Countdown", value: settings.streakCountdownLabel)
+                    NavigationLink("Notifications") {
+                        NotificationsSettingsView()
                     }
 
-                    // Only relevant on hardware that can actually shoot — hidden alongside the
-                    // rest of Quick Snap on camera-less devices and the Simulator.
-                    if QuickSnapCameraSession.isCameraAvailable {
-                        NavigationLink {
-                            QuickSnapDurationPickerView()
-                        } label: {
-                            LabeledContent("Quick Snap Timer", value: settings.quickSnapDurationLabel)
-                        }
-                    }
-
-                    NavigationLink {
-                        StatsView()
-                    } label: {
-                        Text("Stats")
-                    }
-                }
-
-                Section {
-                    Toggle("Daily Reminder", isOn: Binding(
-                        get: { settings.dailyReminderEnabled },
-                        set: handleReminderToggle
-                    ))
-
-                    if settings.dailyReminderEnabled {
-                        DatePicker(
-                            "Reminder Time",
-                            selection: Binding(
-                                get: { settings.dailyReminderTime },
-                                set: { newTime in
-                                    settings.setDailyReminderTime(newTime)
-                                    dailyReminderService.rescheduleIfNeeded(
-                                        enabled: true,
-                                        time: newTime,
-                                        completedToday: dailyStore.isDailyCompletedToday
-                                    )
-                                }
-                            ),
-                            displayedComponents: .hourAndMinute
-                        )
-                    }
-                } header: {
-                    Text("Notifications")
-                } footer: {
-                    Text("A single reminder to play today's Daily Challenge — only sent if you haven't completed it yet.")
-                }
-
-                Section("Audio") {
-                    Toggle("Sound Effects", isOn: Binding(
-                        get: { soundService.isEnabled },
-                        set: { soundService.setEnabled($0) }
-                    ))
-
-                    Toggle("Haptic Feedback", isOn: Binding(
-                        get: { settings.hapticsEnabled },
-                        set: { settings.setHapticsEnabled($0) }
-                    ))
-                    .sensoryFeedback(.impact, trigger: settings.hapticsEnabled) { _, newValue in
-                        newValue
-                    }
-                }
-
-                Section("How to...") {
-                    NavigationLink {
-                        WidgetsGuideView()
-                    } label: {
-                        Label {
-                            Text("How to Add Widgets")
-                        } icon: {
-                            Image(systemName: "widget.small.badge.plus")
-                                .foregroundStyle(.white)
-                        }
-                    }
-
-                    if settings.powerUpsEnabled {
-                        NavigationLink {
-                            PowerUpsGuideView()
-                        } label: {
-                            Label {
-                                Text("How to Use Power-ups")
-                            } icon: {
-                                Image(systemName: "wand.and.stars")
-                                    .foregroundStyle(.white)
-                            }
-                        }
+                    NavigationLink("Audio & Haptics") {
+                        AudioHapticsSettingsView()
                     }
                 }
 
@@ -279,6 +218,61 @@ struct SettingsView: View {
                             gameCenterService.showDashboard()
                         }
                     }
+                }
+
+                Section {
+                    Button {
+                        openURL(AppStoreLinks.reviewURL)
+                    } label: {
+                        Label {
+                            Text("Rate the app")
+                        } icon: {
+                            Image(systemName: "star.fill")
+                                .foregroundStyle(.yellow)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        showContactOptions = true
+                    } label: {
+                        Label {
+                            Text("Contact the developer")
+                        } icon: {
+                            Image(systemName: "envelope")
+                                .foregroundStyle(.blue)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .confirmationDialog("Select an option", isPresented: $showContactOptions, titleVisibility: .visible) {
+                        ForEach(ContactOption.allCases) { option in
+                            Button(option.title) {
+                                if let mailURL = AppStoreLinks.mailURL(for: option) {
+                                    openURL(mailURL)
+                                }
+                            }
+                        }
+                    }
+
+                    ShareLink(item: AppStoreLinks.productURL) {
+                        Label {
+                            Text("Share the app")
+                        } icon: {
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundStyle(.white)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                } header: {
+                    Text("Contacts")
+                } footer: {
+                    Text("App Version: \(Bundle.main.appVersionNumber) (\(Bundle.main.appBuildNumber))")
                 }
 
                 Section {
@@ -322,50 +316,10 @@ struct SettingsView: View {
             } message: {
                 Text("While enabled, your streak, best moves, games played, and achievements won't be updated. Turn this off to resume tracking your progress.")
             }
-            .alert("Notifications Are Off", isPresented: $showNotificationDeniedAlert) {
-                Button("Open Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Allow notifications for Nine Tiles Puzzle in Settings to turn on the Daily Reminder.")
-            }
         }
         .paywallSheet(context: $paywallContext)
         .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
         .presentationDetents([.medium, .large])
-    }
-
-    /// Turning the toggle on needs a round trip through the system permission prompt (or,
-    /// if already denied, a nudge to the Settings app) before the reminder can actually be
-    /// armed — so the store's `dailyReminderEnabled` is only set once that's resolved.
-    private func handleReminderToggle(_ isOn: Bool) {
-        guard isOn else {
-            settings.setDailyReminderEnabled(false)
-            dailyReminderService.cancelReminder()
-            return
-        }
-        if dailyReminderService.authorizationStatus == .denied {
-            showNotificationDeniedAlert = true
-            return
-        }
-        Task {
-            let granted = dailyReminderService.authorizationStatus == .authorized
-                ? true
-                : await dailyReminderService.requestAuthorization()
-            guard granted else {
-                showNotificationDeniedAlert = true
-                return
-            }
-            settings.setDailyReminderEnabled(true)
-            dailyReminderService.rescheduleIfNeeded(
-                enabled: true,
-                time: settings.dailyReminderTime,
-                completedToday: dailyStore.isDailyCompletedToday
-            )
-        }
     }
 }
 
@@ -375,9 +329,9 @@ struct SettingsView: View {
     let achievements = AchievementsStore()
     let daily = DailyChallengeStore()
     let powerUps = PowerUpStore()
-    Color.clear
-        .sheet(isPresented: .constant(true)) {
-            SettingsView()
+//    Color.clear
+//        .sheet(isPresented: .constant(true)) {
+            return SettingsView()
                 .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: daily, powerUpStore: powerUps, challengeStore: ChallengeStore()))
                 .environment(stats)
                 .environment(settings)
@@ -387,5 +341,5 @@ struct SettingsView: View {
                 .environment(GameCenterService())
                 .environment(DailyReminderService())
                 .environment(StoreManager())
-        }
+//        }
 }

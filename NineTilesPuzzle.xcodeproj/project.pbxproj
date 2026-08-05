@@ -12,9 +12,9 @@
 		1826D7B12FF9192500927433 /* NineTilesPuzzleWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1826D79F2FF9192400927433 /* NineTilesPuzzleWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		441DF071E57141D697E23951 /* NineTilesPuzzleThumbnailExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4D3E2F959DAF45A4B1C08721 /* NineTilesPuzzleThumbnailExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4D99D52BFFCC4762933DCB0E /* QuickLookThumbnailing.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80AAADD4C002484BBC1B8CC0 /* QuickLookThumbnailing.framework */; };
+		CBA623FB3C8240E385957B86 /* Billboard in Frameworks */ = {isa = PBXBuildFile; productRef = 4C6171EEA05A48ACA53628EB /* Billboard */; };
 		DDEE000000000000000000A2 /* NineTilesPuzzlePreviewExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DDEE000000000000000000A1 /* NineTilesPuzzlePreviewExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DDEE000000000000000000A4 /* QuickLook.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDEE000000000000000000A3 /* QuickLook.framework */; };
-		CBA623FB3C8240E385957B86 /* Billboard in Frameworks */ = {isa = PBXBuildFile; productRef = 4C6171EEA05A48ACA53628EB /* Billboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */

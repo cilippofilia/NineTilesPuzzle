@@ -10,13 +10,24 @@ import AVFoundation
 @MainActor
 @Observable
 final class SoundService {
-    private(set) var isEnabled: Bool
+    private(set) var isTileMoveEnabled: Bool
+    private(set) var isCompletionEnabled: Bool
+
+    let tileMoveSoundName = "Classic Click"
+    let completionSoundName = "Chime"
 
     private let clickPlayer: AVAudioPlayer?
     private let completionPlayer: AVAudioPlayer?
 
     init() {
-        isEnabled = UserDefaults.standard.object(forKey: "soundEffectsEnabled") as? Bool ?? true
+        let defaults = UserDefaults.standard
+        if let legacyValue = defaults.object(forKey: "soundEffectsEnabled") as? Bool {
+            isTileMoveEnabled = defaults.object(forKey: "tileMoveSoundEnabled") as? Bool ?? legacyValue
+            isCompletionEnabled = defaults.object(forKey: "completionSoundEnabled") as? Bool ?? legacyValue
+        } else {
+            isTileMoveEnabled = defaults.object(forKey: "tileMoveSoundEnabled") as? Bool ?? true
+            isCompletionEnabled = defaults.object(forKey: "completionSoundEnabled") as? Bool ?? true
+        }
 
         // .ambient respects the ring/silent switch and the system volume.
         try? AVAudioSession.sharedInstance().setCategory(.ambient)
@@ -26,18 +37,23 @@ final class SoundService {
         completionPlayer = Self.loadPlayer(named: "Completion", withExtension: "wav")
     }
 
-    func setEnabled(_ value: Bool) {
-        isEnabled = value
-        UserDefaults.standard.set(value, forKey: "soundEffectsEnabled")
+    func setTileMoveEnabled(_ value: Bool) {
+        isTileMoveEnabled = value
+        UserDefaults.standard.set(value, forKey: "tileMoveSoundEnabled")
+    }
+
+    func setCompletionEnabled(_ value: Bool) {
+        isCompletionEnabled = value
+        UserDefaults.standard.set(value, forKey: "completionSoundEnabled")
     }
 
     func playTileClick() {
-        guard isEnabled else { return }
+        guard isTileMoveEnabled else { return }
         play(clickPlayer)
     }
 
     func playCompletion() {
-        guard isEnabled else { return }
+        guard isCompletionEnabled else { return }
         play(completionPlayer)
     }
 
