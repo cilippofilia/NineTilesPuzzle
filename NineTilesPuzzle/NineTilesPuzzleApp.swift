@@ -85,25 +85,41 @@ struct NineTilesPuzzleApp: App {
             }
             .preferredColorScheme(.dark)
             .task { gameCenterService.authenticate() }
-            .task { await refreshDailyReminder() }
+            .task { await refreshNotifications() }
             .task { await storeManager.start() }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
-                Task { await refreshDailyReminder() }
+                Task { await refreshNotifications() }
             }
         }
     }
 
-    /// Re-syncs the pending reminder with the current authorization/settings state —
-    /// needed on launch and every foreground, since the player may have changed
-    /// notification permission from the system Settings app, or a day may have rolled
-    /// over while the app was backgrounded.
-    private func refreshDailyReminder() async {
+    /// Re-syncs every pending notification with the current authorization/settings state —
+    /// needed on launch and every foreground, since the player may have changed notification
+    /// permission from the system Settings app, or a day may have rolled over while the app
+    /// was backgrounded. The streak-milestone celebration isn't included here — it's fired
+    /// immediately at solve time instead of scheduled ahead.
+    private func refreshNotifications() async {
         await dailyReminderService.refreshAuthorizationStatus()
+        let completedToday = dailyChallengeStore.isDailyCompletedToday
         dailyReminderService.rescheduleIfNeeded(
             enabled: settingsStore.dailyReminderEnabled,
             time: settingsStore.dailyReminderTime,
-            completedToday: dailyChallengeStore.isDailyCompletedToday
+            completedToday: completedToday
+        )
+        dailyReminderService.rescheduleNewChallengeAvailableIfNeeded(
+            enabled: settingsStore.newChallengeAvailableEnabled,
+            time: settingsStore.newChallengeAvailableTime
+        )
+        dailyReminderService.rescheduleStreakAtRiskIfNeeded(
+            enabled: settingsStore.streakAtRiskEnabled,
+            calendarStreak: dailyChallengeStore.calendarStreak,
+            completedToday: completedToday
+        )
+        dailyReminderService.rescheduleWeeklyRecapIfNeeded(
+            enabled: settingsStore.weeklyRecapEnabled,
+            completedDaysThisWeek: dailyChallengeStore.completedDaysInTrailingWeek(),
+            calendarStreak: dailyChallengeStore.calendarStreak
         )
     }
 }

@@ -71,6 +71,16 @@ final class DailyChallengeStore {
         completedDayKeys.contains(Self.dayKey(for: date))
     }
 
+    /// How many of the trailing 7 days (ending on and including `date`) have a completed
+    /// Daily Challenge. Powers the weekly recap notification's "N of the last 7 days" figure.
+    func completedDaysInTrailingWeek(endingOn date: Date = .now) -> Int {
+        let cal = Calendar.current
+        return (0..<7).reduce(into: 0) { count, dayOffset in
+            guard let day = cal.date(byAdding: .day, value: -dayOffset, to: date) else { return }
+            if completedDayKeys.contains(Self.dayKey(for: day)) { count += 1 }
+        }
+    }
+
     /// The stats captured on `date`'s first completion, or `nil` for days that
     /// were never completed or predate per-day record keeping.
     func record(for date: Date) -> DailyDayRecord? {

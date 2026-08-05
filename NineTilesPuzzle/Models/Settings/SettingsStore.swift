@@ -52,13 +52,30 @@ final class SettingsStore {
     /// feature isn't manually verified on real hardware yet, so it ships hidden behind
     /// Settings' Dev Tools section rather than visible to everyone.
     var challengeFriendsEnabled: Bool = false
-    /// Whether the Daily Challenge reminder notification is armed. Turned on automatically
-    /// the first time the player grants notification permission (prompted after their
-    /// first-ever daily completion), and toggleable afterward in Settings.
-    var dailyReminderEnabled: Bool = false
+    /// Whether the Daily Challenge reminder notification is armed. On by default — actually
+    /// scheduling it still waits for notification permission, requested the first time it can
+    /// be tied to an engaged moment (first-ever daily completion, or first visit to the
+    /// Notifications settings screen) rather than nagging on cold launch.
+    var dailyReminderEnabled: Bool = true
     /// Only the hour/minute of this date are used — the day is irrelevant, it just needs
     /// to be a `Date` for `DatePicker` to bind to.
     var dailyReminderTime: Date = Calendar.current.date(bySettingHour: 20, minute: 0, second: 0, of: .now) ?? .now
+    /// Whether the "a new Daily Challenge is ready" notification is armed. Sent whether or
+    /// not the player already completed today's challenge, unlike the reminder above. Off by
+    /// default — stacked with Daily Reminder and Streak at Risk it's a third daily nudge
+    /// toward the same action, so this one stays opt-in.
+    var newChallengeAvailableEnabled: Bool = false
+    /// Only the hour/minute of this date are used, same as `dailyReminderTime`.
+    var newChallengeAvailableTime: Date = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: .now) ?? .now
+    /// Whether the late-day "your streak is about to lapse" nudge is armed. Fixed at 9 PM
+    /// and only sent while an active streak would actually break — no user-configurable time.
+    /// Off by default, same reasoning as `newChallengeAvailableEnabled`.
+    var streakAtRiskEnabled: Bool = false
+    /// Whether a celebration notification fires when the calendar streak hits a milestone
+    /// (3, 7, 14, 30... days).
+    var streakMilestonesEnabled: Bool = true
+    /// Whether a Sunday-evening recap notification (days played, current streak) is armed.
+    var weeklyRecapEnabled: Bool = true
 
     init(defaults: PersistenceStore = UserDefaults.standard) {
         self.defaults = defaults
@@ -163,6 +180,31 @@ final class SettingsStore {
         defaults.set(time, forKey: Keys.dailyReminderTime)
     }
 
+    func setNewChallengeAvailableEnabled(_ value: Bool) {
+        newChallengeAvailableEnabled = value
+        defaults.set(value, forKey: Keys.newChallengeAvailableEnabled)
+    }
+
+    func setNewChallengeAvailableTime(_ time: Date) {
+        newChallengeAvailableTime = time
+        defaults.set(time, forKey: Keys.newChallengeAvailableTime)
+    }
+
+    func setStreakAtRiskEnabled(_ value: Bool) {
+        streakAtRiskEnabled = value
+        defaults.set(value, forKey: Keys.streakAtRiskEnabled)
+    }
+
+    func setStreakMilestonesEnabled(_ value: Bool) {
+        streakMilestonesEnabled = value
+        defaults.set(value, forKey: Keys.streakMilestonesEnabled)
+    }
+
+    func setWeeklyRecapEnabled(_ value: Bool) {
+        weeklyRecapEnabled = value
+        defaults.set(value, forKey: Keys.weeklyRecapEnabled)
+    }
+
     func resetSettings() {
         setPreviewDuration(3)
         setStreakCountdownDuration(30)
@@ -195,6 +237,11 @@ private extension SettingsStore {
         static let challengeFriendsEnabled = "puzzle.challengeFriendsEnabled"
         static let dailyReminderEnabled = "puzzle.dailyReminderEnabled"
         static let dailyReminderTime = "puzzle.dailyReminderTime"
+        static let newChallengeAvailableEnabled = "puzzle.newChallengeAvailableEnabled"
+        static let newChallengeAvailableTime = "puzzle.newChallengeAvailableTime"
+        static let streakAtRiskEnabled = "puzzle.streakAtRiskEnabled"
+        static let streakMilestonesEnabled = "puzzle.streakMilestonesEnabled"
+        static let weeklyRecapEnabled = "puzzle.weeklyRecapEnabled"
     }
 
     func restoreFromUserDefaults() {
@@ -247,6 +294,21 @@ private extension SettingsStore {
         }
         if let time = defaults.object(forKey: Keys.dailyReminderTime) as? Date {
             dailyReminderTime = time
+        }
+        if defaults.object(forKey: Keys.newChallengeAvailableEnabled) != nil {
+            newChallengeAvailableEnabled = defaults.bool(forKey: Keys.newChallengeAvailableEnabled)
+        }
+        if let time = defaults.object(forKey: Keys.newChallengeAvailableTime) as? Date {
+            newChallengeAvailableTime = time
+        }
+        if defaults.object(forKey: Keys.streakAtRiskEnabled) != nil {
+            streakAtRiskEnabled = defaults.bool(forKey: Keys.streakAtRiskEnabled)
+        }
+        if defaults.object(forKey: Keys.streakMilestonesEnabled) != nil {
+            streakMilestonesEnabled = defaults.bool(forKey: Keys.streakMilestonesEnabled)
+        }
+        if defaults.object(forKey: Keys.weeklyRecapEnabled) != nil {
+            weeklyRecapEnabled = defaults.bool(forKey: Keys.weeklyRecapEnabled)
         }
     }
 }

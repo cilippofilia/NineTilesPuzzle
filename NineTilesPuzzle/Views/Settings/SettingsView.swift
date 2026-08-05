@@ -10,7 +10,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(GameSession.self) private var session
-    @Environment(StatsStore.self) private var statsStore
     @Environment(SettingsStore.self) private var settings
     @Environment(DailyChallengeStore.self) private var dailyStore
     @Environment(PowerUpStore.self) private var powerUpStore
@@ -19,7 +18,6 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
-    @State private var showResetStatsAlert = false
     @State private var showResetSettingsAlert = false
     @State private var showDebugOverlayAlert = false
     @State private var showContactOptions = false
@@ -276,13 +274,11 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Button("Reset Stats", role: .destructive) {
-                        showResetStatsAlert = true
-                    }
-
                     Button("Reset Settings", role: .destructive) {
                         showResetSettingsAlert = true
                     }
+                } footer: {
+                    Text("Won't affect your stats or streaks.")
                 }
             }
             .navigationTitle("Settings")
@@ -291,15 +287,6 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
-            }
-            .alert("Reset Stats?", isPresented: $showResetStatsAlert) {
-                Button("Reset", role: .destructive) {
-                    statsStore.resetStats()
-                    session.syncWidgetsAfterReset()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Your current streak, best streak, move counter, personal bests, and games played will be cleared.")
             }
             .alert("Reset Settings?", isPresented: $showResetSettingsAlert) {
                 Button("Reset", role: .destructive) {

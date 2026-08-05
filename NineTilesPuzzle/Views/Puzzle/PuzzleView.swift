@@ -396,27 +396,61 @@ struct PuzzleView: View {
         }
     }
 
-    /// Keeps the daily reminder notification in sync with today's completion, and — the
-    /// very first time ever — prompts for notification permission at a moment the player
-    /// is already engaged, rather than on cold launch where it's easy to reflexively deny.
+    /// Keeps every notification in sync with today's completion, fires the streak-milestone
+    /// celebration if this solve just crossed one, and — the very first time ever — prompts
+    /// for notification permission at a moment the player is already engaged, rather than on
+    /// cold launch where it's easy to reflexively deny. Every toggle defaults to on, so a
+    /// denial here needs to flip them back off — otherwise Settings would keep showing them
+    /// "on" while nothing actually gets scheduled.
     private func handleDailyChallengeSolved() {
         if session.isFirstDailyCompletion {
             Task {
                 let granted = await dailyReminderService.requestAuthorization()
-                if granted { settings.setDailyReminderEnabled(true) }
-                dailyReminderService.rescheduleIfNeeded(
-                    enabled: settings.dailyReminderEnabled,
-                    time: settings.dailyReminderTime,
-                    completedToday: true
-                )
+                if !granted {
+                    settings.setDailyReminderEnabled(false)
+                    settings.setNewChallengeAvailableEnabled(false)
+                    settings.setStreakAtRiskEnabled(false)
+                    settings.setStreakMilestonesEnabled(false)
+                    settings.setWeeklyRecapEnabled(false)
+                }
+                refreshAllDailyChallengeNotifications()
             }
         } else {
-            dailyReminderService.rescheduleIfNeeded(
-                enabled: settings.dailyReminderEnabled,
-                time: settings.dailyReminderTime,
-                completedToday: true
-            )
+            refreshDailyChallengeNotifications()
         }
+
+        if settings.streakMilestonesEnabled {
+            dailyReminderService.sendStreakMilestoneNotificationIfNeeded(calendarStreak: dailyChallengeStore.calendarStreak)
+        }
+    }
+
+    private func refreshDailyChallengeNotifications() {
+        dailyReminderService.rescheduleIfNeeded(
+            enabled: settings.dailyReminderEnabled,
+            time: settings.dailyReminderTime,
+            completedToday: true
+        )
+        dailyReminderService.rescheduleStreakAtRiskIfNeeded(
+            enabled: settings.streakAtRiskEnabled,
+            calendarStreak: dailyChallengeStore.calendarStreak,
+            completedToday: true
+        )
+    }
+
+    /// Same as `refreshDailyChallengeNotifications()`, plus the two kinds that don't depend
+    /// on today's completion — only needed right after permission is first resolved, since
+    /// `NineTilesPuzzleApp`'s foreground hook otherwise keeps those in sync.
+    private func refreshAllDailyChallengeNotifications() {
+        refreshDailyChallengeNotifications()
+        dailyReminderService.rescheduleNewChallengeAvailableIfNeeded(
+            enabled: settings.newChallengeAvailableEnabled,
+            time: settings.newChallengeAvailableTime
+        )
+        dailyReminderService.rescheduleWeeklyRecapIfNeeded(
+            enabled: settings.weeklyRecapEnabled,
+            completedDaysThisWeek: dailyChallengeStore.completedDaysInTrailingWeek(),
+            calendarStreak: dailyChallengeStore.calendarStreak
+        )
     }
 
     private func renderSolvedPNG() -> SolvedPuzzleImage? {
