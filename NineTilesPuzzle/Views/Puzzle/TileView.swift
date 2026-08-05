@@ -14,7 +14,7 @@ struct TileView: View {
     let gridSize: Int
     let isFogMode: Bool
     let isHinted: Bool
-    let hapticsEnabled: Bool
+    let feedbackIntensity: FeedbackIntensity
     let debugOverlayEnabled: Bool
     let onDragStarted: () -> Void
     let onDragEnded: (CGPoint) -> Void
@@ -53,8 +53,8 @@ struct TileView: View {
         .scaleEffect(isDragging ? 1.08 : (tile.isCorrect ? 1.0 : 0.98))
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: tile.isCorrect)
         .shadow(radius: isDragging ? 8 : 0)
-        .sensoryFeedback(.impact(flexibility: .rigid, intensity: 0.7), trigger: tile.isCorrect) { _, newValue in
-            newValue && hapticsEnabled
+        .sensoryFeedback(trigger: tile.isCorrect) { _, newValue in
+            newValue ? feedbackIntensity.impactFeedback(flexibility: .rigid) : nil
         }
         .overlay {
             if isHinted {

@@ -100,11 +100,12 @@ struct QuickSnapCameraView: View {
         .animation(.easeInOut(duration: 0.3), value: isReady)
         // A tick on each second down, then a firmer beat when the shutter actually fires — the
         // countdown you feel as well as see, like the Fitness app's pre-workout timer.
-        .sensoryFeedback(.selection, trigger: secondsRemaining) { oldValue, newValue in
-            settings.hapticsEnabled && isReady && newValue < oldValue && newValue > 0
+        .sensoryFeedback(trigger: secondsRemaining) { oldValue, newValue in
+            guard isReady, newValue < oldValue, newValue > 0 else { return nil }
+            return settings.feedbackIntensity.selectionFeedback
         }
-        .sensoryFeedback(.impact(flexibility: .solid), trigger: hasCaptured) { _, captured in
-            settings.hapticsEnabled && captured
+        .sensoryFeedback(trigger: hasCaptured) { _, captured in
+            captured ? settings.feedbackIntensity.impactFeedback(flexibility: .solid) : nil
         }
         .task {
             do {

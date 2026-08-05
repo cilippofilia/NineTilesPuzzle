@@ -21,7 +21,7 @@ final class SettingsStore {
     var quickSnapDuration: Double = 3
     /// Which camera Quick Snap opens with, remembered across sessions. `false` is the back camera.
     var quickSnapUsesFrontCamera: Bool = false
-    var hapticsEnabled: Bool = true
+    var feedbackIntensity: FeedbackIntensity = .standard
     /// Master switch for the power-ups system (Peek, Hint, Streak Freeze, Re-shuffle,
     /// Auto-place). Still being tuned, so it ships hidden — there's no user-facing control,
     /// only the toggle in Settings' Dev Tools section.
@@ -101,9 +101,9 @@ final class SettingsStore {
         defaults.set(value, forKey: Keys.quickSnapUsesFrontCamera)
     }
 
-    func setHapticsEnabled(_ value: Bool) {
-        hapticsEnabled = value
-        defaults.set(value, forKey: Keys.hapticsEnabled)
+    func setFeedbackIntensity(_ value: FeedbackIntensity) {
+        feedbackIntensity = value
+        defaults.set(value.rawValue, forKey: Keys.feedbackIntensity)
     }
 
     func setPowerUpsEnabled(_ value: Bool) {
@@ -168,7 +168,7 @@ final class SettingsStore {
         setStreakCountdownDuration(30)
         setQuickSnapDuration(3)
         setQuickSnapUsesFrontCamera(false)
-        setHapticsEnabled(true)
+        setFeedbackIntensity(.standard)
         setPeekDuration(PowerUpRules.peekDuration)
         setStreakMilestoneInterval(PowerUpRules.streakMilestoneInterval)
     }
@@ -180,7 +180,10 @@ private extension SettingsStore {
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
         static let quickSnapDuration = "puzzle.quickSnapDuration"
         static let quickSnapUsesFrontCamera = "puzzle.quickSnapUsesFrontCamera"
-        static let hapticsEnabled = "puzzle.hapticsEnabled"
+        static let feedbackIntensity = "puzzle.feedbackIntensity"
+        /// Superseded by `feedbackIntensity`, kept only so `restoreFromUserDefaults` can
+        /// migrate players who had haptics turned off under the old on/off toggle.
+        static let legacyHapticsEnabled = "puzzle.hapticsEnabled"
         static let powerUpsEnabled = "puzzle.powerUpsEnabled"
         static let debugOverlayEnabled = "puzzle.debugOverlayEnabled"
         static let peekDuration = "puzzle.peekDuration"
@@ -207,8 +210,10 @@ private extension SettingsStore {
         if defaults.object(forKey: Keys.quickSnapUsesFrontCamera) != nil {
             quickSnapUsesFrontCamera = defaults.bool(forKey: Keys.quickSnapUsesFrontCamera)
         }
-        if defaults.object(forKey: Keys.hapticsEnabled) != nil {
-            hapticsEnabled = defaults.bool(forKey: Keys.hapticsEnabled)
+        if let rawValue = defaults.string(forKey: Keys.feedbackIntensity), let value = FeedbackIntensity(rawValue: rawValue) {
+            feedbackIntensity = value
+        } else if defaults.object(forKey: Keys.legacyHapticsEnabled) != nil {
+            feedbackIntensity = defaults.bool(forKey: Keys.legacyHapticsEnabled) ? .standard : .off
         }
         if defaults.object(forKey: Keys.powerUpsEnabled) != nil {
             powerUpsEnabled = defaults.bool(forKey: Keys.powerUpsEnabled)

@@ -17,7 +17,7 @@ struct NineTilesPuzzleApp: App {
     @State private var challengeStore: ChallengeStore
     @State private var storeManager: StoreManager
     @State private var gameSession: GameSession
-    @State private var soundService = SoundService()
+    @State private var soundService: SoundService
     @State private var gameCenterService = GameCenterService()
     @State private var wallOfFameStore = WallOfFameStore()
     @State private var motionManager = MotionManager()
@@ -43,6 +43,7 @@ struct NineTilesPuzzleApp: App {
         _powerUpStore = State(initialValue: powerUpStore)
         _challengeStore = State(initialValue: challengeStore)
         _storeManager = State(initialValue: storeManager)
+        _soundService = State(initialValue: SoundService(volumeScale: { settingsStore.feedbackIntensity.scale }))
         _gameSession = State(initialValue: GameSession(
             statsStore: statsStore,
             achievementsStore: achievementsStore,

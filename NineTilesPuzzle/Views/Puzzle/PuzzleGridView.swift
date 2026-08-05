@@ -43,7 +43,7 @@ struct PuzzleGridView: View {
                                     gridSize: session.gridSize,
                                     isFogMode: session.isFogMode,
                                     isHinted: tile.id == session.hintedTileID,
-                                    hapticsEnabled: settings.hapticsEnabled,
+                                    feedbackIntensity: settings.feedbackIntensity,
                                     debugOverlayEnabled: settings.debugOverlayEnabled,
                                     onDragStarted: { draggingTileID = tile.id },
                                     onDragEnded: { point in

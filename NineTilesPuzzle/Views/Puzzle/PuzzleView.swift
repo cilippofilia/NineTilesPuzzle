@@ -181,17 +181,17 @@ struct PuzzleView: View {
                 await session.startNewGame()
             }
         }
-        .sensoryFeedback(.success, trigger: session.isSolved) { _, newValue in
-            newValue && settings.hapticsEnabled
+        .sensoryFeedback(trigger: session.isSolved) { _, newValue in
+            newValue ? settings.feedbackIntensity.semanticFeedback(.success) : nil
         }
-        .sensoryFeedback(.warning, trigger: session.didBreakStreak) { _, _ in
-            settings.hapticsEnabled
+        .sensoryFeedback(trigger: session.didBreakStreak) { _, _ in
+            settings.feedbackIntensity.semanticFeedback(.warning)
         }
-        .sensoryFeedback(.error, trigger: session.isTimeTrialFailed) { _, newValue in
-            newValue && settings.hapticsEnabled
+        .sensoryFeedback(trigger: session.isTimeTrialFailed) { _, newValue in
+            newValue ? settings.feedbackIntensity.semanticFeedback(.error) : nil
         }
-        .sensoryFeedback(.error, trigger: session.isLimitedMovesFailed) { _, newValue in
-            newValue && settings.hapticsEnabled
+        .sensoryFeedback(trigger: session.isLimitedMovesFailed) { _, newValue in
+            newValue ? settings.feedbackIntensity.semanticFeedback(.error) : nil
         }
         .onChange(of: session.isSolved) { _, solved in
             completion.handleSolvedChange(solved, onSolved: soundService.playCompletion)
