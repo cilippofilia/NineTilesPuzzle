@@ -290,7 +290,7 @@ struct PuzzleView: View {
                     showQuickSnapRecapture = false
                     session.refreshQuickSnapImage(with: image)
                     // Bumped here rather than when "Continue" first opened the camera sheet, so
-                    // it can't race Billboard's `.fullScreenCover` against this one still being
+                    // it can't race PrivateAds's `.fullScreenCover` against this one still being
                     // presented — by the time this fires, the camera sheet is already closing.
                     session.completedGameSignal += 1
                     startNewGame()
@@ -538,7 +538,7 @@ struct PuzzleView: View {
     /// next round plays a freshly snapped scene rather than reshuffling the shot just solved;
     /// every other mode simply starts a new game in place. Quick Snap's `completedGameSignal`
     /// bump happens later, in the recapture sheet's `onCapture` — not here — so it can't race
-    /// Billboard's own `.fullScreenCover` against the camera sheet still being on screen.
+    /// PrivateAds's own `.fullScreenCover` against the camera sheet still being on screen.
     private func handleContinue() {
         if session.isQuickSnapActive {
             showQuickSnapRecapture = true

@@ -5,7 +5,7 @@
 //  Created by Filippo Cilia on 5/27/26.
 //
 
-import Billboard
+import PrivateAds
 import SwiftUI
 import UIKit
 
@@ -19,14 +19,14 @@ struct MenuView: View {
     @State private var showTipsAlert = false
     @State private var showQuickSnapCamera = false
     @State private var paywallContext: PaywallContext?
-    @State private var interstitialAd: BillboardAd?
-    @State private var bannerAd: BillboardAd?
+    @State private var interstitialAd: Ad?
+    @State private var bannerAd: Ad?
 
     /// Points at a personal cross-promo feed (github.com/cilippofilia/cross-promo-ads) instead
-    /// of Billboard's default shared community feed, so only Filippo Cilia's own apps show up.
+    /// of PrivateAds's default shared community feed, so only Filippo Cilia's own apps show up.
     /// "6776386637" is this app's own Apple ID (ASC app resource id, same number as the App
-    /// Store URL) — excluded so Billboard never advertises this app to its own free players.
-    private let billboardConfiguration = BillboardConfiguration(
+    /// Store URL) — excluded so PrivateAds never advertises this app to its own free players.
+    private let adConfiguration = AdConfiguration(
         adsJSONURL: URL(string: "https://raw.githubusercontent.com/cilippofilia/cross-promo-ads/main/ads.json"),
         excludedIDs: ["6776386637"]
     )
@@ -96,7 +96,7 @@ struct MenuView: View {
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("Settings", systemImage: "gearshape.fill") {
+                        Button("Settings", systemImage: "gear") {
                             showSettings = true
                         }
                         .labelStyle(.iconOnly)
@@ -128,12 +128,12 @@ struct MenuView: View {
                     beginGame(session: session, path: $path)
                 }
                 .paywallSheet(context: $paywallContext)
-                // A Billboard cross-promo ad every 3rd solved game (see the `.onChange` below) —
+                // A PrivateAds cross-promo ad every 3rd solved game (see the `.onChange` below) —
                 // whether that's landing back on the menu or chaining another "Continue" without
                 // ever leaving `PuzzleView` (a `.fullScreenCover` presents over the whole window
                 // regardless of nav-stack depth). Never mid-game or on a quit (see
                 // `completedGameSignal`'s doc comment on `GameSession`). Fetched directly (rather
-                // than via Billboard's own `.showBillboard(when:)`) so a failed fetch can't get
+                // than via PrivateAds's own `.showAd(when:)`) so a failed fetch can't get
                 // the trigger stuck: that helper re-fetches only on a false→true edge of its
                 // `Binding<Bool>`, which never resets to false when a fetch comes back empty,
                 // silently disabling every future interstitial for the rest of the app session.
@@ -141,7 +141,7 @@ struct MenuView: View {
                 // `interstitialAd` to nil on dismiss, so the next eligible completion always gets
                 // a fresh attempt regardless of whether the last one found an ad.
                 .fullScreenCover(item: $interstitialAd) { ad in
-                    BillboardView(advert: ad, config: billboardConfiguration) {
+                    AdView(advert: ad, config: adConfiguration) {
                         PaywallView(context: .removeAds)
                     }
                 }
@@ -153,20 +153,15 @@ struct MenuView: View {
             // instantly (no lingering dismiss animation) the moment premium unlocks mid-session.
             .safeAreaInset(edge: .bottom) {
                 if !store.isPremiumUnlocked, let bannerAd {
-                    BillboardBannerView(advert: bannerAd, config: billboardConfiguration, hideDismissButtonAndTimer: true)
-                        .overlay(alignment: .topTrailing) {
-                            Button("Remove Ads", systemImage: "xmark") {
-                                paywallContext = .removeAds
-                            }
-                            .labelStyle(.iconOnly)
-                            .font(.caption.bold())
-                            .foregroundStyle(.white)
-                            .padding(6)
-                            .background(.black.opacity(0.45), in: .circle)
-                            .buttonStyle(.plain)
-                            .padding(8)
+                    AdBannerView(
+                        advert: bannerAd,
+                        config: adConfiguration,
+                        hideDismissButtonAndTimer: true,
+                        cornerButton: .init(label: "Remove Ads") {
+                            paywallContext = .removeAds
                         }
-                        .padding()
+                    )
+                    .padding()
                 }
             }
             .task { await refreshBannerAd() }
@@ -190,16 +185,16 @@ struct MenuView: View {
     /// entire app session. No-ops (leaving whatever's already showing) for premium players or if
     /// the fetch fails; a failed fetch surfaces no error since a missing banner is a non-event.
     private func refreshBannerAd() async {
-        guard !store.isPremiumUnlocked, let url = billboardConfiguration.adsJSONURL else { return }
-        bannerAd = try? await BillboardViewModel.fetchRandomAd(from: url, excludedIDs: billboardConfiguration.excludedIDs)
+        guard !store.isPremiumUnlocked, let url = adConfiguration.adsJSONURL else { return }
+        bannerAd = try? await AdStore.fetchRandomAd(from: url, excludedIDs: adConfiguration.excludedIDs)
     }
 
     /// Fetches the single post-solve interstitial ad — see the doc comment at this view's
     /// `.fullScreenCover(item: $interstitialAd)` for why this is a direct fetch rather than
-    /// Billboard's own `.showBillboard(when:)` helper.
+    /// PrivateAds's own `.showAd(when:)` helper.
     private func refreshInterstitialAd() async {
-        guard let url = billboardConfiguration.adsJSONURL else { return }
-        interstitialAd = try? await BillboardViewModel.fetchRandomAd(from: url, excludedIDs: billboardConfiguration.excludedIDs)
+        guard let url = adConfiguration.adsJSONURL else { return }
+        interstitialAd = try? await AdStore.fetchRandomAd(from: url, excludedIDs: adConfiguration.excludedIDs)
     }
 
     /// Routes a widget deep link to its destination, dismissing any covering sheets so the

@@ -83,7 +83,7 @@ final class GameSession {
     /// `onCapture`) right before starting the next round in place. Never bumped on a mid-game
     /// quit (unsolved), and deliberately not touched by `challengeThemBack()`'s `leaveGame()`
     /// call, which stays on `PuzzleView` for an immediate rechallenge rather than a genuine
-    /// "finished a round" moment. `MenuView` observes this to show a Billboard cross-promo ad
+    /// "finished a round" moment. `MenuView` observes this to show a PrivateAds cross-promo ad
     /// every 3rd bump — a `.fullScreenCover` presents over the whole window regardless of where
     /// in the nav stack it's declared, so this works whether the player is back at the menu or
     /// mid-`PuzzleView` chaining "Continue" taps.

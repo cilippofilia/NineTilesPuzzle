@@ -10,9 +10,9 @@
 		1826D7A22FF9192400927433 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1826D7A12FF9192400927433 /* WidgetKit.framework */; };
 		1826D7A42FF9192400927433 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1826D7A32FF9192400927433 /* SwiftUI.framework */; };
 		1826D7B12FF9192500927433 /* NineTilesPuzzleWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1826D79F2FF9192400927433 /* NineTilesPuzzleWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		18B49F5A3028BCE000A268FE /* PrivateAds in Frameworks */ = {isa = PBXBuildFile; productRef = 18B49F593028BCE000A268FE /* PrivateAds */; };
 		441DF071E57141D697E23951 /* NineTilesPuzzleThumbnailExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4D3E2F959DAF45A4B1C08721 /* NineTilesPuzzleThumbnailExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4D99D52BFFCC4762933DCB0E /* QuickLookThumbnailing.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80AAADD4C002484BBC1B8CC0 /* QuickLookThumbnailing.framework */; };
-		CBA623FB3C8240E385957B86 /* Billboard in Frameworks */ = {isa = PBXBuildFile; productRef = 4C6171EEA05A48ACA53628EB /* Billboard */; };
 		DDEE000000000000000000A2 /* NineTilesPuzzlePreviewExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DDEE000000000000000000A1 /* NineTilesPuzzlePreviewExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DDEE000000000000000000A4 /* QuickLook.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDEE000000000000000000A3 /* QuickLook.framework */; };
 /* End PBXBuildFile section */
@@ -198,7 +198,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CBA623FB3C8240E385957B86 /* Billboard in Frameworks */,
+				18B49F5A3028BCE000A268FE /* PrivateAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -326,7 +326,7 @@
 			);
 			name = NineTilesPuzzle;
 			packageProductDependencies = (
-				4C6171EEA05A48ACA53628EB /* Billboard */,
+				18B49F593028BCE000A268FE /* PrivateAds */,
 			);
 			productName = NineTilesPuzzle;
 			productReference = 18ADCFA12FC4C364001C204F /* NineTilesPuzzle.app */;
@@ -414,7 +414,7 @@
 			mainGroup = 18ADCF982FC4C364001C204F;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				069309724FFD47FC872F2AF4 /* XCRemoteSwiftPackageReference "Billboard" */,
+				18B49F583028BCE000A268FE /* XCLocalSwiftPackageReference "../../Other/PrivateAds" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 18ADCFA22FC4C364001C204F /* Products */;
@@ -1136,22 +1136,17 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		069309724FFD47FC872F2AF4 /* XCRemoteSwiftPackageReference "Billboard" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/hiddevdploeg/Billboard";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.2.0;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		18B49F583028BCE000A268FE /* XCLocalSwiftPackageReference "../../Other/PrivateAds" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../Other/PrivateAds;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		4C6171EEA05A48ACA53628EB /* Billboard */ = {
+		18B49F593028BCE000A268FE /* PrivateAds */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 069309724FFD47FC872F2AF4 /* XCRemoteSwiftPackageReference "Billboard" */;
-			productName = Billboard;
+			productName = PrivateAds;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
