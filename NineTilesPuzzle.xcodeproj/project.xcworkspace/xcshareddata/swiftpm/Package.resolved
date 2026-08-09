@@ -1,0 +1,15 @@
+{
+  "originHash" : "769f601cb17740f8821cf31b4397d16c17c4cfda5ea770d8d1cd8dfdcc31b9fc",
+  "pins" : [
+    {
+      "identity" : "privateads",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/cilippofilia/PrivateAds.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "ca0bfc441c8a49e4440d0ac466a0109b2ebb9093"
+      }
+    }
+  ],
+  "version" : 3
+}
