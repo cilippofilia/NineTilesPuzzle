@@ -34,11 +34,21 @@
       </div>
       <h1 class="title">9 Tiles Puzzle</h1>
       <p class="tagline">Slice any photo into a grid, scramble it, and race to put it back together — seven ways to play.</p>
-      <div class="badge-row">
+      <div class="countdown" id="countdown" data-release="2026-09-28T00:00:00" aria-label="Time until release">
+        <div class="countdown-unit"><span class="countdown-value" id="cd-days"><span class="digit">0</span><span class="digit">0</span></span><span class="countdown-label">Days</span></div>
+        <div class="countdown-unit"><span class="countdown-value" id="cd-hours"><span class="digit">0</span><span class="digit">0</span></span><span class="countdown-label">Hours</span></div>
+        <div class="countdown-unit"><span class="countdown-value" id="cd-minutes"><span class="digit">0</span><span class="digit">0</span></span><span class="countdown-label">Min</span></div>
+        <div class="countdown-unit"><span class="countdown-value" id="cd-seconds"><span class="digit">0</span><span class="digit">0</span></span><span class="countdown-label">Sec</span></div>
+      </div>
+      <p class="release-live" id="release-live" hidden>🎉 Available now!</p>
+      <div class="badge-row" id="badge-pre">
         <a class="btn primary" href="https://apps.apple.com/app/id6776386637">Pre-order on the App Store</a>
         <a class="btn secondary" href="https://testflight.apple.com/join/7FvEWNPR">Test the Beta*</a>
       </div>
-      <p class="beta-note">* Active beta testers unlock the full app for free, forever.</p>
+      <p class="beta-note" id="beta-note">* Active beta testers unlock the full app for free, forever.</p>
+      <div class="badge-row" id="badge-post" hidden>
+        <a class="btn primary" href="https://apps.apple.com/app/id6776386637">Download on the App Store</a>
+      </div>
     </header>
 
     <main>

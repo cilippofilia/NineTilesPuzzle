@@ -245,6 +245,86 @@ h1.title {
   margin: 0 auto 2rem;
 }
 
+.countdown {
+  display: flex;
+  justify-content: center;
+  gap: 0.9rem;
+  margin: 0 0 2rem;
+  flex-wrap: wrap;
+}
+
+.countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 64px;
+  padding: 0.7rem 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(14px);
+}
+
+.countdown-value {
+  display: inline-flex;
+  overflow: hidden;
+  line-height: 1.15;
+  font-size: clamp(1.3rem, 3.4vw, 1.7rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-value .digit {
+  display: inline-block;
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.countdown-value .digit.tick {
+  animation: countdownTick 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes countdownTick {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown-value .digit.tick {
+    animation: none;
+  }
+}
+
+.countdown-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.release-live {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 2rem;
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.badge-row[hidden] {
+  display: none;
+}
+
 .badge-row {
   display: flex;
   justify-content: center;
