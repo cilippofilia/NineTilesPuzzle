@@ -15,7 +15,6 @@ struct TileView: View {
     let isFogMode: Bool
     let isHinted: Bool
     let feedbackIntensity: FeedbackIntensity
-    let debugOverlayEnabled: Bool
     let onDragStarted: () -> Void
     let onDragEnded: (CGPoint) -> Void
 
@@ -83,18 +82,6 @@ struct TileView: View {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) {
                     isHintPulsing = false
                 }
-            }
-        }
-        .overlay(alignment: .topLeading) {
-            if debugOverlayEnabled {
-                Text("\(tile.id + 1)")
-                    .font(.caption2.bold())
-                    .monospacedDigit()
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 3)
-                    .padding(.vertical, 2)
-                    .background(.black.opacity(0.55), in: .rect(cornerRadius: 4))
-                    .padding(4)
             }
         }
         .allowsHitTesting(!tile.isLocked)

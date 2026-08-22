@@ -44,7 +44,6 @@ struct PuzzleGridView: View {
                                     isFogMode: session.isFogMode,
                                     isHinted: tile.id == session.hintedTileID,
                                     feedbackIntensity: settings.feedbackIntensity,
-                                    debugOverlayEnabled: settings.debugOverlayEnabled,
                                     onDragStarted: { draggingTileID = tile.id },
                                     onDragEnded: { point in
                                         handleDrop(point, for: tile, currentTileSize: calculatedTileSize)
