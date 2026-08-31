@@ -43,3 +43,21 @@ struct PuzzleErrorView: View {
         .padding()
     }
 }
+
+#Preview("Provider Unavailable") {
+    PuzzleErrorView(
+        error: ImageSourceError.providerUnavailable,
+        isDailyStreakFrozen: false,
+        onRetry: {},
+        onSwitchToPhotos: {}
+    )
+}
+
+#Preview("Provider Unavailable — Streak Frozen") {
+    PuzzleErrorView(
+        error: ImageSourceError.providerUnavailable,
+        isDailyStreakFrozen: true,
+        onRetry: {},
+        onSwitchToPhotos: {}
+    )
+}

@@ -75,3 +75,26 @@ struct DailyChallengeCardView: View {
         .environment(dailyStore)
         .padding()
 }
+
+#Preview("Frozen Today") {
+    DailyChallengeCardView(onPlay: {}, onShowCalendar: {})
+        .environment(frozenTodayPreviewStore())
+        .padding()
+}
+
+/// Seeds a scratch `UserDefaults` suite with a live streak completed yesterday, then freezes
+/// today through the real `freezeStreakForOutage` path — exercising the same route a Picsum
+/// outage would, rather than faking `isTodayFrozen` some other way. Pulled out of the `#Preview`
+/// closure itself: a `@ViewBuilder` body can't hold `Void`-returning setup statements directly.
+private func frozenTodayPreviewStore() -> DailyChallengeStore {
+    let suiteName = "preview.dailyChallengeCard.frozen"
+    let suite = UserDefaults(suiteName: suiteName)!
+    suite.removePersistentDomain(forName: suiteName)
+    suite.set(5, forKey: "daily.calendarStreak")
+    let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now)!
+    suite.set(yesterday.timeIntervalSinceReferenceDate, forKey: "daily.lastCompletedDate")
+
+    let dailyStore = DailyChallengeStore(defaults: suite)
+    dailyStore.freezeStreakForOutage()
+    return dailyStore
+}
