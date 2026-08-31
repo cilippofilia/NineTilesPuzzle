@@ -11,8 +11,13 @@ import SwiftUI
 /// when the tile-index overlay is enabled, since progress isn't tracked in that mode.
 /// Slide mode shows only the move counter: a streak of consecutive correct placements
 /// isn't a meaningful metric when sliding tiles in and out of place is normal mid-solve.
+/// Daily Challenge never accrues a live streak either — `GameSession.registerMove()`
+/// deliberately skips `StatsStore.recordStreakIncrement` while a daily game is active,
+/// so a Daily game in Swap mode shows time elapsed instead of a streak counter that
+/// would otherwise sit frozen at zero all round.
 struct PuzzleStatusBarView: View {
     let gameMode: GameMode
+    let isDailyGameActive: Bool
     let debugOverlayEnabled: Bool
     let currentStreak: Int
     let bestStreak: Int
@@ -74,6 +79,14 @@ struct PuzzleStatusBarView: View {
                 MoveCounterView(moves: moveCount, personalBest: personalBest)
                     .padding(.trailing)
             }
+        } else if isDailyGameActive {
+            HStack {
+                TimeCounterView(elapsed: elapsedTime, personalBest: personalBestTime)
+                    .padding(.leading)
+                Spacer()
+                MoveCounterView(moves: moveCount, personalBest: personalBest)
+                    .padding(.trailing)
+            }
         } else {
             HStack {
                 StreakCounterView(currentStreak: currentStreak, bestStreak: bestStreak, timerRemaining: timerRemaining, isTimerRunning: isTimerRunning)
@@ -88,11 +101,12 @@ struct PuzzleStatusBarView: View {
 
 #Preview {
     VStack(spacing: 20) {
-        PuzzleStatusBarView(gameMode: .swap, debugOverlayEnabled: false, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 0, movesBudget: 0)
-        PuzzleStatusBarView(gameMode: .slide, debugOverlayEnabled: false, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 0, movesBudget: 0)
-        PuzzleStatusBarView(gameMode: .timeTrial, debugOverlayEnabled: false, currentStreak: 0, bestStreak: 0, timerRemaining: 0, isTimerRunning: false, moveCount: 8, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 18, timeTrialScore: 1900, personalBestScore: 2400, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 0, movesBudget: 0)
-        PuzzleStatusBarView(gameMode: .timeTrial, debugOverlayEnabled: false, currentStreak: 0, bestStreak: 0, timerRemaining: 0, isTimerRunning: false, moveCount: 14, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 32, timeTrialScore: 0, personalBestScore: nil, isLadderMode: true, currentLadderStage: 3, ladderCumulativeScore: 8900, bestLadderScoreOverall: 21000, movesRemaining: 0, movesBudget: 0)
-        PuzzleStatusBarView(gameMode: .limitedMoves, debugOverlayEnabled: false, currentStreak: 0, bestStreak: 0, timerRemaining: 0, isTimerRunning: false, moveCount: 7, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 0, timeTrialScore: 0, personalBestScore: nil, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 5, movesBudget: 12)
-        PuzzleStatusBarView(gameMode: .swap, debugOverlayEnabled: true, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 0, movesBudget: 0)
+        PuzzleStatusBarView(gameMode: .swap, isDailyGameActive: false, debugOverlayEnabled: false, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 0, movesBudget: 0)
+        PuzzleStatusBarView(gameMode: .swap, isDailyGameActive: true, debugOverlayEnabled: false, currentStreak: 0, bestStreak: 0, timerRemaining: 0, isTimerRunning: false, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 0, movesBudget: 0)
+        PuzzleStatusBarView(gameMode: .slide, isDailyGameActive: false, debugOverlayEnabled: false, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 0, movesBudget: 0)
+        PuzzleStatusBarView(gameMode: .timeTrial, isDailyGameActive: false, debugOverlayEnabled: false, currentStreak: 0, bestStreak: 0, timerRemaining: 0, isTimerRunning: false, moveCount: 8, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 18, timeTrialScore: 1900, personalBestScore: 2400, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 0, movesBudget: 0)
+        PuzzleStatusBarView(gameMode: .timeTrial, isDailyGameActive: false, debugOverlayEnabled: false, currentStreak: 0, bestStreak: 0, timerRemaining: 0, isTimerRunning: false, moveCount: 14, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 32, timeTrialScore: 0, personalBestScore: nil, isLadderMode: true, currentLadderStage: 3, ladderCumulativeScore: 8900, bestLadderScoreOverall: 21000, movesRemaining: 0, movesBudget: 0)
+        PuzzleStatusBarView(gameMode: .limitedMoves, isDailyGameActive: false, debugOverlayEnabled: false, currentStreak: 0, bestStreak: 0, timerRemaining: 0, isTimerRunning: false, moveCount: 7, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 0, timeTrialScore: 0, personalBestScore: nil, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 5, movesBudget: 12)
+        PuzzleStatusBarView(gameMode: .swap, isDailyGameActive: false, debugOverlayEnabled: true, currentStreak: 3, bestStreak: 7, timerRemaining: 20, isTimerRunning: true, moveCount: 12, personalBest: 10, elapsedTime: 42, personalBestTime: 38, timeTrialRemaining: 45, timeTrialScore: 0, personalBestScore: nil, isLadderMode: false, currentLadderStage: 1, ladderCumulativeScore: 0, bestLadderScoreOverall: 0, movesRemaining: 0, movesBudget: 0)
     }
 }

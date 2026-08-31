@@ -22,6 +22,7 @@ struct PuzzleStatusOverlayLayer: View {
         VStack {
             PuzzleStatusBarView(
                 gameMode: session.selectedGameMode,
+                isDailyGameActive: session.isDailyGameActive,
                 debugOverlayEnabled: settings.debugOverlayEnabled,
                 currentStreak: session.currentStreakForCurrentSize,
                 bestStreak: session.allTimeHighStreakForCurrentSize,
