@@ -35,7 +35,7 @@ struct DailyChallengeCardView: View {
                         "\(dailyStore.calendarStreak)",
                         systemImage: dailyStore.isTodayFrozen ? "snowflake" : "flame.fill"
                     )
-                    .foregroundStyle(streakColor)
+                    .foregroundStyle(streakColor.gradient)
                     .font(.subheadline)
                     .bold()
                 }
@@ -63,23 +63,10 @@ struct DailyChallengeCardView: View {
     }
 
     private var streakColor: Color {
-        if dailyStore.isTodayFrozen { .blue }
+        if dailyStore.isTodayFrozen { .blue.mix(with: .white, by: 0.25) }
         else if dailyStore.isDailyCompletedToday { .orange }
         else { .secondary }
     }
-}
-
-#Preview {
-    let dailyStore = DailyChallengeStore()
-    DailyChallengeCardView(onPlay: {}, onShowCalendar: {})
-        .environment(dailyStore)
-        .padding()
-}
-
-#Preview("Frozen Today") {
-    DailyChallengeCardView(onPlay: {}, onShowCalendar: {})
-        .environment(frozenTodayPreviewStore())
-        .padding()
 }
 
 /// Seeds a scratch `UserDefaults` suite with a live streak completed yesterday, then freezes
@@ -97,4 +84,17 @@ private func frozenTodayPreviewStore() -> DailyChallengeStore {
     let dailyStore = DailyChallengeStore(defaults: suite)
     dailyStore.freezeStreakForOutage()
     return dailyStore
+}
+
+#Preview {
+    let dailyStore = DailyChallengeStore()
+    DailyChallengeCardView(onPlay: {}, onShowCalendar: {})
+        .environment(dailyStore)
+        .padding()
+}
+
+#Preview("Frozen Today") {
+    DailyChallengeCardView(onPlay: {}, onShowCalendar: {})
+        .environment(frozenTodayPreviewStore())
+        .padding()
 }
