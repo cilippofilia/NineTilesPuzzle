@@ -603,6 +603,7 @@ final class GameSession {
                     // there's no bundled or photo-library fallback by design), so protect their
                     // streak rather than letting an outage they can't control break it.
                     dailyChallengeStore.freezeStreakForOutage(date: activeDailyDate)
+                    widgetData.updateDaily(from: dailyChallengeStore)
                     throw ImageSourceError.providerUnavailable
                 }
             } else {

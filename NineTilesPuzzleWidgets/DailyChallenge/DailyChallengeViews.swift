@@ -92,7 +92,7 @@ struct DailySmallView: View {
         .containerBackground(for: .widget) {
             ZStack {
                 DailyWidgetBackground(showsWatermark: false, imageData: entry.imageData)
-                DailyStreakFlame(streak: entry.streak, isCompletedToday: entry.isCompletedToday)
+                DailyStreakFlame(streak: entry.streak, isCompletedToday: entry.isCompletedToday, isFrozen: entry.isFrozen)
             }
         }
     }
@@ -146,14 +146,14 @@ struct DailyMediumView: View {
                 HStack(alignment: .lastTextBaseline) {
                     StreakPieceRow(
                         date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
-                        accent: accent, pieceSize: 18, spacing: 16, showsWeekdayLabels: true,
-                        alignment: .leading
+                        accent: entry.isFrozen ? .blue : accent, pieceSize: 18, spacing: 16,
+                        showsWeekdayLabels: true, alignment: .leading
                     )
 
                     DailyStreakBadge(
-                        icon: "flame.fill",
+                        icon: entry.isFrozen ? "snowflake" : "flame.fill",
                         count: entry.streak,
-                        accent: accent
+                        accent: entry.isFrozen ? .blue : accent
                     )
                 }
                 .frame(maxWidth: .infinity, alignment: .bottom)
@@ -272,6 +272,9 @@ private struct ModeIconChip: View {
 private struct DailyStreakFlame: View {
     let streak: Int
     let isCompletedToday: Bool
+    /// True when today was frozen by an image-provider outage rather than completed — swaps
+    /// the flame for a snowflake and its brand gradient for blue, "lit" the same as a solved day.
+    var isFrozen: Bool = false
 
     /// Capped small enough, and cropped hard enough, that only a low ember stays visible above
     /// the bottom edge — clear of the header/mode row even on the smallest small-widget size
@@ -289,22 +292,31 @@ private struct DailyStreakFlame: View {
         flameSize * 0.66
     }
 
+    private var isLit: Bool { isCompletedToday || isFrozen }
+    private var glyphName: String { isFrozen ? "snowflake" : "flame.fill" }
+    private var glowColor: Color { isFrozen ? .blue : .orange }
+    private var glyphGradient: LinearGradient {
+        isFrozen
+            ? LinearGradient(colors: [.blue, .white], startPoint: .bottomLeading, endPoint: .topTrailing)
+            : BrandGradient.diagonal
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             ZStack(alignment: .bottom) {
-                if isCompletedToday {
-                    Image(systemName: "flame.fill")
+                if isLit {
+                    Image(systemName: glyphName)
                         .font(.system(size: flameSize * 1.15))
-                        .foregroundStyle(Color.orange)
+                        .foregroundStyle(glowColor)
                         .blur(radius: 20)
                         .opacity(0.4)
                 }
 
-                Image(systemName: "flame.fill")
+                Image(systemName: glyphName)
                     .font(.system(size: flameSize))
-                    .foregroundStyle(BrandGradient.diagonal)
-                    .saturation(isCompletedToday ? 1 : 0)
-                    .opacity(isCompletedToday ? 1 : 0.25)
+                    .foregroundStyle(glyphGradient)
+                    .saturation(isLit ? 1 : 0)
+                    .opacity(isLit ? 1 : 0.25)
                     .frame(height: visibleHeight, alignment: .top)
                     .clipped()
             }
@@ -645,6 +657,28 @@ private struct DailyWidgetBackground: View {
             imageData: nil, isPremiumUnlocked: true
         )
     }
+}
+
+/// A Picsum outage froze today rather than breaking the streak: the flame swaps for a snowflake
+/// (lit blue instead of the usual unlit-grey "not completed today" look).
+#Preview("Small — Frozen Streak", as: .systemSmall) {
+    DailyChallengeWidget()
+} timeline: {
+    DailyChallengeEntry(
+        date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 4, mode: .slide,
+        imageData: nil, isPremiumUnlocked: true, isFrozen: true
+    )
+}
+
+/// Same frozen-outage state on the medium card: the piece row and badge both swap from the
+/// orange flame theme to blue/snowflake.
+#Preview("Medium — Frozen Streak", as: .systemMedium) {
+    DailyChallengeWidget()
+} timeline: {
+    DailyChallengeEntry(
+        date: .now, isCompletedToday: false, streak: 5, bestStreak: 12, gridSize: 5, mode: .swap,
+        imageData: nil, isPremiumUnlocked: true, isFrozen: true
+    )
 }
 
 #Preview("Locked", as: .systemSmall) {

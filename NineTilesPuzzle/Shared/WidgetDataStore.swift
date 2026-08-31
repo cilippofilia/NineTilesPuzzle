@@ -37,6 +37,10 @@ nonisolated struct WidgetSnapshot: Codable, Hashable {
         var bestCalendarStreak = 0
         var bestMoves: Int?
         var bestTime: TimeInterval?
+        /// Start-of-day of the most recent day frozen by an image-provider outage, or `nil`.
+        /// Optional, so a snapshot written before this field existed decodes it as `nil` with
+        /// no custom fallback needed — only non-optional fields require that here.
+        var frozenDay: Date?
     }
 }
 

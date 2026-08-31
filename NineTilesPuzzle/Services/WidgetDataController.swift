@@ -35,7 +35,8 @@ final class WidgetDataController {
             calendarStreak: store.calendarStreak,
             bestCalendarStreak: store.bestCalendarStreak,
             bestMoves: store.bestMoves,
-            bestTime: store.bestTime
+            bestTime: store.bestTime,
+            frozenDay: store.mostRecentFrozenDate.map { Calendar.current.startOfDay(for: $0) }
         )
         guard snapshot.daily != daily else { return }
         snapshot.daily = daily

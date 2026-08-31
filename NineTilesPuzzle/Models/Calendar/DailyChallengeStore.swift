@@ -57,6 +57,13 @@ final class DailyChallengeStore {
         frozenDayKeys.contains(Self.dayKey(for: effectiveDate))
     }
 
+    /// The most recent day frozen by `freezeStreakForOutage`, or `nil` if none — what
+    /// `WidgetDataController` syncs into the shared snapshot so the widget can scope its own
+    /// "is this entry's day frozen?" check the same way it already scopes `lastCompletedDay`.
+    var mostRecentFrozenDate: Date? {
+        frozenDayKeys.max().flatMap(Self.date(fromDayKey:))
+    }
+
     /// The earliest day ever completed — anchors the first month of the history calendar.
     var firstCompletedDate: Date? {
         completedDayKeys.min().flatMap(Self.date(fromDayKey:))

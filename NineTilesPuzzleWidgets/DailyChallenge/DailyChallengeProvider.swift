@@ -21,6 +21,28 @@ struct DailyChallengeEntry: TimelineEntry {
     /// `PremiumFeature.widgets`) — when `false`, the view renders an upgrade placeholder
     /// instead of today's puzzle state.
     let isPremiumUnlocked: Bool
+    /// True when `date`'s calendar day was frozen by an image-provider outage rather than
+    /// completed — swaps the flame/piece-row treatment to a snowflake/blue "protected" look.
+    let isFrozen: Bool
+
+    /// Explicit, not the synthesized memberwise init: a `let` property with a default value is
+    /// excluded from that init entirely (always fixed to the default, never overridable), so
+    /// `isFrozen` needs this to both default to `false` for every existing call site and stay
+    /// settable for the one that actually computes it.
+    init(
+        date: Date, isCompletedToday: Bool, streak: Int, bestStreak: Int, gridSize: Int,
+        mode: GameMode, imageData: Data?, isPremiumUnlocked: Bool, isFrozen: Bool = false
+    ) {
+        self.date = date
+        self.isCompletedToday = isCompletedToday
+        self.streak = streak
+        self.bestStreak = bestStreak
+        self.gridSize = gridSize
+        self.mode = mode
+        self.imageData = imageData
+        self.isPremiumUnlocked = isPremiumUnlocked
+        self.isFrozen = isFrozen
+    }
 }
 
 struct DailyChallengeProvider: AppIntentTimelineProvider {
@@ -92,6 +114,11 @@ struct DailyChallengeProvider: AppIntentTimelineProvider {
             }
         }
 
+        // Scoped the same way `isCompleted` is scoped against `lastCompletedDay`: the snapshot
+        // only ever remembers the single most recent frozen day, so this reads true only for
+        // the entry whose date actually matches it.
+        let isFrozen = daily?.frozenDay.map { calendar.isDate($0, inSameDayAs: date) } ?? false
+
         return DailyChallengeEntry(
             date: date,
             isCompletedToday: isCompleted,
@@ -100,7 +127,8 @@ struct DailyChallengeProvider: AppIntentTimelineProvider {
             gridSize: DailyChallengeSeeder.gridSize(for: date),
             mode: DailyChallengeSeeder.gameMode(for: date),
             imageData: imageData,
-            isPremiumUnlocked: snapshot?.isPremiumUnlocked ?? false
+            isPremiumUnlocked: snapshot?.isPremiumUnlocked ?? false,
+            isFrozen: isFrozen
         )
     }
 
