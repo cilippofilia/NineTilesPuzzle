@@ -29,6 +29,12 @@ final class DailyChallengeStore {
     /// Days completed before this existed appear in `completedDayKeys` only.
     private(set) var dayRecords: [Int: DailyDayRecord] = [:]
 
+    /// Days (as `yyyymmdd` keys) where the image provider was unreachable and the
+    /// calendar streak was frozen rather than broken. A frozen day earns no completion
+    /// credit of its own — it only bridges the gap so the next real completion continues
+    /// the streak instead of resetting it.
+    private(set) var frozenDayKeys: Set<Int> = []
+
     /// Debug-only day offset applied to every seeder and completion check.
     /// In-memory only — resets to 0 on each launch so it never affects production data.
     private(set) var debugDayOffset: Int = 0
@@ -44,6 +50,11 @@ final class DailyChallengeStore {
     var isDailyCompletedToday: Bool {
         guard let last = lastCompletedDate else { return false }
         return Calendar.current.isDate(last, inSameDayAs: effectiveDate)
+    }
+
+    /// True when today's daily challenge was already frozen due to an image-provider outage.
+    var isTodayFrozen: Bool {
+        frozenDayKeys.contains(Self.dayKey(for: effectiveDate))
     }
 
     /// The earliest day ever completed — anchors the first month of the history calendar.
@@ -69,6 +80,11 @@ final class DailyChallengeStore {
     /// True when the calendar day containing `date` has ever been completed.
     func isDayCompleted(_ date: Date) -> Bool {
         completedDayKeys.contains(Self.dayKey(for: date))
+    }
+
+    /// True when the calendar day containing `date` was frozen due to an image-provider outage.
+    func isDayFrozen(_ date: Date) -> Bool {
+        frozenDayKeys.contains(Self.dayKey(for: date))
     }
 
     /// How many of the trailing 7 days (ending on and including `date`) have a completed
@@ -170,6 +186,20 @@ final class DailyChallengeStore {
         return (isNewMovesRecord, isNewTimeRecord, isNewCalendarStreakRecord)
     }
 
+    /// Freezes today's calendar streak because the daily image provider was unreachable,
+    /// so an outage the player can't work around never costs them their streak.
+    ///
+    /// No-ops when today is already completed (nothing to protect), already frozen (idempotent
+    /// on repeated retries during the same outage), or there's no live streak yet (a freeze
+    /// only ever bridges between two real completions, so it's meaningless with none behind it).
+    func freezeStreakForOutage(date: Date = .now) {
+        guard !isDailyCompletedToday, calendarStreak > 0 else { return }
+        let key = Self.dayKey(for: date)
+        guard !frozenDayKeys.contains(key) else { return }
+        frozenDayKeys.insert(key)
+        persistFrozenDays()
+    }
+
     func resetStats() {
         calendarStreak = 0
         bestCalendarStreak = 0
@@ -178,6 +208,7 @@ final class DailyChallengeStore {
         bestTime = nil
         completedDayKeys = []
         dayRecords = [:]
+        frozenDayKeys = []
         defaults.removeObject(forKey: Keys.calendarStreak)
         defaults.removeObject(forKey: Keys.bestCalendarStreak)
         defaults.removeObject(forKey: Keys.lastCompletedDate)
@@ -185,6 +216,7 @@ final class DailyChallengeStore {
         defaults.removeObject(forKey: Keys.bestTime)
         defaults.removeObject(forKey: Keys.completedDays)
         defaults.removeObject(forKey: Keys.dayRecords)
+        defaults.removeObject(forKey: Keys.frozenDays)
     }
 }
 
@@ -197,6 +229,7 @@ private extension DailyChallengeStore {
         static let bestTime = "daily.bestTime"
         static let completedDays = "daily.completedDays"
         static let dayRecords = "daily.dayRecords"
+        static let frozenDays = "daily.frozenDays"
     }
 
     func persistCompletedDays() {
@@ -206,6 +239,10 @@ private extension DailyChallengeStore {
     func persistDayRecords() {
         guard let data = try? JSONEncoder().encode(dayRecords) else { return }
         defaults.set(data, forKey: Keys.dayRecords)
+    }
+
+    func persistFrozenDays() {
+        defaults.set(Array(frozenDayKeys).sorted(), forKey: Keys.frozenDays)
     }
 
     /// The number of consecutive completed days ending on `date` (inclusive),
@@ -223,14 +260,13 @@ private extension DailyChallengeStore {
         return count
     }
 
-    /// Increments the streak when today directly follows the last completed day;
-    /// resets it to 1 when there's a gap (or no prior completion).
+    /// Increments the streak when today directly follows the last completed day, or is
+    /// separated from it only by a run of frozen (provider-outage) days; resets it to 1
+    /// otherwise (a real gap, or no prior completion).
     /// Returns `true` when a new all-time best calendar streak is set.
     @discardableResult
     func advanceCalendarStreak(for date: Date) -> Bool {
-        let cal = Calendar.current
-        let yesterday = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: date))!
-        if let last = lastCompletedDate, cal.isDate(last, inSameDayAs: yesterday) {
+        if let last = lastCompletedDate, isBridgedByFrozenDays(from: last, to: date) {
             calendarStreak += 1
         } else {
             calendarStreak = 1
@@ -239,6 +275,21 @@ private extension DailyChallengeStore {
         guard calendarStreak > bestCalendarStreak else { return false }
         bestCalendarStreak = calendarStreak
         defaults.set(bestCalendarStreak, forKey: Keys.bestCalendarStreak)
+        return true
+    }
+
+    /// True when every day strictly between `last` and `date` is a frozen outage day —
+    /// i.e. `date` is either the day right after `last`, or reachable from it by hopping
+    /// only over consecutive frozen days.
+    func isBridgedByFrozenDays(from last: Date, to date: Date) -> Bool {
+        let cal = Calendar.current
+        var day = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: last))!
+        let target = cal.startOfDay(for: date)
+        guard day <= target else { return false }
+        while day < target {
+            guard frozenDayKeys.contains(Self.dayKey(for: day)) else { return false }
+            day = cal.date(byAdding: .day, value: 1, to: day)!
+        }
         return true
     }
 
@@ -257,6 +308,10 @@ private extension DailyChallengeStore {
         if let data = defaults.data(forKey: Keys.dayRecords),
            let decoded = try? JSONDecoder().decode([Int: DailyDayRecord].self, from: data) {
             dayRecords = decoded
+        }
+
+        if let stored = defaults.object(forKey: Keys.frozenDays) as? [Int] {
+            frozenDayKeys = Set(stored)
         }
 
         if let stored = defaults.object(forKey: Keys.completedDays) as? [Int] {

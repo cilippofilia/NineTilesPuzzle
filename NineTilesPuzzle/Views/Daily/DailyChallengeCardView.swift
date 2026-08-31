@@ -31,10 +31,13 @@ struct DailyChallengeCardView: View {
                 Spacer()
 
                 if dailyStore.calendarStreak > 0 {
-                    Label("\(dailyStore.calendarStreak)", systemImage: "flame.fill")
-                        .foregroundStyle(dailyStore.isDailyCompletedToday ? .orange : .secondary)
-                        .font(.subheadline)
-                        .bold()
+                    Label(
+                        "\(dailyStore.calendarStreak)",
+                        systemImage: dailyStore.isTodayFrozen ? "snowflake" : "flame.fill"
+                    )
+                    .foregroundStyle(streakColor)
+                    .font(.subheadline)
+                    .bold()
                 }
 
                 if dailyStore.isDailyCompletedToday {
@@ -57,6 +60,12 @@ struct DailyChallengeCardView: View {
         }
         .foregroundStyle(.primary)
         .background(.quaternary, in: .rect(cornerRadius: 20))
+    }
+
+    private var streakColor: Color {
+        if dailyStore.isTodayFrozen { .blue }
+        else if dailyStore.isDailyCompletedToday { .orange }
+        else { .secondary }
     }
 }
 

@@ -173,6 +173,7 @@ final class GameSession {
 
     var dailyCalendarStreak: Int { dailyChallengeStore.calendarStreak }
     var isDailyCompletedToday: Bool { dailyChallengeStore.isDailyCompletedToday }
+    var isDailyStreakFrozenToday: Bool { dailyChallengeStore.isTodayFrozen }
     var dailyBestMoves: Int? { dailyChallengeStore.bestMoves }
     var dailyBestTime: TimeInterval? { dailyChallengeStore.bestTime }
 
@@ -598,6 +599,10 @@ final class GameSession {
                 do {
                     image = try await DailyImageSource(date: activeDailyDate).fetchImage()
                 } catch {
+                    // The player has no workaround for an outage on Daily (unlike Random/Mixed,
+                    // there's no bundled or photo-library fallback by design), so protect their
+                    // streak rather than letting an outage they can't control break it.
+                    dailyChallengeStore.freezeStreakForOutage(date: activeDailyDate)
                     throw ImageSourceError.providerUnavailable
                 }
             } else {

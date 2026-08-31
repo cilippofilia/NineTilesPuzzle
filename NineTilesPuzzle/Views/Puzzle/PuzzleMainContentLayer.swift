@@ -27,7 +27,12 @@ struct PuzzleMainContentLayer: View {
                 ImagePreviewView(image: image, duration: session.currentPreviewDuration, isFogMode: session.isFogMode, isDailyChallenge: session.isDailyGameActive, gameMode: session.selectedGameMode, onSkip: session.skipPreview)
                     .transition(.asymmetric(insertion: .opacity, removal: .identity))
             } else if let error = session.error {
-                PuzzleErrorView(error: error, onRetry: startNewGame, onSwitchToPhotos: switchToPhotosAndRetry)
+                PuzzleErrorView(
+                    error: error,
+                    isDailyStreakFrozen: session.isDailyGameActive && session.isDailyStreakFrozenToday,
+                    onRetry: startNewGame,
+                    onSwitchToPhotos: switchToPhotosAndRetry
+                )
                     .transition(.opacity)
             } else {
                 Spacer()

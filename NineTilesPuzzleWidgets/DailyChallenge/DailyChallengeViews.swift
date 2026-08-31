@@ -142,22 +142,34 @@ struct DailyMediumView: View {
 
             Spacer(minLength: 0)
 
-            HStack(alignment: .lastTextBaseline) {
-                StreakPieceRow(
-                    date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
-                    accent: accent, pieceSize: 18, spacing: 16, showsWeekdayLabels: true,
-                    alignment: .leading
-                )
+            if entry.streak > 0 {
+                HStack(alignment: .lastTextBaseline) {
+                    StreakPieceRow(
+                        date: entry.date, streak: entry.streak, isCompletedToday: entry.isCompletedToday,
+                        accent: accent, pieceSize: 18, spacing: 16, showsWeekdayLabels: true,
+                        alignment: .leading
+                    )
 
-                if entry.streak > 0 {
                     DailyStreakBadge(
                         icon: "flame.fill",
                         count: entry.streak,
                         accent: accent
                     )
                 }
+                .frame(maxWidth: .infinity, alignment: .bottom)
+            } else {
+                // Matches StreakPieceRow's own inset (its pieces sit `runHorizontalPadding`/8pt in
+                // from the leading edge and `8pt` up from the row's true bottom via the capsule's
+                // vertical padding) so the text lands exactly where the row's content would, not
+                // where its empty container edge would.
+                Text(DailyWidgetMetrics.noStreakPrompt)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .bottomLeading)
             }
-            .frame(maxWidth: .infinity, alignment: .bottom)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .padding(DailyWidgetMetrics.padding)
@@ -185,6 +197,10 @@ enum DailyWidgetMetrics {
     /// One padding for every edge of both the small and medium cards — the system content
     /// margins are disabled on the widget configuration in favor of this.
     static let padding: CGFloat = 14
+
+    /// Shown in place of the streak flame/piece row when `streak == 0` — same copy in both
+    /// families so a player sees one consistent nudge regardless of which size they've placed.
+    static let noStreakPrompt = "Play today's game to start a streak"
 }
 
 /// Shared red→yellow brand gradient used across the widget's hero elements.
@@ -307,6 +323,16 @@ private struct DailyStreakFlame: View {
                 // Fixed, not derived from visibleHeight: the streak number/label must keep the
                 // same safe clearance from the true bottom edge no matter how big the flame gets.
                 .padding(.bottom, 14)
+            } else {
+                // Same nudge copy as the medium widget's fallback, laid out over the unlit
+                // ember rather than in the content flow — this card has no other row to hold it.
+                Text(DailyWidgetMetrics.noStreakPrompt)
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 14)
             }
         }
         // Fill the whole background proposal and pin to its bottom — without the max-height
@@ -574,6 +600,12 @@ private struct DailyWidgetBackground: View {
         date: .now, isCompletedToday: true, streak: 6, bestStreak: 12, gridSize: 4, mode: .slide,
         imageData: nil, isPremiumUnlocked: true
     )
+    // No active streak: the flame's "N DAY STREAK" numeral gives way to the "play today's game"
+    // nudge — cycle the canvas's timeline scrubber to reach this third entry.
+    DailyChallengeEntry(
+        date: .now, isCompletedToday: false, streak: 0, bestStreak: 12, gridSize: 4, mode: .slide,
+        imageData: nil, isPremiumUnlocked: true
+    )
 }
 
 /// Long-running streaks push `DailyStreakFlame` to its size cap — this catches clipping that a
@@ -597,13 +629,17 @@ private struct DailyWidgetBackground: View {
     )
 }
 
-/// The streak row's fixed Monday–Sunday week at a few notable lengths: no streak, a short one
-/// starting mid-week, one nearing the end of the week, and a full week — cycle the canvas's
-/// timeline scrubber to see all four.
+/// The streak row's fixed Monday–Sunday week at a few notable lengths: no streak (the "play
+/// today's game" fallback text, in place of the row), a short one starting mid-week, one nearing
+/// the end of the week, and a full week — cycle the canvas's timeline scrubber to see all four.
 #Preview("Medium — Streak Lengths", as: .systemMedium) {
     DailyChallengeWidget()
 } timeline: {
-    for streak in [0, 3, 5, 7] {
+    DailyChallengeEntry(
+        date: .now, isCompletedToday: false, streak: 0, bestStreak: 12, gridSize: 5, mode: .swap,
+        imageData: nil, isPremiumUnlocked: true
+    )
+    for streak in [3, 5, 7] {
         DailyChallengeEntry(
             date: .now, isCompletedToday: true, streak: streak, bestStreak: 12, gridSize: 5, mode: .swap,
             imageData: nil, isPremiumUnlocked: true

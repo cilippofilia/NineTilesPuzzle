@@ -61,6 +61,9 @@ struct DailyMonthGridView: View {
         if dailyStore.isDayCompleted(day) {
             return .completed
         }
+        if dailyStore.isDayFrozen(day) {
+            return .frozen
+        }
         let calendar = Calendar.current
         if calendar.startOfDay(for: day) > calendar.startOfDay(for: today) {
             return .upcoming

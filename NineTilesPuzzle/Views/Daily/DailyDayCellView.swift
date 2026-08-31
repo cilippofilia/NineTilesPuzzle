@@ -11,6 +11,8 @@ import SwiftUI
 enum DailyDayState {
     /// The daily challenge was completed — show that day's puzzle image.
     case completed
+    /// The image provider was unreachable that day; the streak was frozen rather than broken.
+    case frozen
     /// The day has passed without a completion.
     case missed
     /// The day hasn't arrived yet.
@@ -18,9 +20,11 @@ enum DailyDayState {
 }
 
 /// One day cell in the daily-challenge history calendar. Completed days show
-/// the day's seeded puzzle image inside a golden square frame; missed days
-/// render as empty circles, and upcoming days as fainter empty squares.
-/// The last day of an ongoing 2+ day streak carries a numbered streak badge.
+/// the day's seeded puzzle image inside a golden square frame; frozen days (an
+/// outage protected the streak instead of breaking it) show a snowflake inside
+/// a light-blue-to-white frame; missed days render as empty circles, and
+/// upcoming days as fainter empty squares. The last day of an ongoing 2+ day
+/// streak carries a numbered streak badge.
 struct DailyDayCellView: View {
     let date: Date
     let state: DailyDayState
@@ -38,6 +42,10 @@ struct DailyDayCellView: View {
                     } placeholder: {
                         Color.clear.background(.quaternary)
                     }
+                } else if state == .frozen {
+                    Image(systemName: "snowflake")
+                        .foregroundStyle(.blue)
+                        .imageScale(.large)
                 }
             }
             .background(backgroundStyle, in: cellShape)
@@ -46,6 +54,9 @@ struct DailyDayCellView: View {
                 if state == .completed {
                     RoundedRectangle(cornerRadius: 12)
                         .strokeBorder(.yellow.gradient, lineWidth: 2)
+                } else if state == .frozen {
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(frozenGradient, lineWidth: 2)
                 }
             }
             .overlay(alignment: .bottomTrailing) {
@@ -59,7 +70,7 @@ struct DailyDayCellView: View {
     }
 
     /// Missed days read as circles so past gaps are visually distinct from the
-    /// squares used for completed days and days still to come.
+    /// squares used for completed, frozen, and upcoming days.
     private var cellShape: AnyShape {
         state == .missed ? AnyShape(.circle) : AnyShape(.rect(cornerRadius: 12))
     }
@@ -67,9 +78,14 @@ struct DailyDayCellView: View {
     private var backgroundStyle: AnyShapeStyle {
         switch state {
         case .completed: AnyShapeStyle(.quaternary)
+        case .frozen: AnyShapeStyle(frozenGradient.opacity(0.35))
         case .missed: AnyShapeStyle(.quaternary)
         case .upcoming: AnyShapeStyle(.quaternary.opacity(0.4))
         }
+    }
+
+    private var frozenGradient: LinearGradient {
+        LinearGradient(colors: [.blue.opacity(0.6), .white], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     private var accessibilityValue: Text {
@@ -80,6 +96,7 @@ struct DailyDayCellView: View {
             } else {
                 Text("Completed")
             }
+        case .frozen: Text("Streak frozen, image provider was unavailable")
         case .missed: Text("Not completed")
         case .upcoming: Text("Upcoming")
         }
@@ -90,6 +107,7 @@ struct DailyDayCellView: View {
     HStack {
         DailyDayCellView(date: .now, state: .completed)
         DailyDayCellView(date: .now, state: .completed, streakCount: 114)
+        DailyDayCellView(date: .now, state: .frozen)
         DailyDayCellView(date: .now, state: .missed)
         DailyDayCellView(date: .now, state: .upcoming)
     }
