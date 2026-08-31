@@ -306,8 +306,8 @@ private struct DailyStreakFlame: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottom) {
+            ZStack(alignment: .bottom) {
                 if isLit {
                     Image(systemName: glyphName)
                         .font(.system(size: flameSize * 1.15))
@@ -339,27 +339,24 @@ private struct DailyStreakFlame: View {
                 // shadow needs to work harder to keep the white digits legible on top of it.
                 .shadow(color: .black.opacity(isFrozen ? 0.7 : 0.4), radius: isFrozen ? 5 : 3, y: 1)
                 // Fixed, not derived from visibleHeight: the streak number/label must keep the
-                // same safe clearance from the true corner no matter how big the flame gets.
+                // same safe clearance from the true bottom edge no matter how big the flame gets.
                 .padding(.bottom, 14)
-                .padding(.trailing, 4)
             } else {
                 // Same nudge copy as the medium widget's fallback, laid out over the unlit
                 // ember rather than in the content flow — this card has no other row to hold it.
-                // Right-aligned and width-capped now that the glyph it sits over lives in the
-                // trailing corner rather than spanning the full bottom edge.
                 Text(DailyWidgetMetrics.noStreakPrompt)
                     .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .multilineTextAlignment(.trailing)
+                    .multilineTextAlignment(.center)
                     .foregroundStyle(.white.opacity(0.85))
                     .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
-                    .frame(maxWidth: 90, alignment: .trailing)
+                    .padding(.horizontal, 10)
                     .padding(.bottom, 14)
             }
         }
-        // Fill the whole background proposal and pin to the bottom-trailing corner — without the
-        // max-height fill the stack sizes to its content and the container centers it vertically,
-        // which is what left the glyph floating away from the widget's true corner.
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        // Fill the whole background proposal and pin to its bottom — without the max-height
+        // fill the stack sizes to its content and the container centers it vertically, which
+        // is what left the flame floating above the widget's bottom edge.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 }
 
