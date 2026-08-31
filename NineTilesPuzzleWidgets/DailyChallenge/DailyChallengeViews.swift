@@ -295,9 +295,13 @@ private struct DailyStreakFlame: View {
     private var isLit: Bool { isCompletedToday || isFrozen }
     private var glyphName: String { isFrozen ? "snowflake" : "flame.fill" }
     private var glowColor: Color { isFrozen ? .blue : .orange }
+    /// No white in this gradient (unlike the flame's warm diagonal) — the streak numeral sits
+    /// in white text directly on top of the glyph, and a white snowflake tip behind white digits
+    /// was reading as barely-there. Deep blue keeps the glyph legible as "lit" while never
+    /// competing with the text.
     private var glyphGradient: LinearGradient {
         isFrozen
-            ? LinearGradient(colors: [.blue, .white], startPoint: .bottomLeading, endPoint: .topTrailing)
+            ? LinearGradient(colors: [.cyan, .blue, .indigo], startPoint: .top, endPoint: .bottom)
             : BrandGradient.diagonal
     }
 
@@ -331,7 +335,9 @@ private struct DailyStreakFlame: View {
                         .kerning(1)
                         .foregroundStyle(.white.opacity(0.75))
                 }
-                .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
+                // Frozen's glyph reads brighter behind the numeral than the flame does, so its
+                // shadow needs to work harder to keep the white digits legible on top of it.
+                .shadow(color: .black.opacity(isFrozen ? 0.7 : 0.4), radius: isFrozen ? 5 : 3, y: 1)
                 // Fixed, not derived from visibleHeight: the streak number/label must keep the
                 // same safe clearance from the true bottom edge no matter how big the flame gets.
                 .padding(.bottom, 14)
