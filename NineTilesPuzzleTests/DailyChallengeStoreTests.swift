@@ -21,6 +21,38 @@ struct DailyChallengeStoreTests {
         Calendar.current.date(byAdding: .day, value: offset, to: referenceDate)!
     }
 
+    // MARK: - Day rollover
+
+    /// Mutable wall clock the store reads through its injected `now` closure.
+    @MainActor
+    private final class TestClock {
+        var date: Date
+        init(_ date: Date) { self.date = date }
+    }
+
+    @Test func completedTodayClearsAfterDayRollsOver() {
+        let clock = TestClock(referenceDate)
+        let store = DailyChallengeStore(defaults: InMemoryPersistenceStore(), now: { clock.date })
+        store.recordCompletion(moves: 20, time: 60, date: referenceDate)
+        #expect(store.isDailyCompletedToday)
+
+        clock.date = day(offset: 1)
+        store.refreshCurrentDay()
+
+        #expect(!store.isDailyCompletedToday)
+        #expect(store.currentDayKey == 20260707)
+    }
+
+    @Test func refreshingOnSameDayKeepsDayKey() {
+        let clock = TestClock(referenceDate)
+        let store = DailyChallengeStore(defaults: InMemoryPersistenceStore(), now: { clock.date })
+
+        clock.date = referenceDate.addingTimeInterval(60 * 60)
+        store.refreshCurrentDay()
+
+        #expect(store.currentDayKey == 20260706)
+    }
+
     // MARK: - Completion history
 
     @Test func recordingCompletionAddsDayToHistory() {

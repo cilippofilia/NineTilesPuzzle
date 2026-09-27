@@ -14,6 +14,8 @@ import Foundation
 @Observable
 final class DailyChallengeStore {
     private let defaults: PersistenceStore
+    /// The wall clock. Injectable so tests can simulate a day rolling over.
+    private let now: () -> Date
 
     private(set) var calendarStreak: Int = 0
     private(set) var bestCalendarStreak: Int = 0
@@ -39,11 +41,20 @@ final class DailyChallengeStore {
     /// In-memory only — resets to 0 on each launch so it never affects production data.
     private(set) var debugDayOffset: Int = 0
 
+    /// The real-world calendar day (as a `yyyymmdd` key) as of the last `refreshCurrentDay()`.
+    /// `effectiveDate` derives from the wall clock, which Observation can't track — without
+    /// this stamp a view that read "completed today" before midnight would keep showing
+    /// yesterday's completion after the day rolls over. Reading it in `effectiveDate`
+    /// registers the dependency, so every day-relative property re-renders on rollover.
+    private(set) var currentDayKey: Int
+
     /// The date the daily challenge is running against. Equal to `.now` in production;
     /// offset by `debugDayOffset` days when the dev-tools offset is non-zero.
     var effectiveDate: Date {
-        guard debugDayOffset != 0 else { return .now }
-        return Calendar.current.date(byAdding: .day, value: debugDayOffset, to: .now) ?? .now
+        _ = currentDayKey
+        let now = now()
+        guard debugDayOffset != 0 else { return now }
+        return Calendar.current.date(byAdding: .day, value: debugDayOffset, to: now) ?? now
     }
 
     /// True when the effective date's daily challenge has already been completed at least once.
@@ -136,9 +147,21 @@ final class DailyChallengeStore {
         persistDayRecords()
     }
 
-    init(defaults: PersistenceStore = UserDefaults.standard) {
+    init(defaults: PersistenceStore = UserDefaults.standard, now: @escaping () -> Date = { .now }) {
         self.defaults = defaults
+        self.now = now
+        currentDayKey = Self.dayKey(for: now())
         restoreFromUserDefaults()
+    }
+
+    /// Re-stamps `currentDayKey` from the wall clock, invalidating every view that shows
+    /// day-relative state when the calendar day has changed. Call on foreground and on the
+    /// system's day-changed notification. Only assigns on an actual change, so the common
+    /// same-day call doesn't trigger a needless re-render.
+    func refreshCurrentDay() {
+        let key = Self.dayKey(for: now())
+        guard key != currentDayKey else { return }
+        currentDayKey = key
     }
 
     /// Records a completed daily challenge.

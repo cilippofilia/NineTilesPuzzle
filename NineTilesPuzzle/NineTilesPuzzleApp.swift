@@ -87,8 +87,17 @@ struct NineTilesPuzzleApp: App {
             .task { gameCenterService.authenticate() }
             .task { await refreshNotifications() }
             .task { await storeManager.start() }
+            .task {
+                // Covers the app staying open across midnight; foregrounding is handled below.
+                for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged).map({ _ in () }) {
+                    dailyChallengeStore.refreshCurrentDay()
+                }
+            }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
+                // A day may have rolled over while backgrounded — re-stamp it first so the
+                // menu's daily card stops showing yesterday's completion as today's.
+                dailyChallengeStore.refreshCurrentDay()
                 Task { await refreshNotifications() }
             }
         }

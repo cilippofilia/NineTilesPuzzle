@@ -23,7 +23,7 @@ struct DailyChallengeCardView: View {
                     Label("Daily Challenge", systemImage: "calendar")
                         .font(.headline)
                         .bold()
-                    Text(Date.now, format: .dateTime.weekday(.wide).month(.abbreviated).day())
+                    Text(dailyStore.effectiveDate, format: .dateTime.weekday(.wide).month(.abbreviated).day())
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
