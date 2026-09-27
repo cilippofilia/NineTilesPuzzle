@@ -9,6 +9,9 @@ import Photos
 import UIKit
 
 struct PhotoLibraryImageSource: ImageSource {
+    /// The player's hand-picked photo pool. Empty means the whole library.
+    var selectedIdentifiers: [String] = []
+
     func fetchImage() async throws -> CGImage {
         var status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         if status == .notDetermined {
@@ -18,14 +21,7 @@ struct PhotoLibraryImageSource: ImageSource {
             throw ImageSourceError.notAuthorized
         }
 
-        let fetchOptions = PHFetchOptions()
-        fetchOptions.predicate = NSPredicate(
-            format: "NOT ((mediaSubtype & %d) == %d)",
-            PHAssetMediaSubtype.photoScreenshot.rawValue,
-            PHAssetMediaSubtype.photoScreenshot.rawValue
-        )
-
-        let result = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        let result = fetchCandidateAssets()
         guard result.count > 0 else {
             throw ImageSourceError.noPhotosAvailable
         }
@@ -53,5 +49,26 @@ struct PhotoLibraryImageSource: ImageSource {
                 }
             }
         }
+    }
+
+    /// The picked photos when any still resolve; otherwise every non-screenshot image.
+    /// Picked photos that were since deleted — or that fall outside a downgraded
+    /// limited-access scope — simply don't come back, and if none survive the whole library
+    /// is used rather than failing the game.
+    private func fetchCandidateAssets() -> PHFetchResult<PHAsset> {
+        if !selectedIdentifiers.isEmpty {
+            let selected = PHAsset.fetchAssets(withLocalIdentifiers: selectedIdentifiers, options: nil)
+            if selected.count > 0 {
+                return selected
+            }
+        }
+
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.predicate = NSPredicate(
+            format: "NOT ((mediaSubtype & %d) == %d)",
+            PHAssetMediaSubtype.photoScreenshot.rawValue,
+            PHAssetMediaSubtype.photoScreenshot.rawValue
+        )
+        return PHAsset.fetchAssets(with: .image, options: fetchOptions)
     }
 }

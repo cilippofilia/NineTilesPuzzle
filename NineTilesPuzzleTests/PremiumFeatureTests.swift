@@ -43,7 +43,7 @@ struct PremiumFeatureTests {
 
     @Test func systemAndProgressionFeaturesAreAlwaysPremium() {
         let alwaysPremium: [PremiumFeature] = [
-            .liveActivities, .widgets, .wallOfFame, .achievementsArchive, .dailyArchive
+            .liveActivities, .widgets, .wallOfFame, .achievementsArchive, .dailyArchive, .photoSelection
         ]
         for feature in alwaysPremium {
             #expect(feature.isFree == false)

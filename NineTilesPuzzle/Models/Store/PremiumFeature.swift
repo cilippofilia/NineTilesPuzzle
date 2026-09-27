@@ -19,6 +19,8 @@ enum PremiumFeature: Sendable, Hashable {
     case wallOfFame
     case achievementsArchive
     case dailyArchive
+    /// Narrowing From Photos / Mixed to a hand-picked photo pool.
+    case photoSelection
 
     /// Whether this feature requires a premium unlock, independent of the player's current
     /// entitlement. Game modes and image sources delegate to their own `isFree`; every other
@@ -27,7 +29,7 @@ enum PremiumFeature: Sendable, Hashable {
         switch self {
         case .gameMode(let mode): mode.isFree
         case .imageSource(let source): source.isFree
-        case .liveActivities, .widgets, .wallOfFame, .achievementsArchive, .dailyArchive: false
+        case .liveActivities, .widgets, .wallOfFame, .achievementsArchive, .dailyArchive, .photoSelection: false
         }
     }
 

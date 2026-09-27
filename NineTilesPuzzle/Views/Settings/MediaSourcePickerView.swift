@@ -74,6 +74,10 @@ struct MediaSourcePickerView: View {
                 }
             }
 
+            if showsPhotoSelection {
+                PhotoSelectionSectionView()
+            }
+
             if authStatus == .limited {
                 Button("Update Photo Access in Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -89,6 +93,15 @@ struct MediaSourcePickerView: View {
             authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         }
         .paywallSheet(context: $paywallContext)
+    }
+
+    /// A hand-picked pool is a premium feature that only matters for the photo-library
+    /// sources, and only with full access — under limited access the system's shared set
+    /// already is the pool.
+    private var showsPhotoSelection: Bool {
+        let source = session.mediaSourceType
+        let isPhotoSelectionLocked = PremiumFeature.photoSelection.isLocked(isPremiumUnlocked: store.isPremiumUnlocked)
+        return (source == .local || source == .mixed) && !isPhotoSelectionLocked && authStatus == .authorized
     }
 
     private func isLocked(_ source: MediaSourceType) -> Bool {
@@ -120,5 +133,6 @@ struct MediaSourcePickerView: View {
         MediaSourcePickerView()
             .environment(GameSession(statsStore: stats, achievementsStore: achievements, settingsStore: settings, dailyChallengeStore: DailyChallengeStore(), powerUpStore: PowerUpStore(), challengeStore: ChallengeStore()))
             .environment(StoreManager())
+            .environment(settings)
     }
 }

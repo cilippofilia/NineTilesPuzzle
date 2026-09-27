@@ -21,6 +21,10 @@ final class SettingsStore {
     var quickSnapDuration: Double = 3
     /// Which camera Quick Snap opens with, remembered across sessions. `false` is the back camera.
     var quickSnapUsesFrontCamera: Bool = false
+    /// `PHAsset` local identifiers the player hand-picked as the pool for the From Photos and
+    /// Mixed sources. Empty means "the whole library" — the default, and the fallback if
+    /// every picked photo has since been deleted or fallen out of limited-access scope.
+    var selectedPhotoIdentifiers: [String] = []
     var feedbackIntensity: FeedbackIntensity = .standard
     /// Master switch for the power-ups system (Peek, Hint, Streak Freeze, Re-shuffle,
     /// Auto-place). Still being tuned, so it ships hidden — there's no user-facing control,
@@ -116,6 +120,12 @@ final class SettingsStore {
         guard value != quickSnapUsesFrontCamera else { return }
         quickSnapUsesFrontCamera = value
         defaults.set(value, forKey: Keys.quickSnapUsesFrontCamera)
+    }
+
+    func setSelectedPhotoIdentifiers(_ identifiers: [String]) {
+        guard identifiers != selectedPhotoIdentifiers else { return }
+        selectedPhotoIdentifiers = identifiers
+        defaults.set(identifiers, forKey: Keys.selectedPhotoIdentifiers)
     }
 
     func setFeedbackIntensity(_ value: FeedbackIntensity) {
@@ -222,6 +232,7 @@ private extension SettingsStore {
         static let streakCountdownDuration = "puzzle.streakCountdownDuration"
         static let quickSnapDuration = "puzzle.quickSnapDuration"
         static let quickSnapUsesFrontCamera = "puzzle.quickSnapUsesFrontCamera"
+        static let selectedPhotoIdentifiers = "puzzle.selectedPhotoIdentifiers"
         static let feedbackIntensity = "puzzle.feedbackIntensity"
         /// Superseded by `feedbackIntensity`, kept only so `restoreFromUserDefaults` can
         /// migrate players who had haptics turned off under the old on/off toggle.
@@ -256,6 +267,9 @@ private extension SettingsStore {
         }
         if defaults.object(forKey: Keys.quickSnapUsesFrontCamera) != nil {
             quickSnapUsesFrontCamera = defaults.bool(forKey: Keys.quickSnapUsesFrontCamera)
+        }
+        if let identifiers = defaults.object(forKey: Keys.selectedPhotoIdentifiers) as? [String] {
+            selectedPhotoIdentifiers = identifiers
         }
         if let rawValue = defaults.string(forKey: Keys.feedbackIntensity), let value = FeedbackIntensity(rawValue: rawValue) {
             feedbackIntensity = value

@@ -607,9 +607,14 @@ final class GameSession {
                     throw ImageSourceError.providerUnavailable
                 }
             } else {
+                // The hand-picked pool is premium; if the entitlement lapsed, keep the saved
+                // picks for a re-purchase but play from the whole library meanwhile.
+                let photoSource = PhotoLibraryImageSource(
+                    selectedIdentifiers: isPremiumUnlocked() ? settingsStore.selectedPhotoIdentifiers : []
+                )
                 switch mediaSourceType {
                 case .local:
-                    image = try await ImageService(primarySource: PhotoLibraryImageSource()).loadImage().image
+                    image = try await ImageService(primarySource: photoSource).loadImage().image
                 case .mixed:
                     // Mixed already accepts photo-library images as a valid outcome, so a failed
                     // remote fetch falls back to a real library photo rather than the bundled
@@ -617,10 +622,10 @@ final class GameSession {
                     image = if Bool.random() {
                         try await ImageService(
                             primarySource: RemoteImageSource(),
-                            fallbackSource: PhotoLibraryImageSource()
+                            fallbackSource: photoSource
                         ).loadImage().image
                     } else {
-                        try await ImageService(primarySource: PhotoLibraryImageSource()).loadImage().image
+                        try await ImageService(primarySource: photoSource).loadImage().image
                     }
                 default: // .random; .numbers is handled above
                     // No bundled-image fallback here: a player who chose Internet-only shouldn't
