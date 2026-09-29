@@ -20,8 +20,10 @@ final class SoundService {
     let tileMoveSoundName = "Classic Click"
     let completionSoundName = "Chime"
 
-    private let clickPlayer: AVAudioPlayer?
-    private let completionPlayer: AVAudioPlayer?
+    /// Loaded once the audio session is active (see `prepareAudio()`); until then the
+    /// play methods quietly no-op.
+    private var clickPlayer: AVAudioPlayer?
+    private var completionPlayer: AVAudioPlayer?
     /// Read lazily rather than injected as a stored `FeedbackIntensity`, mirroring
     /// `StoreManager`'s `debugOverride` closure — keeps `SoundService` decoupled from
     /// `SettingsStore` while still tracking the live "Feedback Intensity" setting.
@@ -40,12 +42,26 @@ final class SoundService {
         tileMoveVolume = defaults.object(forKey: "tileMoveVolume") as? Double ?? 1.0
         completionVolume = defaults.object(forKey: "completionVolume") as? Double ?? 1.0
 
-        // .ambient respects the ring/silent switch and the system volume.
-        try? AVAudioSession.sharedInstance().setCategory(.ambient)
-        try? AVAudioSession.sharedInstance().setActive(true)
+        Task { await prepareAudio() }
+    }
 
+    /// Activates the audio session off the main actor, then loads the players. Loading only
+    /// after activation matters: `prepareToPlay()` on an inactive session activates it
+    /// synchronously on the calling thread, which is exactly the main-thread stall to avoid.
+    private func prepareAudio() async {
+        await Self.activateSession()
         clickPlayer = Self.loadPlayer(named: "TileClick", withExtension: "wav")
         completionPlayer = Self.loadPlayer(named: "Completion", withExtension: "wav")
+    }
+
+    /// `setActive(_:)` blocks while the audio server spins up, so it runs on the concurrent
+    /// executor. The non-blocking `activate(options:)` replacement requires iOS 27.
+    @concurrent
+    private nonisolated static func activateSession() async {
+        let session = AVAudioSession.sharedInstance()
+        // .ambient respects the ring/silent switch and the system volume.
+        try? session.setCategory(.ambient)
+        try? session.setActive(true)
     }
 
     func setTileMoveEnabled(_ value: Bool) {
