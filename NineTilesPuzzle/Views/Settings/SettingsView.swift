@@ -23,12 +23,13 @@ struct SettingsView: View {
     @State private var showContactOptions = false
     @State private var paywallContext: PaywallContext?
     @State private var showManageSubscriptions = false
+    @State private var showOfferCodeRedemption = false
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    if !store.isPremiumUnlocked {
+                    if store.isPremiumUnlocked {
                         Label {
                             Text("VIP Unlocked")
                         } icon: {
@@ -274,6 +275,15 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Button("Redeem Code", systemImage: "giftcard") {
+                        showOfferCodeRedemption = true
+                    }
+                    .buttonStyle(.plain)
+                } footer: {
+                    Text("Have a promo code? Redeem it here to unlock your reward.")
+                }
+
+                Section {
                     Button("Reset Settings", role: .destructive) {
                         showResetSettingsAlert = true
                     }
@@ -306,6 +316,11 @@ struct SettingsView: View {
         }
         .paywallSheet(context: $paywallContext)
         .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
+        .offerCodeRedemption(isPresented: $showOfferCodeRedemption) { _ in
+            // Redeemed transactions also arrive via `Transaction.updates`;
+            // refreshing here makes the VIP state update immediately.
+            Task { await store.refreshEntitlement() }
+        }
         .presentationDetents([.medium, .large])
     }
 }

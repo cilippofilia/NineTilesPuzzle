@@ -1,0 +1,9 @@
+{
+  "id" : "e7732b98-2b75-406c-a783-82b438ef54ff",
+  "targets" : [
+    {
+      "id" : "75674A53-AB16-44B5-9F37-78704389F0A4",
+      "name" : "NineTilesPuzzle"
+    }
+  ]
+}
