@@ -86,9 +86,9 @@ struct GameSessionChallengeTests {
             space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         )!
-        let x = -CGFloat(image.width) / 2 + 0.5
-        let y = -CGFloat(image.height) / 2 + 0.5
-        context.draw(image, in: CGRect(x: x, y: y, width: CGFloat(image.width), height: CGFloat(image.height)))
+        let originX = -CGFloat(image.width) / 2 + 0.5
+        let originY = -CGFloat(image.height) / 2 + 0.5
+        context.draw(image, in: CGRect(x: originX, y: originY, width: CGFloat(image.width), height: CGFloat(image.height)))
         return (pixel[0], pixel[1], pixel[2])
     }
 

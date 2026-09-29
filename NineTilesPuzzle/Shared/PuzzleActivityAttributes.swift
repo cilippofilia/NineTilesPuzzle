@@ -18,7 +18,9 @@ import Foundation
 /// state — the state is serialized on every update and must stay tiny.
 ///
 /// Shared between the app and the widget extension: this file must be a member of both targets.
-struct PuzzleActivityAttributes: ActivityAttributes {
+/// Explicitly `nonisolated` so the app target's default MainActor isolation doesn't bind the
+/// `ActivityAttributes` conformance to the main actor — ActivityKit uses it off-main.
+nonisolated struct PuzzleActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         /// Filename (within the shared App Group container) of the current board snapshot PNG.
         /// A fresh name on every update busts the widget's image cache and sidesteps the race

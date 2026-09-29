@@ -17,15 +17,18 @@ struct PhotoSelectionSectionView: View {
     @State private var pickerItems: [PhotosPickerItem] = []
 
     var body: some View {
+        // Read on the main actor here: the picker's label closure is nonisolated.
+        let selectedCount = settings.selectedPhotoIdentifiers.count
+
         Section {
             // `.shared()` is what makes the picker hand back `itemIdentifier`s, which map
             // straight onto `PHAsset` local identifiers for `PhotoLibraryImageSource`.
             PhotosPicker(selection: $pickerItems, matching: .images, photoLibrary: .shared()) {
                 LabeledContent("Choose Photos") {
-                    if settings.selectedPhotoIdentifiers.isEmpty {
+                    if selectedCount == 0 {
                         Text("Whole Library")
                     } else {
-                        Text("^[\(settings.selectedPhotoIdentifiers.count) photo](inflect: true)")
+                        Text("^[\(selectedCount) photo](inflect: true)")
                     }
                 }
             }
