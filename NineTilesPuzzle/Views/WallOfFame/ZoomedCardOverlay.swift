@@ -60,6 +60,8 @@ struct ZoomedCardOverlay<Footer: View>: View {
                 footer
             }
             .padding(.horizontal, 28)
+            // Stops the card from blowing up across a wide window (iPhone Duo's inner display).
+            .frame(maxWidth: 520)
         }
     }
 }

@@ -13,7 +13,8 @@ import SwiftUI
 /// it, then the same benefit carousel and a selectable plan list (lifetime pre-selected as
 /// the best-value pick), everywhere this sheet is shown. The confirm CTA, Restore Purchase,
 /// and the legal links all stay pinned in a bottom safe-area inset rather than scrolling away
-/// with the rest of the content.
+/// with the rest of the content (the plan list too, unless the window is short — see
+/// `pinsPlanList`).
 struct PaywallView: View {
     @Environment(StoreManager.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -24,6 +25,18 @@ struct PaywallView: View {
     @State private var isPurchasing = false
     @State private var isRestoring = false
     @State private var errorMessage: String?
+    @State private var sheetHeight: CGFloat = 0
+    @State private var planListHeight: CGFloat = 0
+    @State private var pinnedActionsHeight: CGFloat = 0
+
+    /// The plan list normally sits pinned above the CTA. In a short window — iPhone Duo's
+    /// wide, short outer display, or a large Dynamic Type size — pinning it too would leave
+    /// little room for anything else, so it scrolls with the content instead, keeping the
+    /// CTA, disclosure, and Restore pinned. Measured from the plan list's own height (the same
+    /// wherever it sits), so moving it can never flip this back.
+    private var pinsPlanList: Bool {
+        sheetHeight == 0 || planListHeight + pinnedActionsHeight <= sheetHeight * 0.65
+    }
 
     private var selectedProduct: Product? {
         [store.monthlyProduct, store.lifetimeProduct]
@@ -54,6 +67,12 @@ struct PaywallView: View {
                         .glassEffect(.regular, in: .rect(cornerRadius: 16))
                         .padding()
 
+                    if !pinsPlanList {
+                        PaywallPlanListView(selectedProductID: $selectedProductID)
+                            .padding([.top, .horizontal])
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { planListHeight = $0 }
+                    }
+
                     if let message = store.pendingApprovalMessage {
                         Text(message)
                             .font(.footnote)
@@ -68,35 +87,44 @@ struct PaywallView: View {
                             .padding(.horizontal)
                     }
                 }
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
                 .scrollBounceBehavior(.basedOnSize)
             }
             .scrollIndicators(.hidden)
             .safeAreaInset(edge: .bottom) {
                 VStack {
-                    PaywallPlanListView(selectedProductID: $selectedProductID)
-                        .padding([.top, .horizontal])
+                    if pinsPlanList {
+                        PaywallPlanListView(selectedProductID: $selectedProductID)
+                            .padding([.top, .horizontal])
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { planListHeight = $0 }
+                    }
 
-                    PaywallCTAButton(
-                        title: ctaTitle,
-                        isPurchasing: isPurchasing,
-                        isDisabled: isPurchasing || selectedProduct == nil,
-                        action: purchaseSelected
-                    )
-                    .padding()
+                    VStack {
+                        PaywallCTAButton(
+                            title: ctaTitle,
+                            isPurchasing: isPurchasing,
+                            isDisabled: isPurchasing || selectedProduct == nil,
+                            action: purchaseSelected
+                        )
+                        .padding()
 
-                    PaywallLegalFooterView(
-                        disclosureText: subscriptionDisclosure,
-                        isRestoring: isRestoring,
-                        onRestore: restore
-                    )
+                        PaywallLegalFooterView(
+                            disclosureText: subscriptionDisclosure,
+                            isRestoring: isRestoring,
+                            onRestore: restore
+                        )
+                    }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pinnedActionsHeight = $0 }
                 }
+                .frame(maxWidth: 600)
             }
             .scrollContentBackground(.hidden)
             .background(AppBackgroundView())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("Close", systemImage: "xmark") { dismiss() }
                 }
             }
             .task {
@@ -114,6 +142,7 @@ struct PaywallView: View {
                 if isUnlocked { dismiss() }
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
     }
 
     private func purchaseSelected() {

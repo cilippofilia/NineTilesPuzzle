@@ -35,7 +35,7 @@ struct AchievementsView: View {
         .navigationTitle("Achievements")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Text("\(unlocked) / \(total)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

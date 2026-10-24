@@ -16,6 +16,16 @@ struct PuzzleMainContentLayer: View {
     let startNewGame: () -> Void
     let switchToPhotosAndRetry: () -> Void
 
+    /// Constant room kept above and below the grid for the floating status bar and the
+    /// power-up toolbar, which live in other layers. On a tall iPhone the grid is width-bound
+    /// and this never changes its size or centering; in a short or near-square window (such
+    /// as either iPhone Duo display) it shrinks the grid instead of letting the HUD cover the
+    /// first and last rows. Never toggled mid-game — see `PuzzleView`'s Layer 1 comment — and
+    /// skipped in Zen mode, which hides the HUD for the whole game. Capped so accessibility
+    /// text sizes can't squeeze the board on a regular iPhone.
+    @ScaledMetric(relativeTo: .body) private var scaledHUDClearance: CGFloat = 80
+    private var hudClearance: CGFloat { session.isZenMode ? 0 : min(scaledHUDClearance, 110) }
+
     var body: some View {
         VStack {
             if session.isLoading {
@@ -74,6 +84,7 @@ struct PuzzleMainContentLayer: View {
                     .shadow(color: .teal.opacity(session.isZenMode ? completion.zenGlowOpacity * 0.7 : 0), radius: 28)
                     .scaleEffect(session.isZenMode ? completion.zenBreathScale : 1)
                     .padding(.horizontal)
+                    .padding(.vertical, hudClearance)
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.95).combined(with: .opacity),
                         removal: .identity

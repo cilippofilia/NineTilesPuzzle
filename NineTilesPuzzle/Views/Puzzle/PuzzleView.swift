@@ -265,21 +265,23 @@ struct PuzzleView: View {
                 }
             }
 
-            if completion.showCompletion, let png = solvedPNG {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: png, preview: SharePreview("Solved Puzzle")) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .labelStyle(.iconOnly)
+            // Grouped so the post-solve actions stay together as one unit, including when
+            // iPhone Duo moves them into its vertical bar.
+            if completion.showCompletion {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    if let png = solvedPNG {
+                        ShareLink(item: png, preview: SharePreview("Solved Puzzle")) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                                .labelStyle(.iconOnly)
+                        }
                     }
-                }
-            }
 
-            if completion.showCompletion, isChallengeEligible {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Challenge a Friend", systemImage: "person.2.fill") {
-                        showChallengeSendSheet = true
+                    if isChallengeEligible {
+                        Button("Challenge a Friend", systemImage: "person.2.fill") {
+                            showChallengeSendSheet = true
+                        }
+                        .labelStyle(.iconOnly)
                     }
-                    .labelStyle(.iconOnly)
                 }
             }
         }

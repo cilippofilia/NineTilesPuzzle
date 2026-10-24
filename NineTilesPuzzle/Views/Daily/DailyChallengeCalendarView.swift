@@ -37,7 +37,9 @@ struct DailyChallengeCalendarView: View {
         // and cover the full navigation content area, mirroring the Wall of Fame.
         ZStack {
             ScrollView {
-                LazyVStack {
+                // One month per row on a phone; wider windows (iPhone Duo's inner display)
+                // show months side by side instead of stretching each grid's day cells.
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), alignment: .top)]) {
                     ForEach(months) { month in
                         DailyMonthGridView(month: month, today: today, onDayTap: showCard)
                     }

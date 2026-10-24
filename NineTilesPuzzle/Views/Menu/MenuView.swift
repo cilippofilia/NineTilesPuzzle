@@ -77,6 +77,10 @@ struct MenuView: View {
 
                     Spacer()
                 }
+                // Keeps the cards and Play button at a comfortable width on wide windows
+                // (iPhone Duo's inner display) instead of stretching edge to edge.
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
                 .sheet(isPresented: $showSettings) {
                     SettingsView()
                 }
@@ -162,6 +166,7 @@ struct MenuView: View {
                         }
                     )
                     .padding()
+                    .frame(maxWidth: 600)
                 }
             }
             .task { await refreshBannerAd() }

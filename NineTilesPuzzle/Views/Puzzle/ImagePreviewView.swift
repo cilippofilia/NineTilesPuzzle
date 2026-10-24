@@ -17,6 +17,10 @@ struct ImagePreviewView: View {
 
     @State private var progress: Double = 1.0
     @State private var isRevealed = false
+    /// Room for the header and countdown/Skip overlays; capped like
+    /// `PuzzleMainContentLayer.hudClearance` so large text can't squeeze the image.
+    @ScaledMetric(relativeTo: .body) private var scaledOverlayClearance: CGFloat = 80
+    private var overlayClearance: CGFloat { min(scaledOverlayClearance, 110) }
 
     /// In Fog Mode the image starts hidden; the user shakes to reveal it.
     /// In all other modes the image is immediately visible.
@@ -41,6 +45,10 @@ struct ImagePreviewView: View {
                 }
                 .animation(.easeInOut(duration: 1.2), value: showFog)
                 .padding(.horizontal)
+                // Keeps the header and countdown/Skip overlays off the image when the window
+                // is short or near-square (e.g. iPhone Duo); a no-op on tall iPhones, where
+                // the image is width-bound.
+                .padding(.vertical, overlayClearance)
 
             Spacer()
         }
