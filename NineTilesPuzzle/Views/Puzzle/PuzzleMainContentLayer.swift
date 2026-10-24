@@ -15,6 +15,10 @@ struct PuzzleMainContentLayer: View {
     let completion: PuzzleCompletionViewModel
     let startNewGame: () -> Void
     let switchToPhotosAndRetry: () -> Void
+    /// Trailing width reserved for the wide-layout side panel (and an iPhone Duo's fold), which
+    /// live in another layer — everything here (loading, preview, error, grid) stays in the
+    /// remaining space beside them. Nil in the stacked layout.
+    var reservedTrailingWidth: CGFloat?
 
     /// Constant room kept above and below the grid for the floating status bar and the
     /// power-up toolbar, which live in other layers. On a tall iPhone the grid is width-bound
@@ -84,7 +88,8 @@ struct PuzzleMainContentLayer: View {
                     .shadow(color: .teal.opacity(session.isZenMode ? completion.zenGlowOpacity * 0.7 : 0), radius: 28)
                     .scaleEffect(session.isZenMode ? completion.zenBreathScale : 1)
                     .padding(.horizontal)
-                    .padding(.vertical, hudClearance)
+                    // The side panel holds the HUD, so nothing floats over or under the grid.
+                    .padding(.vertical, reservedTrailingWidth == nil ? hudClearance : nil)
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.95).combined(with: .opacity),
                         removal: .identity
@@ -92,6 +97,7 @@ struct PuzzleMainContentLayer: View {
                 Spacer()
             }
         }
+        .padding(.trailing, reservedTrailingWidth ?? 0)
         .animation(.easeInOut(duration: 0.35), value: session.isLoading)
         .animation(.easeInOut(duration: 0.35), value: session.isPreviewing)
     }

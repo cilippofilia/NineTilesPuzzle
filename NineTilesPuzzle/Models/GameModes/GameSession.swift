@@ -135,6 +135,10 @@ final class GameSession {
     /// distinct from `isNewLadderStageRecord`, which fires only the first time a run ever
     /// reaches a given stage. Drives the Wall of Fame's per-stage card capture.
     var isNewLadderStageBestRecord: Bool = false
+    /// The personal bests as they stood just before the current game was solved — see
+    /// `PersonalBestSnapshot`. Nil until a solve, and for solves that aren't ranked against
+    /// `StatsStore` (practice, Zen, Daily, Challenge).
+    private(set) var bestsBeforeSolve: PersonalBestSnapshot?
 
     private(set) var timerRemaining: Double = 30
     private(set) var isTimerRunning = false
@@ -532,6 +536,7 @@ final class GameSession {
         isLoading = true
         isSolved = false
         isNewRecord = false
+        bestsBeforeSolve = nil
         currentMoveCount = 0
         isNewMovesRecord = false
         elapsedTime = 0
@@ -959,6 +964,8 @@ final class GameSession {
             if isTimeTrialMode { stopTimeTrialCountdown() } else { stopCountdown() }
             stopStopwatch()
             liveActivity.end()
+            // Captured before anything below records this solve and overwrites a beaten best.
+            bestsBeforeSolve = rankedPersonalBests
             if isDailyGameActive {
                 if !debugOverlayEnabled {
                     let isFirstEverCompletion = dailyChallengeStore.completedDayKeys.isEmpty
@@ -1279,6 +1286,22 @@ extension GameSession {
 
     var difficultyDisplayValue: String {
         useRandomSize ? "Random" : "\(difficultyLabel)  \(gridSize) × \(gridSize)"
+    }
+
+    /// The current game's personal bests, or nil when the game isn't ranked against
+    /// `StatsStore` at all (practice, Zen, Daily, Challenge) — so UI shows no comparison
+    /// rather than one against unrelated records.
+    var rankedPersonalBests: PersonalBestSnapshot? {
+        guard !isDailyGameActive, !isChallengeGameActive, !isZenMode, !settingsStore.debugOverlayEnabled else {
+            return nil
+        }
+        return PersonalBestSnapshot(
+            moves: statsStore.personalBestMoves[currentStatsKey],
+            time: statsStore.personalBestTime[currentStatsKey],
+            score: statsStore.personalBestScore[currentStatsKey],
+            ladderRunScore: statsStore.bestLadderScore,
+            ladderStage: statsStore.bestLadderStageReached
+        )
     }
 
     var personalBestForCurrentSize: Int? { statsStore.personalBestMoves[currentStatsKey] }

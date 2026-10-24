@@ -17,6 +17,8 @@ struct PuzzleView: View {
     @Environment(WallOfFameStore.self) private var wallOfFameStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     @State private var completion = PuzzleCompletionViewModel()
     @State private var showQuitAlert = false
@@ -45,6 +47,20 @@ struct PuzzleView: View {
     @State private var isShowingResumeCountdown = false
     @State private var resumeCountdownValue = 3
     @State private var resumeCountdownTask: Task<Void, Never>?
+    /// The space the puzzle screen has, which decides whether it splits into the board and a
+    /// side panel or keeps the HUD floating over and under the board.
+    @State private var contentGeometry = PuzzleSidePanelLayout.ContentGeometry()
+
+    /// Non-nil while a non-Zen game has room for the side panel (see `PuzzleSidePanelLayout`):
+    /// how the screen divides between board and panel. The board, preview and everything
+    /// touchable then stay on the board's side, clear of an iPhone Duo's fold. Zen keeps the board alone, as it has no HUD to show.
+    private var sidePanelSplit: PuzzleSidePanelLayout.Split? {
+        guard !session.isZenMode else { return nil }
+        return PuzzleSidePanelLayout.split(
+            for: contentGeometry,
+            hasRegularSizeClasses: horizontalSizeClass == .regular && verticalSizeClass == .regular
+        )
+    }
 
     var body: some View {
         // Split into two independently type-checked expressions to avoid the compiler's
@@ -59,13 +75,31 @@ struct PuzzleView: View {
             PuzzleMainContentLayer(
                 completion: completion,
                 startNewGame: startNewGame,
-                switchToPhotosAndRetry: switchToPhotosAndRetry
+                switchToPhotosAndRetry: switchToPhotosAndRetry,
+                reservedTrailingWidth: sidePanelSplit?.boardTrailingInset
             )
 
             ZStack {
-                // Layers 2 & 3: floating status bar and completion banner. Both are hidden in
-                // Zen mode, which shows nothing but the puzzle itself.
-                if !session.isZenMode {
+                // Layers 2 & 3: floating status bar and completion banner — or, when the window
+                // is wide enough, the side panel that holds both (plus the fail states, so their
+                // buttons never sit mid-screen on an iPhone Duo's fold). All hidden in Zen mode,
+                // which shows nothing but the puzzle itself.
+                if let sidePanelSplit {
+                    PuzzleSidePanelView(
+                        completion: completion,
+                        isGameActive: isGameActive,
+                        showTimeTrialDelta: showTimeTrialDelta,
+                        continueAction: handleContinue,
+                        dismissAction: leaveDailyChallenge,
+                        tryAgainAction: startNewGame,
+                        rechallengeAction: rechallengeActionIfChallengeActive,
+                        sendResultAction: sendResultActionIfChallengeActive
+                    )
+                    .padding()
+                    .frame(width: sidePanelSplit.panelWidth)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                } else if !session.isZenMode {
                     PuzzleStatusOverlayLayer(completion: completion, showTimeTrialDelta: showTimeTrialDelta)
                     PuzzleCompletionOverlayView(
                         completion: completion,
@@ -74,18 +108,18 @@ struct PuzzleView: View {
                         rechallengeAction: rechallengeActionIfChallengeActive,
                         sendResultAction: sendResultActionIfChallengeActive
                     )
-                }
 
-                // Layer 3b: Time Trial fail overlay — shown instead of the completion banner
-                // when the countdown reaches zero unsolved.
-                if session.isTimeTrialMode {
-                    TimeTrialFailOverlay(completion: completion, onTryAgain: startNewGame)
-                }
+                    // Layer 3b: Time Trial fail overlay — shown instead of the completion banner
+                    // when the countdown reaches zero unsolved.
+                    if session.isTimeTrialMode {
+                        TimeTrialFailOverlay(completion: completion, onTryAgain: startNewGame)
+                    }
 
-                // Layer 3c: Limited Moves fail overlay — mirrors the Time Trial fail overlay
-                // for a spent move budget.
-                if session.isLimitedMovesMode {
-                    LimitedMovesFailOverlay(completion: completion, onTryAgain: startNewGame)
+                    // Layer 3c: Limited Moves fail overlay — mirrors the Time Trial fail overlay
+                    // for a spent move budget.
+                    if session.isLimitedMovesMode {
+                        LimitedMovesFailOverlay(completion: completion, onTryAgain: startNewGame)
+                    }
                 }
 
                 // Layer 3d: Peek power-up — re-shows the full image mid-game, reusing the same
@@ -99,6 +133,8 @@ struct PuzzleView: View {
                         gameMode: session.selectedGameMode,
                         onSkip: session.skipPeek
                     )
+                    // Covers the board's half only, keeping its skip button off the fold.
+                    .padding(.trailing, sidePanelSplit?.boardTrailingInset ?? 0)
                     .transition(.opacity)
                 }
 
@@ -128,12 +164,18 @@ struct PuzzleView: View {
             // in progress. Hidden in Zen mode along with the rest of the HUD — Zen is meant to be
             // nothing but the puzzle. Same scoping rationale as Layer 4 above.
             .safeAreaInset(edge: .bottom) {
-                if settings.powerUpsEnabled && !session.isZenMode && isGameActive {
+                if settings.powerUpsEnabled && !session.isZenMode && isGameActive && sidePanelSplit == nil {
                     PuzzlePowerUpToolbarView()
                         .padding(.bottom, 8)
                 }
             }
         }
+        .onGeometryChange(for: PuzzleSidePanelLayout.ContentGeometry.self) { proxy in
+            PuzzleSidePanelLayout.ContentGeometry(
+                size: proxy.size,
+                divisionFrame: PuzzleSidePanelLayout.divisionFrame(in: proxy)
+            )
+        } action: { contentGeometry = $0 }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: achievementsStore.newlyUnlockedAchievement)
         .task(id: achievementsStore.newlyUnlockedAchievement?.id) {
             guard achievementsStore.newlyUnlockedAchievement != nil else { return }

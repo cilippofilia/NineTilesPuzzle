@@ -40,6 +40,11 @@ struct CompletionBannerView: View {
     /// "Completed!" for every non-ladder solve; a mid-run ladder clear instead names the
     /// stage just cleared, and the final stage gets its own celebratory title.
     private var titleText: String {
+        Self.title(isLadderMode: isLadderMode, isLadderRunComplete: isLadderRunComplete, lastClearedLadderStage: lastClearedLadderStage)
+    }
+
+    /// Shared with `PuzzleCompletionPanelView` so both completion layouts use the same title.
+    static func title(isLadderMode: Bool, isLadderRunComplete: Bool, lastClearedLadderStage: Int) -> String {
         guard isLadderMode else { return "Completed!" }
         return isLadderRunComplete ? "Gauntlet Complete!" : "Stage \(lastClearedLadderStage) Cleared!"
     }

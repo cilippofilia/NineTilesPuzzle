@@ -19,13 +19,22 @@ struct PuzzleCompletionOverlayView: View {
     var sendResultAction: (() -> Void)? = nil
 
     private var continueButtonLabel: String {
-        guard session.isGauntletLadderMode else { return "Continue" }
-        return session.isLadderRunComplete ? "New Run" : "Next Stage"
+        Self.continueButtonLabel(isLadderMode: session.isGauntletLadderMode, isLadderRunComplete: session.isLadderRunComplete)
+    }
+
+    private var earnedPowerUps: [(type: PowerUpType, amount: Int)] {
+        Self.earnedPowerUps(from: powerUpStore)
+    }
+
+    /// Shared with `PuzzleSidePanelView` so both completion layouts label the button the same.
+    static func continueButtonLabel(isLadderMode: Bool, isLadderRunComplete: Bool) -> String {
+        guard isLadderMode else { return "Continue" }
+        return isLadderRunComplete ? "New Run" : "Next Stage"
     }
 
     /// The power-ups awarded this game, in `PowerUpType` declaration order so a multi-award solve
     /// (e.g. a streak milestone plus an achievement unlock) renders its badges deterministically.
-    private var earnedPowerUps: [(type: PowerUpType, amount: Int)] {
+    static func earnedPowerUps(from powerUpStore: PowerUpStore) -> [(type: PowerUpType, amount: Int)] {
         PowerUpType.allCases.compactMap { type in
             guard let amount = powerUpStore.recentlyEarned[type], amount > 0 else { return nil }
             return (type, amount)
