@@ -6,6 +6,7 @@
 //
 
 import CoreMotion
+import UIKit
 
 /// Exposes device tilt relative to real-world gravity as normalized pitch and
 /// roll (−1…1, clamped at ±0.14 rad ≈ ±8°). Used by the Wall of Fame tilt effect
@@ -28,11 +29,37 @@ final class MotionManager {
 
     var isAvailable: Bool { manager.isDeviceMotionAvailable }
 
-    /// Normalized roll (left-right tilt vs. vertical), −1…1. Zero when the device
-    /// is held upright in portrait; swings toward whichever side faces real down.
+    /// Normalized roll (left-right tilt vs. vertical), −1…1. Zero when the screen is
+    /// held upright in its current interface orientation (portrait on iPhone, any of the
+    /// four on iPad); swings toward whichever side faces real down.
     var roll: Double {
         guard let gravity = manager.deviceMotion?.gravity else { return 0 }
-        return Self.normalizedRoll(gravityX: gravity.x, gravityY: gravity.y)
+        let screen = Self.screenGravity(gravityX: gravity.x, gravityY: gravity.y, interfaceOrientation: interfaceOrientation)
+        return Self.normalizedRoll(gravityX: screen.x, gravityY: screen.y)
+    }
+
+    /// The window's current interface orientation. `CMDeviceMotion.gravity` is always in
+    /// the device's own portrait axes, so on a rotated iPad it has to be turned into screen
+    /// axes first — otherwise landscape reads as a permanent ±90° tilt.
+    private var interfaceOrientation: UIInterfaceOrientation {
+        UIApplication.shared.connectedScenes.lazy
+            .compactMap { $0 as? UIWindowScene }
+            .first?.effectiveGeometry.interfaceOrientation ?? .portrait
+    }
+
+    /// Rotates device-axis gravity into the axes of a screen shown in `interfaceOrientation`,
+    /// so "upright" always means the UI's own up. Pure so the mapping stays unit-testable.
+    nonisolated static func screenGravity(
+        gravityX: Double,
+        gravityY: Double,
+        interfaceOrientation: UIInterfaceOrientation
+    ) -> (x: Double, y: Double) {
+        switch interfaceOrientation {
+        case .portraitUpsideDown: (-gravityX, -gravityY)
+        case .landscapeLeft: (-gravityY, gravityX)
+        case .landscapeRight: (gravityY, -gravityX)
+        default: (gravityX, gravityY)
+        }
     }
 
     /// Normalized pitch (front-back lean vs. vertical), −1…1. Kept for parity and

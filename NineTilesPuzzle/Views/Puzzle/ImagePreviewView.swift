@@ -56,13 +56,21 @@ struct ImagePreviewView: View {
         .overlay(alignment: .top) {
             if isFogMode {
                 if !isRevealed {
-                    Label("Shake to reveal", systemImage: "iphone.gen3.radiowaves.left.and.right")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(.ultraThinMaterial, in: .capsule)
-                        .loudBounce()
+                    // Also a button: shaking a large iPad is impractical, and shake-only
+                    // input locks out players who can't make the gesture.
+                    Button {
+                        withAnimation { isRevealed = true }
+                    } label: {
+                        Label("Shake or tap to reveal", systemImage: "hand.tap")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(.ultraThinMaterial, in: .capsule)
+                            .contentShape(.capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .loudBounce()
                         .transition(.opacity.combined(with: .scale(scale: 0.9)))
                         .padding(.top)
                 } else {

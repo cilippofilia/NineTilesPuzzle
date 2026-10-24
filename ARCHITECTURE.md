@@ -609,7 +609,7 @@ state); `FogTileOverlay` survives as a standalone overlay for the Fog Mode previ
 overrides `motionBegan(_:with:)` and fires a closure on `.motionShake` — the UIKit bridge
 needed because SwiftUI has no shake API. Active only during the preview phase.
 
-`ImagePreviewView` takes an `isFogMode: Bool` parameter; the fog overlay, "Shake to reveal"
+`ImagePreviewView` takes an `isFogMode: Bool` parameter; the fog overlay, "Shake or tap to reveal"
 badge, and shake gesture are all gated on it so other modes get a plain "Memorize the image"
 preview with no fog or shake. The badge lives in a top `.overlay` (not the VStack layout
 flow), so the preview image sits at the same vertical position as the in-game grid regardless

@@ -30,6 +30,13 @@ nonisolated final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
     /// awaiting caller. Set while a capture is in flight, cleared when it resolves.
     private var captureContinuation: CheckedContinuation<CGImage, Error>?
 
+    /// Tracks how far the preview and the captured photo must be rotated to stay level with
+    /// the horizon. Quick Snap is portrait-only on iPhone, but iPad can be in any of the four
+    /// orientations, where a fixed connection angle shows a sideways feed and photo. Rebuilt
+    /// on every camera change, since each camera reports its own angles.
+    @MainActor private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    @MainActor private var previewRotationObservation: NSKeyValueObservation?
+
     /// Whether the device actually has a camera we can use. Availability only — authorization
     /// is requested separately in `configure()`. Mirrors how `.numbers` is offered
     /// conditionally: the Quick Snap media row is hidden entirely when this is false.
@@ -72,28 +79,52 @@ nonisolated final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
             throw ImageSourceError.notAuthorized
         }
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        let device = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<AVCaptureDevice, Error>) in
             sessionQueue.async { [self] in
                 do {
-                    try configureSession(preferredPosition: startingPosition)
+                    let device = try configureSession(preferredPosition: startingPosition)
                     session.startRunning()
-                    continuation.resume()
+                    continuation.resume(returning: device)
                 } catch {
                     continuation.resume(throwing: error)
                 }
+            }
+        }
+        await trackRotation(of: device)
+    }
+
+    /// Points a fresh `RotationCoordinator` at `device` and keeps the preview connection level
+    /// as the interface rotates.
+    @MainActor
+    private func trackRotation(of device: AVCaptureDevice) {
+        let coordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: previewLayer)
+        rotationCoordinator = coordinator
+        previewLayer.connection?.videoRotationAngle = coordinator.videoRotationAngleForHorizonLevelPreview
+        previewRotationObservation = coordinator.observe(
+            \.videoRotationAngleForHorizonLevelPreview,
+            options: .new
+        ) { [weak self] _, change in
+            guard let angle = change.newValue, let self else { return }
+            Task { @MainActor in
+                self.previewLayer.connection?.videoRotationAngle = angle
             }
         }
     }
 
     /// Grabs the current frame as an upright `CGImage`. Called when the countdown hits zero.
     func capture() async throws -> CGImage {
-        try await withCheckedThrowingContinuation { continuation in
+        let captureAngle = await rotationCoordinator?.videoRotationAngleForHorizonLevelCapture
+        return try await withCheckedThrowingContinuation { continuation in
             sessionQueue.async { [self] in
                 guard session.isRunning else {
                     continuation.resume(throwing: ImageSourceError.providerUnavailable)
                     return
                 }
                 captureContinuation = continuation
+                if let captureAngle, let connection = photoOutput.connection(with: .video),
+                   connection.isVideoRotationAngleSupported(captureAngle) {
+                    connection.videoRotationAngle = captureAngle
+                }
                 let settings = AVCapturePhotoSettings()
                 photoOutput.capturePhoto(with: settings, delegate: self)
             }
@@ -123,6 +154,7 @@ nonisolated final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
                 session.addInput(newInput)
                 videoInput = newInput
                 currentPosition = target
+                Task { @MainActor in trackRotation(of: device) }
             } else if let videoInput {
                 // Restore the previous feed rather than ending up with no input at all.
                 session.addInput(videoInput)
@@ -139,7 +171,8 @@ nonisolated final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
 
     // MARK: - Session graph
 
-    private func configureSession(preferredPosition: AVCaptureDevice.Position) throws {
+    /// Builds the capture graph and returns the camera it settled on.
+    private func configureSession(preferredPosition: AVCaptureDevice.Position) throws -> AVCaptureDevice {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 
@@ -162,6 +195,7 @@ nonisolated final class QuickSnapCameraSession: NSObject, @unchecked Sendable {
             throw ImageSourceError.providerUnavailable
         }
         session.addOutput(photoOutput)
+        return device
     }
 }
 

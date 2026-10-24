@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+import UIKit
 @testable import NineTilesPuzzle
 
 /// Verifies the gravity → normalized-tilt mapping that gives the Wall of Fame its
@@ -66,6 +67,35 @@ struct MotionManagerTests {
         // Real sensors never read exactly zero; tiny noise must not deflect either.
         #expect(MotionManager.normalizedRoll(gravityX: 0.01, gravityY: -0.01) == 0)
         #expect(MotionManager.normalizedRoll(gravityX: -0.02, gravityY: 0.01) == 0)
+    }
+
+    // MARK: - Interface orientation (iPad rotation)
+
+    @Test(
+        "Upright in every interface orientation rests at zero roll",
+        arguments: [
+            // Device-axis gravity when the screen is upright in each orientation.
+            (UIInterfaceOrientation.portrait, 0.0, -1.0),
+            (.portraitUpsideDown, 0.0, 1.0),
+            (.landscapeLeft, -1.0, 0.0), // device top pointing right
+            (.landscapeRight, 1.0, 0.0) // device top pointing left
+        ]
+    )
+    func uprightInEachOrientationIsZeroRoll(orientation: UIInterfaceOrientation, gravityX: Double, gravityY: Double) {
+        let screen = MotionManager.screenGravity(gravityX: gravityX, gravityY: gravityY, interfaceOrientation: orientation)
+        #expect(abs(MotionManager.normalizedRoll(gravityX: screen.x, gravityY: screen.y)) < 1e-9)
+    }
+
+    @Test("Tilting the screen's top to the right is positive roll in landscape too")
+    func landscapeTiltDirectionMatchesPortrait() {
+        let theta = clamp / 2
+        // Portrait reference: top tilted right by θ.
+        let portrait = MotionManager.normalizedRoll(gravityX: sin(theta), gravityY: -cos(theta))
+        // Same physical tilt of the screen in landscapeRight (device rotated 90° CCW):
+        // rotate the portrait screen-axis gravity back into device axes.
+        let screen = MotionManager.screenGravity(gravityX: cos(theta), gravityY: sin(theta), interfaceOrientation: .landscapeRight)
+        let landscape = MotionManager.normalizedRoll(gravityX: screen.x, gravityY: screen.y)
+        #expect(abs(landscape - portrait) < 1e-9)
     }
 
     // MARK: - Pitch
